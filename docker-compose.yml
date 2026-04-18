@@ -1,0 +1,23 @@
+version: "3.9"
+services:
+  cyberpath:
+    build: .
+    ports:
+      - "4000:4000"
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      CLIENT_URL: http://localhost:4000
+      APP_BASE_URL: http://localhost:4000
+      DATABASE_PATH: /app/apps/server/data/cyberpath.db
+      JWT_SECRET: replace-me-with-a-long-random-secret
+      COOKIE_SECURE: "false"
+      MAIL_MODE: db
+      ENABLE_DEMO_BILLING: "true"
+      SUPPORT_EMAIL: support@cyberpath.local
+      LOG_LEVEL: info
+    volumes:
+      - cyberpath-data:/app/apps/server/data
+
+volumes:
+  cyberpath-data:

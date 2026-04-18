@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: cyberpath-academy
+    env: docker
+    plan: starter
+    disk:
+      name: cyberpath-data
+      mountPath: /app/apps/server/data
+      sizeGB: 1

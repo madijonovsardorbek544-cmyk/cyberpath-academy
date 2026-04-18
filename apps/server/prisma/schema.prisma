@@ -1,0 +1,204 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  student
+  mentor
+  admin
+}
+
+model User {
+  id               String               @id @default(cuid())
+  name             String
+  email            String               @unique
+  passwordHash     String
+  role             Role                 @default(student)
+  goal             String?
+  experienceLevel  String?
+  placementScore   Int?
+  roadmapJson      Json?
+  streakDays       Int                  @default(0)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  progress         LessonProgress[]
+  quizAttempts     QuizAttempt[]
+  mistakes         Mistake[]
+  labSubmissions   LabSubmission[]
+  sentFeedback     MentorFeedback[]     @relation("MentorSentFeedback")
+  receivedFeedback MentorFeedback[]     @relation("StudentReceivedFeedback")
+  mentorLinks      MentorStudent[]      @relation("MentorLinks")
+  studentLinks     MentorStudent[]      @relation("StudentLinks")
+  resetTokens      PasswordResetToken[]
+}
+
+model MentorStudent {
+  id        String   @id @default(cuid())
+  mentorId  String
+  studentId String
+  createdAt DateTime @default(now())
+
+  mentor  User @relation("MentorLinks", fields: [mentorId], references: [id], onDelete: Cascade)
+  student User @relation("StudentLinks", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([mentorId, studentId])
+}
+
+model Lesson {
+  id                 String          @id @default(cuid())
+  slug               String          @unique
+  title              String
+  phase              Int
+  phaseTitle         String
+  level              String
+  orderIndex         Int
+  specialization     String?
+  estimatedMinutes   Int             @default(20)
+  learningObjectives Json
+  content            String
+  glossary           Json
+  examples           Json
+  knowledgeChecks    Json
+  commonMistakes     String
+  whyItMatters       String
+  icon               String          @default("shield")
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  quizQuestions      QuizQuestion[]
+  progress           LessonProgress[]
+}
+
+model QuizQuestion {
+  id              String   @id @default(cuid())
+  lessonId        String
+  prompt          String
+  type            String
+  difficulty      String
+  topic           String
+  subtopic        String
+  explanation     String
+  scenarioContext String?
+  options         Json
+  answer          Json
+  createdAt       DateTime @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model LessonProgress {
+  id               String    @id @default(cuid())
+  userId           String
+  lessonId         String
+  completed        Boolean   @default(false)
+  completedAt      DateTime?
+  timeSpentMinutes Int       @default(0)
+  lastOpenedAt     DateTime  @default(now())
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+model QuizAttempt {
+  id               String   @id @default(cuid())
+  userId           String
+  lessonId         String
+  score            Int
+  accuracy         Float
+  difficulty       String
+  timeSpentMinutes Int      @default(0)
+  details          Json
+  createdAt        DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Mistake {
+  id            String   @id @default(cuid())
+  userId        String
+  lessonId      String?
+  questionId    String?
+  topic         String
+  subtopic      String
+  prompt        String
+  explanation   String
+  userAnswer    Json?
+  correctAnswer Json?
+  notes         String?
+  repeatCount   Int      @default(1)
+  lastSeenAt    DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Lab {
+  id              String           @id @default(cuid())
+  slug            String           @unique
+  title           String
+  category        String
+  difficulty      String
+  description     String
+  dataset         Json
+  tasks           Json
+  safeGuardrails  String
+  solutionOutline String
+  submissions     LabSubmission[]
+}
+
+model LabSubmission {
+  id        String   @id @default(cuid())
+  userId    String
+  labId     String
+  answers   Json
+  score     Int
+  feedback  String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lab  Lab  @relation(fields: [labId], references: [id], onDelete: Cascade)
+}
+
+model GlossaryTerm {
+  id         String @id @default(cuid())
+  term       String @unique
+  definition String
+  category   String
+}
+
+model CapstoneIdea {
+  id             String @id @default(cuid())
+  title          String
+  specialization String
+  summary        String
+  deliverables   Json
+  difficulty     String
+}
+
+model MentorFeedback {
+  id        String   @id @default(cuid())
+  mentorId  String
+  studentId String
+  message   String
+  createdAt DateTime @default(now())
+
+  mentor  User @relation("MentorSentFeedback", fields: [mentorId], references: [id], onDelete: Cascade)
+  student User @relation("StudentReceivedFeedback", fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

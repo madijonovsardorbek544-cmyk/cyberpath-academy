@@ -1,0 +1,10 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+.github
+coverage
+*.log
+apps/server/data/backups
+apps/server/data/*.db-shm
+apps/server/data/*.db-wal

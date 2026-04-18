@@ -1,0 +1,8 @@
+run = "npm run dev"
+entrypoint = "README.md"
+
+[nix]
+channel = "stable-24_05"
+
+[deployment]
+run = ["sh", "-lc", "npm run build && npm run start --workspace server"]
