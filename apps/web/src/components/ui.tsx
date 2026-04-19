@@ -48,6 +48,29 @@ export function EmptyState({ title, description }: { title: string; description:
   return <Card className="p-6 text-center"><h3 className="text-lg font-semibold text-white">{title}</h3><p className="mt-2 text-sm text-slate-400">{description}</p></Card>;
 }
 
+export function ErrorState({
+  title,
+  description,
+  actionLabel = 'Try again',
+  onAction
+}: {
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  return (
+    <Card className="p-6 text-center">
+      <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full border border-rose-400/30 bg-rose-400/10 text-lg text-rose-200">
+        !
+      </div>
+      <h3 className="mt-4 text-lg font-semibold text-white">{title}</h3>
+      <p className="mt-2 text-sm text-slate-400">{description}</p>
+      {onAction ? <Button className="mt-5 bg-sky-400 text-slate-950" onClick={onAction}>{actionLabel}</Button> : null}
+    </Card>
+  );
+}
+
 export function Loader({ text = "Loading..." }: { text?: string }) {
   return <div className="flex min-h-[220px] items-center justify-center text-slate-400">{text}</div>;
 }
