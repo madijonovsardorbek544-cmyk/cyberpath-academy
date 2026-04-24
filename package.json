@@ -2,12 +2,15 @@
   "name": "cyberpath-academy",
   "private": true,
   "version": "1.0.0",
+  "engines": {
+    "node": ">=22",
+    "npm": ">=10"
+  },
   "workspaces": [
     "apps/server",
     "apps/web"
   ],
   "scripts": {
-    "postinstall": "npm run db:setup",
     "dev": "npm run dev --workspace server & npm run dev --workspace web",
     "dev:server": "npm run dev --workspace server",
     "dev:web": "npm run dev --workspace web",
