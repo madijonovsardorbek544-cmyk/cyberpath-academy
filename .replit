@@ -5,4 +5,4 @@ entrypoint = "README.md"
 channel = "stable-24_05"
 
 [deployment]
-run = ["sh", "-lc", "npm run build && npm run start --workspace server"]
+run = ["sh", "-lc", "npm run db:setup && npm run build && NODE_ENV=production npm run start --workspace server"]
