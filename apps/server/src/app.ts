@@ -20,13 +20,34 @@ initDb();
 
 export const app = express();
 
+const connectSrc = Array.from(new Set(["'self'", env.clientUrl, env.appBaseUrl]));
+const helmetOptions = {
+  crossOriginResourcePolicy: false,
+  contentSecurityPolicy: env.isProduction
+    ? {
+        useDefaults: true,
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          objectSrc: ["'none'"],
+          frameAncestors: ["'none'"],
+          formAction: ["'self'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          fontSrc: ["'self'", 'data:'],
+          scriptSrc: ["'self'"],
+          scriptSrcAttr: ["'none'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          connectSrc,
+          upgradeInsecureRequests: []
+        }
+      }
+    : false
+} satisfies Parameters<typeof helmet>[0];
+
 app.set('trust proxy', 1);
 app.use(requestContext);
 app.use(cors({ origin: env.clientUrl, credentials: true }));
-app.use(helmet({
-  crossOriginResourcePolicy: false,
-  contentSecurityPolicy: false
-}));
+app.use(helmet(helmetOptions));
 app.use(enforceOrigin);
 app.use(apiLimiter);
 app.use(express.json({ limit: '2mb' }));
