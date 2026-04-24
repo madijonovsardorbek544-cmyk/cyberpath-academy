@@ -31,6 +31,10 @@ const loginSchema = z.object({
 const requestResetSchema = z.object({ email: z.string().email() });
 const resetSchema = z.object({ token: z.string().min(10), password: strongPassword });
 
+function hashResetToken(token: string) {
+  return crypto.createHash('sha256').update(token).digest('hex');
+}
+
 function setSessionCookie(res: Response, token: string) {
   res.cookie('cyberpath_session', token, {
     httpOnly: true,
@@ -133,7 +137,8 @@ router.post('/request-password-reset', authLimiter, async (req, res) => {
     return res.json({ message: 'If that account exists, a reset email has been queued.' });
   }
 
-  const token = crypto.randomBytes(24).toString('hex');
+  const token = crypto.randomBytes(32).toString('hex');
+  const tokenHash = hashResetToken(token);
   const now = nowIso();
   const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
@@ -143,7 +148,7 @@ router.post('/request-password-reset', authLimiter, async (req, res) => {
      VALUES (?, ?, ?, ?, ?)`,
     makeId(),
     String(userRow.id),
-    token,
+    tokenHash,
     expiresAt,
     now
   );
@@ -173,7 +178,7 @@ router.post('/reset-password', authLimiter, async (req, res) => {
     return res.status(400).json({ message: 'Invalid password reset payload.', errors: parsed.error.flatten() });
   }
 
-  const reset = one<Record<string, unknown> | null>('SELECT * FROM password_reset_tokens WHERE token = ?', parsed.data.token);
+  const reset = one<Record<string, unknown> | null>('SELECT * FROM password_reset_tokens WHERE token = ?', hashResetToken(parsed.data.token));
   if (!reset || reset.used_at || new Date(String(reset.expires_at)) < new Date()) {
     return res.status(400).json({ message: 'Reset token is invalid or expired.' });
   }
