@@ -7,3 +7,26 @@ services:
       name: cyberpath-data
       mountPath: /app/apps/server/data
       sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: DATABASE_PATH
+        value: /app/apps/server/data/cyberpath.db
+      - key: JWT_SECRET
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: true
+      - key: CLIENT_URL
+        value: https://cyberpath-academy.onrender.com
+      - key: APP_BASE_URL
+        value: https://cyberpath-academy.onrender.com
+      - key: MAIL_MODE
+        value: console
+      - key: ENABLE_DEMO_BILLING
+        value: true
+      - key: SUPPORT_EMAIL
+        value: madijonovsardorbek544@gmail.com
+      - key: DEFAULT_LOCALE
+        value: en
