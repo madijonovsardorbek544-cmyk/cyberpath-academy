@@ -1,12 +1,14 @@
 import { mockApi } from './mock';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+const API_URL =
+  import.meta.env.VITE_API_URL ||
+  (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api');
 const API_MODE = import.meta.env.VITE_API_MODE || 'api';
 const REQUEST_TIMEOUT_MS = 12000;
 
 function getFriendlyNetworkMessage(error: unknown) {
   if (error instanceof DOMException && error.name === 'AbortError') {
-    return 'The request took too long. Make sure the API server is running on localhost:4000 and try again.';
+    return 'The request took too long. Make sure the API server is running and try again.';
   }
 
   if (error instanceof Error && /Failed to fetch/i.test(error.message)) {
