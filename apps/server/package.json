@@ -10,6 +10,8 @@
     "seed:phase1": "tsx scripts/seedPhase1Curriculum.ts",
     "db:setup": "tsx prisma/seed.ts",
     "db:setup:full": "tsx prisma/seed.ts && tsx scripts/seedPhase1Curriculum.ts",
+    "curriculum:verify": "tsx scripts/verifyCurriculum.ts",
+    "curriculum:smoke": "npm run db:setup:full && npm run curriculum:verify",
     "backup": "tsx scripts/backup.ts",
     "test": "node --test --import tsx tests/**/*.test.ts"
   },
