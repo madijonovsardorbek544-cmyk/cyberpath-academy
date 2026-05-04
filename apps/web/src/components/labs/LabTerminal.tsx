@@ -417,7 +417,7 @@ export function LabTerminal({ lab, onSubmission }: LabTerminalProps) {
             break;
           }
 
-          node.split("\n").forEach((row) => term.writeln(row));
+          node.split("\n").forEach((row: string) => term.writeln(row));
           break;
         }
 
