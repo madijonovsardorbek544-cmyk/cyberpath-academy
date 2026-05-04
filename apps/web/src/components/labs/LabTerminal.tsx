@@ -6,7 +6,10 @@ import { api } from "../../api/client";
 import type { Lab } from "../../types";
 
 type FsNode = string | FsDirectory;
-type FsDirectory = Record<string, FsNode>;
+
+interface FsDirectory {
+  [key: string]: string | FsDirectory;
+}
 
 type LabSubmission = {
   score: number;
