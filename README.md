@@ -1,5 +1,5 @@
 # CyberPath Academy
-
+![CyberPath Academy product preview](docs/assets/00-cover.png)
 > A full-stack defensive cybersecurity learning platform with structured lessons, quizzes, analytics, role-based dashboards, safe labs, and browser-based terminal simulations for fictional, authorized practice.
 
 ![Status](https://img.shields.io/badge/status-beta%20%2F%20early%20access-blue)
@@ -87,7 +87,29 @@ CyberPath Academy is not just a landing page, static course list, or UI demo. It
 | Documentation | README, security policy, contributing guide, issue templates, pull request template, launch checklist |
 
 ---
+## Screenshots
 
+### Landing Page
+
+![CyberPath Academy landing page](docs/assets/01-landing.png)
+
+### Student Dashboard
+
+![Student dashboard with analytics and recommendations](docs/assets/02-student-dashboard.png)
+
+### Learning Paths
+
+![Learning paths, lessons, tracks, and labs](docs/assets/03-learning-paths.png)
+
+### Interactive Defensive Terminal Lab
+
+![Interactive defensive terminal lab](docs/assets/04-terminal-lab.png)
+
+### Admin Dashboard
+
+![Admin dashboard with platform operations](docs/assets/05-admin-dashboard.png)
+
+---
 ## Product Overview
 
 ### Learner Experience
