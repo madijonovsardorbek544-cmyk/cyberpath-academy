@@ -39,6 +39,7 @@ This package is no longer just a polished MVP shell. It now includes the operati
 - Lesson pages with objectives, concept explanation, glossary, examples, quick checks, common mistakes, why it matters, and quizzes
 - Quiz engine with multiple choice, multi-select, true/false, matching, short response, and scenario-based support
 - Safe labs limited to defensive, fictional, authorized simulations only
+-  Interactive defensive terminal labs with a browser-based simulated shell, fictional datasets, task files, hints, answer saving, and backend scoring
 - AI tutor interface with simple/deep modes and offensive-safety guardrails
 - Mistake notebook with notes, adaptive remediation, and generated review quiz
 - Role-mapped specialization tracks with NICE / OWASP-style framing
