@@ -1,0 +1,39 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#020617"/><stop offset="0.55" stop-color="#06152d"/><stop offset="1" stop-color="#0f172a"/></linearGradient>
+    <radialGradient id="glow" cx="78%" cy="18%" r="70%"><stop offset="0" stop-color="#38bdf8" stop-opacity="0.28"/><stop offset="0.5" stop-color="#2563eb" stop-opacity="0.08"/><stop offset="1" stop-color="#020617" stop-opacity="0"/></radialGradient>
+    <filter id="shadow"><feDropShadow dx="0" dy="24" stdDeviation="24" flood-color="#000" flood-opacity="0.38"/></filter>
+    <style>
+      .title{font:800 82px Inter,Segoe UI,Arial,sans-serif;fill:#f8fafc}.sub{font:500 30px Inter,Segoe UI,Arial,sans-serif;fill:#94a3b8}.h{font:800 30px Inter,Segoe UI,Arial,sans-serif;fill:#f8fafc}.p{font:500 21px Inter,Segoe UI,Arial,sans-serif;fill:#94a3b8}.pill{font:700 16px Inter,Segoe UI,Arial,sans-serif;fill:#bae6fd}.mono{font:500 18px ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;fill:#dbeafe}.green{fill:#34d399}.cyan{fill:#38bdf8}.muted{fill:#64748b}
+    </style>
+  </defs>
+  <rect width="1600" height="900" fill="url(#bg)"/><rect width="1600" height="900" fill="url(#glow)"/>
+  <g transform="translate(90 86)">
+    <rect x="0" y="0" width="1420" height="728" rx="38" fill="#07111f" stroke="#1e293b" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="1420" height="84" rx="38" fill="#0b1220" stroke="#1e293b"/>
+    <circle cx="42" cy="42" r="10" fill="#fb7185"/><circle cx="72" cy="42" r="10" fill="#facc15"/><circle cx="102" cy="42" r="10" fill="#34d399"/>
+    <rect x="154" y="24" width="370" height="36" rx="18" fill="#020617" stroke="#334155"/><text x="178" y="48" class="p" font-size="15">CyberPath Academy</text>
+    <rect x="580" y="24" width="650" height="36" rx="18" fill="#020617" stroke="#334155"/><text x="604" y="48" class="p" font-size="15">full-stack defensive cybersecurity learning platform</text>
+    <text x="62" y="178" class="title">CyberPath Academy</text>
+    <text x="66" y="230" class="sub">Defensive cybersecurity education without unsafe shortcuts</text>
+    <rect x="66" y="272" width="210" height="40" rx="20" fill="#082f49" stroke="#0ea5e9"/><text x="94" y="297" class="pill">fictional authorized labs</text>
+    <rect x="292" y="272" width="180" height="40" rx="20" fill="#064e3b" stroke="#10b981"/><text x="321" y="297" class="pill" fill="#bbf7d0">interactive terminal</text>
+    <rect x="488" y="272" width="176" height="40" rx="20" fill="#1e1b4b" stroke="#8b5cf6"/><text x="519" y="297" class="pill">role dashboards</text>
+    <g transform="translate(66 392)">
+      <rect width="390" height="190" rx="28" fill="#0f172a" stroke="#334155"/>
+      <rect x="28" y="28" width="54" height="54" rx="16" fill="#082f49" stroke="#38bdf8"/><text x="104" y="58" class="h">Terminal Labs</text>
+      <text x="30" y="120" class="p">Browser-based shell for safe defensive reasoning, fictional datasets, task files, and backend scoring.</text>
+    </g>
+    <g transform="translate(515 392)">
+      <rect width="390" height="190" rx="28" fill="#0f172a" stroke="#334155"/>
+      <rect x="28" y="28" width="54" height="54" rx="16" fill="#052e2b" stroke="#34d399"/><text x="104" y="58" class="h">Learning Analytics</text>
+      <text x="30" y="120" class="p">Mastery, weak topics, streaks, recommendations, review queues, and portfolio readiness signals.</text>
+    </g>
+    <g transform="translate(964 392)">
+      <rect width="390" height="190" rx="28" fill="#0f172a" stroke="#334155"/>
+      <rect x="28" y="28" width="54" height="54" rx="16" fill="#2e1065" stroke="#a855f7"/><text x="104" y="58" class="h">Operations</text>
+      <text x="30" y="120" class="p">Auth, audit logs, support queue, email outbox, health checks, backups, Docker, and CI workflow.</text>
+    </g>
+    <g transform="translate(66 640)"><text class="mono"><tspan class="green">✓</tspan> build verified  ·  <tspan class="green">✓</tspan> server tests pass  ·  <tspan class="green">✓</tspan> terminal lab smoke test reached 100%</text></g>
+  </g>
+</svg>
