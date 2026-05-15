@@ -1,4 +1,40 @@
 # CyberPath Academy
+
+CyberPath Academy helps beginner students and schools learn defensive cybersecurity safely through structured lessons, safe labs, portfolio artifacts, and mentor dashboards.
+
+This repository is a beta MVP for a defensive-only cybersecurity education platform. It includes React/Vite web UI, Express/TypeScript API, SQLite persistence, seeded curriculum, safe fictional labs, role-based dashboards, subscriptions, portfolio artifacts, feedback loops, and tests.
+
+## Product model
+- **Free:** limited beginner lessons, starter quizzes/labs, basic dashboard, and mistake notebook.
+- **Premium:** full curriculum, all labs, guided tutor, certificates, guided projects, portfolio publishing, and full analytics.
+- **School / Cohort:** Premium plus mentor assignments, cohort dashboards, student reports, exports, and cohort analytics.
+
+## Safety boundary
+CyberPath is defensive-only. Labs use fictional data and toy examples, and the app must not teach credential theft, malware, persistence, evasion, live-target exploitation, phishing creation, bypassing systems, stealing data, or unauthorized access. See `docs/SAFETY_MODEL.md`.
+
+## Run locally
+```bash
+npm install
+npm run db:setup
+npm run dev
+```
+
+## Verify
+```bash
+npm run build
+npm test
+npm run curriculum:smoke --workspace server
+```
+
+## Key docs
+- `docs/PRODUCT_STRATEGY.md`
+- `docs/SAFETY_MODEL.md`
+- `docs/CURRICULUM_MODEL.md`
+- `docs/LAUNCH_CHECKLIST.md`
+
+---
+
+# CyberPath Academy
 ![CyberPath Academy product preview](docs/assets/00-cover.png)
 > A full-stack defensive cybersecurity learning platform with structured lessons, quizzes, analytics, role-based dashboards, safe labs, and browser-based terminal simulations for fictional, authorized practice.
 

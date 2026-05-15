@@ -796,7 +796,7 @@ function handlePost<T>(path: string, body: unknown): T {
     let score = 0;
     const feedback = lab.tasks.map((task) => {
       const answer = String(data.answers[task.id] || "").toLowerCase();
-      const matched = task.expectedKeywords.some((keyword) => answer.includes(keyword.toLowerCase()));
+      const matched = (task.expectedKeywords ?? task.expectedEvidence ?? []).some((keyword) => answer.includes(keyword.toLowerCase()));
       if (matched) score += Math.round(100 / lab.tasks.length);
       return `${task.prompt}: ${matched ? "good defensive judgment" : "needs stronger evidence and safer reasoning"}`;
     }).join(" | ");

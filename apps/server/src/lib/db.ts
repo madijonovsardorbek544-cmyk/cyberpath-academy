@@ -181,7 +181,11 @@ export function initDb() {
       dataset TEXT NOT NULL,
       tasks TEXT NOT NULL,
       safe_guardrails TEXT NOT NULL,
-      solution_outline TEXT NOT NULL
+      solution_outline TEXT NOT NULL,
+      access_tier TEXT NOT NULL DEFAULT 'free',
+      rubric_json TEXT NOT NULL DEFAULT '{}',
+      expected_evidence TEXT NOT NULL DEFAULT '[]',
+      hints TEXT NOT NULL DEFAULT '[]'
     );
 
     CREATE TABLE IF NOT EXISTS lab_submissions (
@@ -191,6 +195,7 @@ export function initDb() {
       answers TEXT NOT NULL,
       score INTEGER NOT NULL,
       feedback TEXT NOT NULL,
+      rubric_result_json TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
       FOREIGN KEY (lab_id) REFERENCES labs(id) ON DELETE CASCADE
@@ -251,6 +256,15 @@ export function initDb() {
       email TEXT NOT NULL,
       category TEXT NOT NULL,
       message TEXT NOT NULL,
+      content_type TEXT,
+      content_id TEXT,
+      difficulty_rating TEXT,
+      usefulness_rating INTEGER,
+      confusion_note TEXT,
+      missing_explanation TEXT,
+      would_recommend TEXT,
+      would_pay TEXT,
+      learner_goal TEXT,
       status TEXT NOT NULL DEFAULT 'new',
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
@@ -343,6 +357,14 @@ export function initDb() {
       status TEXT NOT NULL DEFAULT 'draft',
       evidence_url TEXT,
       mentor_feedback TEXT,
+      scenario TEXT NOT NULL DEFAULT '',
+      evidence_used_json TEXT NOT NULL DEFAULT '[]',
+      risk_explanation TEXT NOT NULL DEFAULT '',
+      defensive_recommendations TEXT NOT NULL DEFAULT '',
+      reflection TEXT NOT NULL DEFAULT '',
+      source_lab_submission_id TEXT,
+      public_share_id TEXT UNIQUE,
+      published_at TEXT,
       created_at TEXT NOT NULL,
       updated_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
@@ -501,6 +523,19 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_lesson_revisions_lesson ON lesson_revisions(lesson_id, version);
     CREATE INDEX IF NOT EXISTS idx_mentor_assignments_student ON mentor_assignments(student_id, status);
     CREATE INDEX IF NOT EXISTS idx_learner_projects_user ON learner_projects(user_id, status);
+    CREATE INDEX IF NOT EXISTS idx_portfolio_public_share ON portfolio_artifacts(public_share_id);
+    CREATE INDEX IF NOT EXISTS idx_platform_feedback_content ON platform_feedback(content_type, content_id);
+
+    CREATE TABLE IF NOT EXISTS tutor_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT,
+      event_type TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      prompt TEXT NOT NULL,
+      matched_sources_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+    );
   `);
 
   try { db.exec("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';"); } catch {}
@@ -514,6 +549,28 @@ export function initDb() {
   try { db.exec("ALTER TABLE lessons ADD COLUMN last_reviewed_at TEXT;"); } catch {}
   try { db.exec("ALTER TABLE lessons ADD COLUMN review_due_at TEXT;"); } catch {}
   try { db.exec("ALTER TABLE lessons ADD COLUMN reviewed_by TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE labs ADD COLUMN access_tier TEXT NOT NULL DEFAULT 'free';"); } catch {}
+  try { db.exec("ALTER TABLE labs ADD COLUMN rubric_json TEXT NOT NULL DEFAULT '{}';"); } catch {}
+  try { db.exec("ALTER TABLE labs ADD COLUMN expected_evidence TEXT NOT NULL DEFAULT '[]';"); } catch {}
+  try { db.exec("ALTER TABLE labs ADD COLUMN hints TEXT NOT NULL DEFAULT '[]';"); } catch {}
+  try { db.exec("ALTER TABLE lab_submissions ADD COLUMN rubric_result_json TEXT NOT NULL DEFAULT '{}';"); } catch {}
+  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN scenario TEXT NOT NULL DEFAULT '';"); } catch {}
+  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN evidence_used_json TEXT NOT NULL DEFAULT '[]';"); } catch {}
+  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN risk_explanation TEXT NOT NULL DEFAULT '';"); } catch {}
+  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN defensive_recommendations TEXT NOT NULL DEFAULT '';"); } catch {}
+  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN reflection TEXT NOT NULL DEFAULT '';"); } catch {}
+  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN source_lab_submission_id TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN public_share_id TEXT UNIQUE;"); } catch {}
+  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN published_at TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN content_type TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN content_id TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN difficulty_rating TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN usefulness_rating INTEGER;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN confusion_note TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN missing_explanation TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN would_recommend TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN would_pay TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN learner_goal TEXT;"); } catch {}
 }
 
 export function mapUser(row: Record<string, unknown> | null) {
@@ -587,9 +644,13 @@ export function mapLab(row: Record<string, unknown>) {
     difficulty: String(row.difficulty),
     description: String(row.description),
     dataset: fromDbJson(row.dataset, {}),
-    tasks: fromDbJson<Array<{ id: string; prompt: string; expectedKeywords: string[] }>>(row.tasks, []),
+    tasks: fromDbJson<Array<{ id: string; prompt: string; expectedKeywords?: string[]; expectedEvidence?: string[]; rubric?: unknown; hints?: string[] }>>(row.tasks, []),
     safeGuardrails: String(row.safe_guardrails),
-    solutionOutline: String(row.solution_outline)
+    solutionOutline: String(row.solution_outline),
+    accessTier: String(row.access_tier ?? 'free'),
+    rubric: fromDbJson(row.rubric_json, {}),
+    expectedEvidence: fromDbJson<string[]>(row.expected_evidence, []),
+    hints: fromDbJson<string[]>(row.hints, [])
   };
 }
 
@@ -645,6 +706,15 @@ export function mapFeedback(row: Record<string, unknown>) {
     email: String(row.email),
     category: String(row.category),
     message: String(row.message),
+    contentType: row.content_type ? String(row.content_type) : null,
+    contentId: row.content_id ? String(row.content_id) : null,
+    difficultyRating: row.difficulty_rating ? String(row.difficulty_rating) : null,
+    usefulnessRating: row.usefulness_rating === null || row.usefulness_rating === undefined ? null : Number(row.usefulness_rating),
+    confusionNote: row.confusion_note ? String(row.confusion_note) : null,
+    missingExplanation: row.missing_explanation ? String(row.missing_explanation) : null,
+    wouldRecommend: row.would_recommend ? String(row.would_recommend) : null,
+    wouldPay: row.would_pay ? String(row.would_pay) : null,
+    learnerGoal: row.learner_goal ? String(row.learner_goal) : null,
     status: String(row.status) as FeedbackStatus,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at)
@@ -731,6 +801,14 @@ export function mapPortfolioArtifact(row: Record<string, unknown>) {
     status: String(row.status),
     evidenceUrl: row.evidence_url ? String(row.evidence_url) : null,
     mentorFeedback: row.mentor_feedback ? String(row.mentor_feedback) : null,
+    scenario: row.scenario ? String(row.scenario) : '',
+    evidenceUsed: fromDbJson<string[]>(row.evidence_used_json, []),
+    riskExplanation: row.risk_explanation ? String(row.risk_explanation) : '',
+    defensiveRecommendations: row.defensive_recommendations ? String(row.defensive_recommendations) : '',
+    reflection: row.reflection ? String(row.reflection) : '',
+    sourceLabSubmissionId: row.source_lab_submission_id ? String(row.source_lab_submission_id) : null,
+    publicShareId: row.public_share_id ? String(row.public_share_id) : null,
+    publishedAt: row.published_at ? String(row.published_at) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at)
   };

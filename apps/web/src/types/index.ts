@@ -161,9 +161,13 @@ export type Lab = {
   difficulty: string;
   description: string;
   dataset: any;
-  tasks: { id: string; prompt: string; expectedKeywords: string[] }[];
+  tasks: { id: string; prompt: string; expectedKeywords?: string[]; expectedEvidence?: string[]; hints?: string[] }[];
   safeGuardrails: string;
   solutionOutline: string;
+  locked?: boolean;
+  lockedMessage?: string | null;
+  rubric?: Record<string, unknown>;
+  hints?: string[];
 };
 
 export type Mistake = {
@@ -263,6 +267,13 @@ export type PortfolioArtifact = {
   status: 'draft' | 'in_review' | 'published' | 'approved' | string;
   evidenceUrl?: string | null;
   mentorFeedback?: string | null;
+  scenario?: string;
+  evidenceUsed?: string[];
+  riskExplanation?: string;
+  defensiveRecommendations?: string;
+  reflection?: string;
+  publicShareId?: string | null;
+  publishedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 };

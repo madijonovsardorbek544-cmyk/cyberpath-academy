@@ -9,6 +9,15 @@ import type { Lab } from "../types";
 type SubmissionResult = {
   score: number;
   feedback: string;
+  rubricResult?: {
+    totalScore: number;
+    categoryScores: Record<string, number>;
+    taskFeedback: string[];
+    missingEvidence: string[];
+    recommendedReview: string;
+    solutionOutline: string;
+    safetyRedirect?: string | null;
+  };
 };
 
 type LabMode = "terminal" | "written";
@@ -207,6 +216,22 @@ export function LabPage() {
             </div>
 
             <p className="mt-4 text-sm text-slate-300">{result.feedback}</p>
+            {result.rubricResult ? (
+              <div className="mt-5 grid gap-4 lg:grid-cols-2">
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                  <p className="text-sm font-semibold text-white">Rubric breakdown</p>
+                  <div className="mt-3 space-y-2 text-sm text-slate-300">
+                    {Object.entries(result.rubricResult.categoryScores).map(([name, value]) => <div key={name} className="flex justify-between gap-3"><span>{name}</span><span className="text-sky-200">{value}</span></div>)}
+                  </div>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                  <p className="text-sm font-semibold text-white">Recommended review</p>
+                  <p className="mt-2 text-sm text-slate-300">{result.rubricResult.recommendedReview}</p>
+                  {result.rubricResult.missingEvidence.length ? <p className="mt-3 text-xs text-amber-200">Missing evidence: {result.rubricResult.missingEvidence.join(', ')}</p> : null}
+                  {result.rubricResult.safetyRedirect ? <p className="mt-3 text-xs text-rose-200">{result.rubricResult.safetyRedirect}</p> : null}
+                </div>
+              </div>
+            ) : null}
 
             <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
               <p className="text-sm font-semibold text-white">Solution outline</p>

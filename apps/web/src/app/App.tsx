@@ -18,6 +18,8 @@ const MistakesPage = lazy(() => import('../pages/MistakesPage').then((module) =>
 const AITutorPage = lazy(() => import('../pages/AITutorPage').then((module) => ({ default: module.AITutorPage })));
 const MentorDashboardPage = lazy(() => import('../pages/MentorDashboardPage').then((module) => ({ default: module.MentorDashboardPage })));
 const AdminDashboardPage = lazy(() => import('../pages/AdminDashboardPage').then((module) => ({ default: module.AdminDashboardPage })));
+const PortfolioPage = lazy(() => import('../pages/PortfolioPage').then((module) => ({ default: module.PortfolioPage })));
+const PublicArtifactPage = lazy(() => import('../pages/PublicArtifactPage').then((module) => ({ default: module.PublicArtifactPage })));
 const BillingPage = lazy(() => import('../pages/BillingPage').then((module) => ({ default: module.BillingPage })));
 const SupportPage = lazy(() => import('../pages/SupportPage').then((module) => ({ default: module.SupportPage })));
 const PrivacyPage = lazy(() => import('../pages/PrivacyPage').then((module) => ({ default: module.PrivacyPage })));
@@ -43,6 +45,7 @@ export function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/reset-password" element={<ResetPage />} />
           <Route path="/pricing" element={<BillingPage publicView />} />
+          <Route path="/public/artifacts/:shareId" element={<PublicArtifactPage />} />
           <Route path="/support" element={<SupportPage />} />
           <Route path="/privacy" element={<PrivacyPage />} />
           <Route path="/terms" element={<TermsPage />} />
@@ -54,6 +57,7 @@ export function App() {
           <Route path="/lessons/:slug" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
           <Route path="/labs" element={<ProtectedRoute><LabsPage /></ProtectedRoute>} />
           <Route path="/labs/:slug" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
+          <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
           <Route path="/mistakes" element={<ProtectedRoute roles={['student', 'mentor', 'admin']}><MistakesPage /></ProtectedRoute>} />
           <Route path="/tutor" element={<ProtectedRoute><AITutorPage /></ProtectedRoute>} />
           <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />

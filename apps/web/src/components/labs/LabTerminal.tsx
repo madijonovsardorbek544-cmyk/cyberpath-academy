@@ -14,6 +14,7 @@ interface FsDirectory {
 type LabSubmission = {
   score: number;
   feedback: string;
+  rubricResult?: { totalScore: number; categoryScores: Record<string, number>; taskFeedback: string[]; missingEvidence: string[]; recommendedReview: string; solutionOutline: string; safetyRedirect?: string | null };
 };
 
 type TerminalState = {
@@ -497,6 +498,12 @@ export function LabTerminal({ lab, onSubmission }: LabTerminalProps) {
           term.writeln(`${COLORS.green}${COLORS.bold}Submission received.${COLORS.reset}`);
           term.writeln(`${COLORS.white}Score: ${data.submission.score}%${COLORS.reset}`);
           term.writeln(`${COLORS.gray}${data.submission.feedback}${COLORS.reset}`);
+          if (data.submission.rubricResult) {
+            term.writeln(`${COLORS.cyan}Rubric:${COLORS.reset} ${Object.entries(data.submission.rubricResult.categoryScores).map(([key, value]) => `${key}=${value}`).join(', ')}`);
+            term.writeln(`${COLORS.yellow}Review:${COLORS.reset} ${data.submission.rubricResult.recommendedReview}`);
+            if (data.submission.rubricResult.missingEvidence.length) term.writeln(`${COLORS.yellow}Missing evidence:${COLORS.reset} ${data.submission.rubricResult.missingEvidence.join(', ')}`);
+            if (data.submission.rubricResult.safetyRedirect) term.writeln(`${COLORS.red}${data.submission.rubricResult.safetyRedirect}${COLORS.reset}`);
+          }
 
           onSubmissionRef.current?.(data.submission);
           break;

@@ -400,9 +400,9 @@ async function main() {
   run('INSERT INTO mentor_students (id, mentor_id, student_id, created_at) VALUES (?, ?, ?, ?)', makeId(), mentorId, studentId, now);
   run('INSERT INTO mentor_students (id, mentor_id, student_id, created_at) VALUES (?, ?, ?, ?)', makeId(), mentorId, studentTwoId, now);
 
-  run(`INSERT INTO subscriptions (id, user_id, plan_id, status, billing_cycle, current_period_end, created_at, updated_at) VALUES (?, ?, 'pro', 'active', 'monthly', ?, ?, ?)`, makeId(), studentId, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), now, now);
-  run(`INSERT INTO subscriptions (id, user_id, plan_id, status, billing_cycle, current_period_end, created_at, updated_at) VALUES (?, ?, 'starter', 'trialing', 'monthly', ?, ?, ?)`, makeId(), studentTwoId, new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), now, now);
-  run(`INSERT INTO subscriptions (id, user_id, plan_id, status, billing_cycle, current_period_end, created_at, updated_at) VALUES (?, ?, 'mentor-plus', 'active', 'monthly', ?, ?, ?)`, makeId(), mentorId, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), now, now);
+  run(`INSERT INTO subscriptions (id, user_id, plan_id, status, billing_cycle, current_period_end, created_at, updated_at) VALUES (?, ?, 'premium', 'active', 'monthly', ?, ?, ?)`, makeId(), studentId, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), now, now);
+  run(`INSERT INTO subscriptions (id, user_id, plan_id, status, billing_cycle, current_period_end, created_at, updated_at) VALUES (?, ?, 'free', 'active', 'monthly', ?, ?, ?)`, makeId(), studentTwoId, new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(), now, now);
+  run(`INSERT INTO subscriptions (id, user_id, plan_id, status, billing_cycle, current_period_end, created_at, updated_at) VALUES (?, ?, 'school', 'active', 'monthly', ?, ?, ?)`, makeId(), mentorId, new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), now, now);
 
   const createdLessons: Array<{ id: string; slug: string; title: string; phaseTitle: string }> = [];
   const lessonIdBySlug = new Map<string, string>();
@@ -489,6 +489,8 @@ async function main() {
       lab.solutionOutline
     );
   }
+
+  run("UPDATE labs SET access_tier = 'premium' WHERE slug NOT IN ('auth-log-spike-review', 'log-analysis-auth-spikes', 'phishing-inbox-identification')");
 
   for (const track of specializationTracks) {
     const trackId = makeId();

@@ -56,7 +56,8 @@ const labSchema = z.object({
   difficulty: z.string().trim().min(3).max(80),
   description: z.string().min(20),
   dataset: z.any(),
-  tasks: z.array(z.object({ id: z.string().min(2), prompt: z.string().min(2), expectedKeywords: z.array(z.string().min(1)).min(1) })).min(1),
+  tasks: z.array(z.object({ id: z.string().min(2), prompt: z.string().min(2), expectedKeywords: z.array(z.string().min(1)).min(1).optional(), expectedEvidence: z.array(z.string().min(1)).min(1).optional(), hints: z.array(z.string().min(1)).optional() })).min(1),
+  accessTier: z.enum(['free', 'premium', 'school']).optional(),
   safeGuardrails: z.string().min(10),
   solutionOutline: z.string().min(10)
 });
@@ -101,6 +102,37 @@ router.get('/overview', (req: AuthenticatedRequest, res) => {
     platformFeedback,
     emailOutbox,
     auditLogs
+  });
+});
+
+router.get('/feedback-summary', (_req: AuthenticatedRequest, res) => {
+  const rows = many<Record<string, unknown>>(
+    `SELECT content_type, content_id, COUNT(*) as responses, AVG(usefulness_rating) as average_usefulness,
+            SUM(CASE WHEN would_pay = 'yes' THEN 1 ELSE 0 END) as would_pay_yes,
+            SUM(CASE WHEN difficulty_rating = 'too_hard' THEN 1 ELSE 0 END) as too_hard,
+            SUM(CASE WHEN difficulty_rating = 'too_easy' THEN 1 ELSE 0 END) as too_easy
+     FROM platform_feedback
+     WHERE content_type IS NOT NULL
+     GROUP BY content_type, content_id
+     ORDER BY responses DESC`
+  );
+  const recentNotes = many<Record<string, unknown>>(
+    `SELECT content_type, content_id, confusion_note, missing_explanation, created_at
+     FROM platform_feedback
+     WHERE confusion_note IS NOT NULL OR missing_explanation IS NOT NULL
+     ORDER BY created_at DESC LIMIT 25`
+  );
+  return res.json({
+    summary: rows.map((row) => ({
+      contentType: row.content_type ? String(row.content_type) : null,
+      contentId: row.content_id ? String(row.content_id) : null,
+      responses: Number(row.responses ?? 0),
+      averageUsefulness: row.average_usefulness === null ? null : Number(row.average_usefulness),
+      willingnessToPayYes: Number(row.would_pay_yes ?? 0),
+      tooHard: Number(row.too_hard ?? 0),
+      tooEasy: Number(row.too_easy ?? 0)
+    })),
+    recentNotes
   });
 });
 
@@ -250,8 +282,8 @@ router.post('/labs', (req: AuthenticatedRequest, res) => {
 
   const id = makeId();
   run(
-    `INSERT INTO labs (id, slug, title, category, difficulty, description, dataset, tasks, safe_guardrails, solution_outline)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO labs (id, slug, title, category, difficulty, description, dataset, tasks, safe_guardrails, solution_outline, access_tier, expected_evidence)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     parsed.data.slug,
     parsed.data.title,
@@ -261,7 +293,9 @@ router.post('/labs', (req: AuthenticatedRequest, res) => {
     toDbJson(parsed.data.dataset),
     toDbJson(parsed.data.tasks),
     parsed.data.safeGuardrails,
-    parsed.data.solutionOutline
+    parsed.data.solutionOutline,
+    parsed.data.accessTier ?? 'premium',
+    toDbJson(parsed.data.tasks.flatMap((task) => task.expectedEvidence ?? task.expectedKeywords ?? []))
   );
 
   createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'admin.lab_created', targetType: 'lab', targetId: id, metadata: { slug: parsed.data.slug } });
@@ -283,7 +317,7 @@ router.patch('/labs/:id', (req: AuthenticatedRequest, res) => {
   const merged = { ...existing, ...parsed.data };
 
   run(
-    `UPDATE labs SET slug = ?, title = ?, category = ?, difficulty = ?, description = ?, dataset = ?, tasks = ?, safe_guardrails = ?, solution_outline = ? WHERE id = ?`,
+    `UPDATE labs SET slug = ?, title = ?, category = ?, difficulty = ?, description = ?, dataset = ?, tasks = ?, safe_guardrails = ?, solution_outline = ?, access_tier = ?, expected_evidence = ? WHERE id = ?`,
     merged.slug,
     merged.title,
     merged.category,
@@ -293,6 +327,8 @@ router.patch('/labs/:id', (req: AuthenticatedRequest, res) => {
     toDbJson(merged.tasks),
     merged.safeGuardrails,
     merged.solutionOutline,
+    (merged as any).accessTier ?? 'premium',
+    toDbJson((merged.tasks as any[]).flatMap((task) => task.expectedEvidence ?? task.expectedKeywords ?? [])),
     String(req.params.id)
   );
 
