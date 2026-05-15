@@ -20,6 +20,8 @@ import {
   run,
   toDbJson
 } from '../lib/db.js';
+import { hasEntitlement, isStarterLab, isStarterLesson, lockedResponse, requireEntitlement } from '../utils/accessControl.js';
+import { scoreLabSubmission } from '../utils/labRubric.js';
 import {
   claimEligibleCertificates,
   getDueReviewItems,
@@ -64,7 +66,13 @@ const portfolioSchema = z.object({
   specialization: z.string().min(2).max(80),
   summary: z.string().min(20).max(2000),
   deliverables: z.array(z.string().min(2)).min(1).max(10),
-  evidenceUrl: z.string().url().optional().or(z.literal('')).nullable()
+  evidenceUrl: z.string().url().optional().or(z.literal('')).nullable(),
+  scenario: z.string().max(2000).optional().default(''),
+  evidenceUsed: z.array(z.string().min(1)).max(20).optional().default([]),
+  riskExplanation: z.string().max(2000).optional().default(''),
+  defensiveRecommendations: z.string().max(2000).optional().default(''),
+  reflection: z.string().max(2000).optional().default(''),
+  sourceLabSubmissionId: z.string().optional().nullable()
 });
 const portfolioPatchSchema = portfolioSchema.partial().extend({
   status: z.enum(['draft', 'in_review', 'published']).optional(),
@@ -118,7 +126,9 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res) => {
     return {
       ...lesson,
       completed: Number(progress?.completed ?? 0) === 1,
-      timeSpentMinutes: Number(progress?.time_spent_minutes ?? 0)
+      timeSpentMinutes: Number(progress?.time_spent_minutes ?? 0),
+      locked: !isStarterLesson(lesson.id) && !hasEntitlement(req.user!.userId, 'lessons:all'),
+      lockedMessage: !isStarterLesson(lesson.id) && !hasEntitlement(req.user!.userId, 'lessons:all') ? 'Upgrade to Premium or School to open the full lesson catalog.' : null
     };
   });
 
@@ -233,7 +243,9 @@ router.get('/lessons', (req: AuthenticatedRequest, res) => {
     return {
       ...lesson,
       completed: Number(progress?.completed ?? 0) === 1,
-      timeSpentMinutes: Number(progress?.time_spent_minutes ?? 0)
+      timeSpentMinutes: Number(progress?.time_spent_minutes ?? 0),
+      locked: !isStarterLesson(lesson.id) && !hasEntitlement(req.user!.userId, 'lessons:all'),
+      lockedMessage: !isStarterLesson(lesson.id) && !hasEntitlement(req.user!.userId, 'lessons:all') ? 'Upgrade to Premium or School to open the full lesson catalog.' : null
     };
   });
 
@@ -247,6 +259,9 @@ router.get('/lessons/:slug', (req: AuthenticatedRequest, res) => {
   }
 
   const lesson = mapLesson(lessonRow);
+  if (!isStarterLesson(lesson.id) && !hasEntitlement(req.user!.userId, 'lessons:all')) {
+    return lockedResponse(res, 'lessons:all', 'This lesson is part of the Premium and School catalog. Start with the free beginner lessons or upgrade to continue.');
+  }
   const progress = getLessonProgress(req.user!.userId, lesson.id);
   const quizQuestions = many<Record<string, unknown>>('SELECT * FROM quiz_questions WHERE lesson_id = ? ORDER BY created_at ASC', lesson.id).map(mapQuestion);
   const relatedTracks = many<Record<string, unknown>>(
@@ -277,6 +292,9 @@ router.post('/lessons/:id/complete', (req: AuthenticatedRequest, res) => {
   }
 
   const lessonExists = one<Record<string, unknown> | null>('SELECT id FROM lessons WHERE id = ?', req.params.id);
+  if (lessonExists && !isStarterLesson(String(lessonExists.id)) && !hasEntitlement(req.user!.userId, 'lessons:all')) {
+    return lockedResponse(res, 'lessons:all', 'Completing this premium lesson requires Premium or School access.');
+  }
   if (!lessonExists) {
     return res.status(404).json({ message: 'Lesson not found.' });
   }
@@ -352,6 +370,9 @@ router.post('/quizzes/submit', (req: AuthenticatedRequest, res) => {
     return res.status(400).json({ message: 'Invalid quiz submission payload.' });
   }
 
+  if (!isStarterLesson(parsed.data.lessonId) && !hasEntitlement(req.user!.userId, 'lessons:all')) {
+    return lockedResponse(res, 'lessons:all', 'Submitting this premium lesson quiz requires Premium or School access.');
+  }
   const questionRows = many<Record<string, unknown>>('SELECT * FROM quiz_questions WHERE lesson_id = ? ORDER BY created_at ASC', parsed.data.lessonId);
   const questions = questionRows.map(mapQuestion);
   if (!questions.length) {
@@ -516,17 +537,25 @@ router.get('/mistakes/review-quiz', async (req: AuthenticatedRequest, res) => {
   return res.json({ quiz: generated, recommendations });
 });
 
-router.get('/labs', (_req, res) => {
-  const labs = many<Record<string, unknown>>('SELECT * FROM labs ORDER BY title ASC').map(mapLab);
+router.get('/labs', (req: AuthenticatedRequest, res) => {
+  const labs = many<Record<string, unknown>>('SELECT * FROM labs ORDER BY title ASC').map((row) => {
+    const lab = mapLab(row);
+    const locked = !isStarterLab(lab.id) && !hasEntitlement(req.user!.userId, 'labs:all');
+    return { ...lab, locked, lockedMessage: locked ? 'Upgrade to Premium or School to unlock all defensive labs and rubric feedback.' : null };
+  });
   return res.json({ labs });
 });
 
-router.get('/labs/:slug', (req, res) => {
+router.get('/labs/:slug', (req: AuthenticatedRequest, res) => {
   const labRow = one<Record<string, unknown> | null>('SELECT * FROM labs WHERE slug = ?', req.params.slug);
   if (!labRow) {
     return res.status(404).json({ message: 'Lab not found.' });
   }
-  return res.json({ lab: mapLab(labRow) });
+  const lab = mapLab(labRow);
+  if (!isStarterLab(lab.id) && !hasEntitlement(req.user!.userId, 'labs:all')) {
+    return lockedResponse(res, 'labs:all', 'This lab is Premium/School content. Free learners can keep practicing starter labs or upgrade for the full safe lab catalog.');
+  }
+  return res.json({ lab });
 });
 
 router.post('/labs/:id/submit', (req: AuthenticatedRequest, res) => {
@@ -541,26 +570,22 @@ router.post('/labs/:id/submit', (req: AuthenticatedRequest, res) => {
   }
 
   const lab = mapLab(labRow);
-  const tasks = lab.tasks;
-  let score = 0;
-
-  const feedback = tasks.map((task) => {
-    const answer = String(parsed.data.answers[task.id] || '').toLowerCase();
-    const matched = task.expectedKeywords.some((keyword) => answer.includes(keyword.toLowerCase()));
-    if (matched) score += Math.round(100 / Math.max(tasks.length, 1));
-    return `${task.prompt}: ${matched ? 'good defensive judgment' : 'needs stronger evidence and safer reasoning'}`;
-  });
+  if (!isStarterLab(lab.id) && !hasEntitlement(req.user!.userId, 'labs:all')) {
+    return lockedResponse(res, 'labs:all', 'This lab requires Premium or School access because it is outside the free starter lab set.');
+  }
+  const result = scoreLabSubmission(lab.tasks, parsed.data.answers, lab.solutionOutline);
 
   const submissionId = makeId();
   run(
-    `INSERT INTO lab_submissions (id, user_id, lab_id, answers, score, feedback, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO lab_submissions (id, user_id, lab_id, answers, score, feedback, rubric_result_json, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     submissionId,
     req.user!.userId,
     lab.id,
     toDbJson(parsed.data.answers),
-    Math.min(100, score),
-    feedback.join(' | '),
+    result.totalScore,
+    result.taskFeedback.join(' | '),
+    toDbJson(result),
     nowIso()
   );
 
@@ -568,7 +593,8 @@ router.post('/labs/:id/submit', (req: AuthenticatedRequest, res) => {
   return res.json({
     submission: {
       ...submission,
-      answers: fromDbJson(submission.answers, {})
+      answers: fromDbJson(submission.answers, {}),
+      rubricResult: result
     }
   });
 });
@@ -591,13 +617,13 @@ router.post('/review-queue/:id/complete', (req: AuthenticatedRequest, res) => {
   return res.json({ reviewItem: item });
 });
 
-router.get('/projects', (req: AuthenticatedRequest, res) => {
+router.get('/projects', requireEntitlement('projects:guided', 'Guided projects require Premium or School access.'), (req: AuthenticatedRequest, res) => {
   const projects = getGuidedProjects();
   const learnerProjects = getLearnerProjects(req.user!.userId);
   return res.json({ projects, learnerProjects });
 });
 
-router.post('/projects/:id/start', (req: AuthenticatedRequest, res) => {
+router.post('/projects/:id/start', requireEntitlement('projects:guided', 'Guided projects require Premium or School access.'), (req: AuthenticatedRequest, res) => {
   const project = one<Record<string, unknown> | null>('SELECT * FROM guided_projects WHERE id = ?', req.params.id);
   if (!project) {
     return res.status(404).json({ message: 'Guided project not found.' });
@@ -620,7 +646,7 @@ router.post('/projects/:id/start', (req: AuthenticatedRequest, res) => {
   return res.status(existing ? 200 : 201).json({ learnerProjects: getLearnerProjects(req.user!.userId) });
 });
 
-router.patch('/projects/:id', (req: AuthenticatedRequest, res) => {
+router.patch('/projects/:id', requireEntitlement('projects:guided', 'Guided projects require Premium or School access.'), (req: AuthenticatedRequest, res) => {
   const parsed = learnerProjectPatchSchema.safeParse(req.body);
   if (!parsed.success || !Object.keys(parsed.data).length) {
     return res.status(400).json({ message: 'Invalid learner project update.' });
@@ -693,8 +719,8 @@ router.post('/portfolio', (req: AuthenticatedRequest, res) => {
   const id = makeId();
   const now = nowIso();
   run(
-    `INSERT INTO portfolio_artifacts (id, user_id, title, artifact_type, specialization, summary, deliverables_json, status, evidence_url, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`,
+    `INSERT INTO portfolio_artifacts (id, user_id, title, artifact_type, specialization, summary, deliverables_json, status, evidence_url, scenario, evidence_used_json, risk_explanation, defensive_recommendations, reflection, source_lab_submission_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     id,
     req.user!.userId,
     parsed.data.title,
@@ -703,6 +729,12 @@ router.post('/portfolio', (req: AuthenticatedRequest, res) => {
     parsed.data.summary,
     toDbJson(parsed.data.deliverables),
     parsed.data.evidenceUrl || null,
+    parsed.data.scenario,
+    toDbJson(parsed.data.evidenceUsed),
+    parsed.data.riskExplanation,
+    parsed.data.defensiveRecommendations,
+    parsed.data.reflection,
+    parsed.data.sourceLabSubmissionId || null,
     now,
     now
   );
@@ -720,15 +752,20 @@ router.patch('/portfolio/:id', (req: AuthenticatedRequest, res) => {
     return res.status(404).json({ message: 'Portfolio artifact not found.' });
   }
   const existing = mapPortfolioArtifact(existingRow);
+  if (parsed.data.status === 'published' && !hasEntitlement(req.user!.userId, 'portfolio:publish')) {
+    return lockedResponse(res, 'portfolio:publish', 'Publishing portfolio artifacts requires Premium or School access. You can keep private drafts on Free.');
+  }
   const merged = {
     ...existing,
     ...parsed.data,
     deliverables: parsed.data.deliverables ?? existing.deliverables,
     evidenceUrl: parsed.data.evidenceUrl === undefined ? existing.evidenceUrl : (parsed.data.evidenceUrl || null),
-    mentorFeedback: parsed.data.mentorFeedback === undefined ? existing.mentorFeedback : (parsed.data.mentorFeedback || null)
+    mentorFeedback: parsed.data.mentorFeedback === undefined ? existing.mentorFeedback : (parsed.data.mentorFeedback || null),
+    publicShareId: parsed.data.status === 'published' ? (existing.publicShareId ?? makeId()) : (parsed.data.status === 'draft' ? null : existing.publicShareId),
+    publishedAt: parsed.data.status === 'published' ? (existing.publishedAt ?? nowIso()) : (parsed.data.status === 'draft' ? null : existing.publishedAt)
   };
   run(
-    `UPDATE portfolio_artifacts SET title = ?, artifact_type = ?, specialization = ?, summary = ?, deliverables_json = ?, status = ?, evidence_url = ?, mentor_feedback = ?, updated_at = ? WHERE id = ?`,
+    `UPDATE portfolio_artifacts SET title = ?, artifact_type = ?, specialization = ?, summary = ?, deliverables_json = ?, status = ?, evidence_url = ?, mentor_feedback = ?, public_share_id = ?, published_at = ?, updated_at = ? WHERE id = ?`,
     merged.title,
     merged.artifactType,
     merged.specialization,
@@ -737,6 +774,8 @@ router.patch('/portfolio/:id', (req: AuthenticatedRequest, res) => {
     merged.status,
     merged.evidenceUrl,
     merged.mentorFeedback,
+    merged.publicShareId,
+    merged.publishedAt,
     nowIso(),
     req.params.id
   );
@@ -744,13 +783,13 @@ router.patch('/portfolio/:id', (req: AuthenticatedRequest, res) => {
   res.json({ artifact });
 });
 
-router.get('/certificates', async (req: AuthenticatedRequest, res) => {
+router.get('/certificates', requireEntitlement('certificates:claim', 'Certificates require Premium or School access.'), async (req: AuthenticatedRequest, res) => {
   const mastery = await getStudentMastery(req.user!.userId);
   const certificates = getStudentCertificates(req.user!.userId);
   res.json({ certificates, eligibleTracks: mastery.filter((item) => item.score >= 80 && item.completionRate >= 65 && item.quizAverage >= 75) });
 });
 
-router.post('/certificates/claim', async (req: AuthenticatedRequest, res) => {
+router.post('/certificates/claim', requireEntitlement('certificates:claim', 'Certificates require Premium or School access.'), async (req: AuthenticatedRequest, res) => {
   const mastery = await getStudentMastery(req.user!.userId);
   const created = claimEligibleCertificates(req.user!.userId, mastery);
   res.status(created.length ? 201 : 200).json({ certificates: getStudentCertificates(req.user!.userId), created });

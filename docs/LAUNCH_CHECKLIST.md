@@ -1,32 +1,24 @@
 # Launch Checklist
 
-Use this before calling the product public-ready.
+CyberPath Academy is beta. Do not market it as mature production software until these items are complete.
 
-## Must pass
+## Product validation
+- Run pilots with real beginner students and at least one school or learning center.
+- Review content feedback analytics for usefulness, difficulty, confusion, recommendation, and willingness-to-pay.
+- Validate Free/Premium/School packaging with actual buyers.
 
-- [ ] `npm install`
-- [ ] `npm run db:setup`
-- [ ] `npm run build`
-- [ ] `npm test`
-- [ ] demo accounts can log in
-- [ ] onboarding works
-- [ ] lessons load
-- [ ] quizzes submit
-- [ ] labs submit
-- [ ] mentor feedback works
-- [ ] admin dashboard loads
-- [ ] privacy / terms / safety pages are reachable
+## Safety and curriculum
+- Review every lesson, lab, quiz, tutor response path, and artifact template against the defensive-only safety model.
+- Expand rubric-based labs with expected evidence and mentor review guidance.
+- Add content review statuses and publish/unpublish workflow for all content types.
 
-## Production settings
+## Technical readiness
+- Accessibility audit.
+- Real email provider with bounce handling.
+- Tokenized payment provider integration; never store raw card data.
+- Monitoring, alerting, backups, restore drills, and incident runbooks.
+- Privacy policy, terms, parental/school consent review, and data retention policy.
+- Deployment hardening, secret rotation, and production database migration plan.
 
-- [ ] strong `JWT_SECRET`
-- [ ] `COOKIE_SECURE=true` behind HTTPS
-- [ ] real `CLIENT_URL` and `APP_BASE_URL`
-- [ ] SMTP configured or password reset intentionally disabled
-- [ ] backups scheduled
-- [ ] logs collected
-- [ ] monitoring attached
-
-## Honest launch label
-
-Use **Beta** or **Early Access** until real users validate learning outcomes and operational stability.
+## Go / no-go
+Launch only when safety review, privacy review, monitoring, backups, and at least one successful pilot are complete.

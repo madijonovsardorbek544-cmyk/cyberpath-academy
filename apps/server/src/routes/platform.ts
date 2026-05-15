@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { env } from '../config/env.js';
 import { createAuditLog } from '../utils/audit.js';
-import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
+import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapPortfolioArtifact, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
+import { planCatalog } from '../utils/accessControl.js';
 
 const router = Router();
 
@@ -11,33 +12,19 @@ const feedbackSchema = z.object({
   name: z.string().trim().min(2).max(80),
   email: z.string().email(),
   category: z.enum(['bug', 'content', 'feature', 'billing', 'support']),
-  message: z.string().trim().min(20).max(2000)
+  message: z.string().trim().min(20).max(2000),
+  contentType: z.enum(['lesson', 'lab', 'quiz', 'project', 'portfolio', 'onboarding']).optional(),
+  contentId: z.string().min(1).max(120).optional(),
+  difficultyRating: z.enum(['too_easy', 'right_level', 'too_hard']).optional(),
+  usefulnessRating: z.number().int().min(1).max(5).optional(),
+  confusionNote: z.string().max(1000).optional(),
+  missingExplanation: z.string().max(1000).optional(),
+  wouldRecommend: z.enum(['yes', 'no', 'maybe']).optional(),
+  wouldPay: z.enum(['yes', 'no', 'maybe']).optional(),
+  learnerGoal: z.enum(['university', 'job', 'curiosity', 'school', 'competition', 'other']).optional()
 });
 
-const planCatalog = [
-  {
-    id: 'free',
-    name: 'Free',
-    accessLevel: 50,
-    priceMonthlyUsd: 0,
-    priceMonthlyUzs: 0,
-    trialDays: 0,
-    description: 'Free plan with roughly half of the curriculum, core quizzes, and basic progress tracking.',
-    features: ['~50% of lessons and quizzes', 'Core dashboard and streaks', 'Mistake notebook', 'Safe starter labs'],
-    paymentMethods: []
-  },
-  {
-    id: 'premium',
-    name: 'Premium',
-    accessLevel: 100,
-    priceMonthlyUsd: 3,
-    priceMonthlyUzs: 36000,
-    trialDays: 30,
-    description: 'Full CyberPath access with all lessons, labs, analytics, adaptive roadmap, and premium study guidance.',
-    features: ['All curriculum and labs', 'Adaptive roadmap and mastery tracking', 'Guided projects and certificates', 'Mentor-ready analytics'],
-    paymentMethods: ['Payme (Uzcard/Humo via tokenized checkout)', 'International card via Stripe Checkout']
-  }
-] as const;
+
 
 router.get('/plans', (_req, res) => {
   const paymentProviders = [
@@ -67,13 +54,22 @@ router.post('/feedback', (req, res) => {
   const id = makeId();
   const now = nowIso();
   run(
-    `INSERT INTO platform_feedback (id, user_id, name, email, category, message, status, created_at, updated_at)
-     VALUES (?, NULL, ?, ?, ?, ?, 'new', ?, ?)`,
+    `INSERT INTO platform_feedback (id, user_id, name, email, category, message, content_type, content_id, difficulty_rating, usefulness_rating, confusion_note, missing_explanation, would_recommend, would_pay, learner_goal, status, created_at, updated_at)
+     VALUES (?, NULL, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)`,
     id,
     parsed.data.name,
     parsed.data.email,
     parsed.data.category,
     parsed.data.message,
+    parsed.data.contentType ?? null,
+    parsed.data.contentId ?? null,
+    parsed.data.difficultyRating ?? null,
+    parsed.data.usefulnessRating ?? null,
+    parsed.data.confusionNote ?? null,
+    parsed.data.missingExplanation ?? null,
+    parsed.data.wouldRecommend ?? null,
+    parsed.data.wouldPay ?? null,
+    parsed.data.learnerGoal ?? null,
     now,
     now
   );
@@ -101,6 +97,15 @@ router.get('/metrics', (req, res) => {
   res.json({ metrics });
 });
 
+
+router.get('/portfolio/public/:shareId', (req, res) => {
+  const row = one<Record<string, unknown> | null>("SELECT * FROM portfolio_artifacts WHERE public_share_id = ? AND status = 'published'", req.params.shareId);
+  if (!row) return res.status(404).json({ message: 'Published artifact not found.' });
+  const artifact = mapPortfolioArtifact(row);
+  const owner = one<Record<string, unknown> | null>('SELECT name FROM users WHERE id = ?', artifact.userId);
+  return res.json({ artifact: { ...artifact, userId: undefined, ownerName: owner ? String(owner.name) : 'CyberPath learner', mentorFeedback: undefined } });
+});
+
 router.use(requireAuth);
 
 router.get('/subscription', (req: AuthenticatedRequest, res) => {
@@ -122,7 +127,7 @@ router.get('/subscription', (req: AuthenticatedRequest, res) => {
 });
 
 router.post('/subscription/demo-checkout', (req: AuthenticatedRequest, res) => {
-  const parsed = z.object({ planId: z.enum(['free', 'premium']) }).safeParse(req.body);
+  const parsed = z.object({ planId: z.enum(['free', 'premium', 'school']) }).safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid plan.' });
   }
@@ -133,7 +138,7 @@ router.post('/subscription/demo-checkout', (req: AuthenticatedRequest, res) => {
   const now = nowIso();
   const selectedPlan = planCatalog.find((item) => item.id === parsed.data.planId) ?? planCatalog[0];
   const currentPeriodEnd = new Date(Date.now() + (selectedPlan.trialDays || 30) * 24 * 60 * 60 * 1000).toISOString();
-  const status = parsed.data.planId === 'premium' ? 'trialing' : 'active';
+  const status = parsed.data.planId === 'free' ? 'active' : 'trialing';
   run(
     `INSERT INTO subscriptions (id, user_id, plan_id, status, billing_cycle, current_period_end, created_at, updated_at)
      VALUES (?, ?, ?, ?, 'monthly', ?, ?, ?)
@@ -154,7 +159,7 @@ router.post('/subscription/demo-checkout', (req: AuthenticatedRequest, res) => {
 
   createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'billing.demo_checkout', targetType: 'subscription', targetId: req.user!.userId, metadata: { planId: parsed.data.planId, status } });
   const subscription = mapSubscription(one<Record<string, unknown> | null>('SELECT * FROM subscriptions WHERE user_id = ?', req.user!.userId));
-  res.json({ subscription, message: parsed.data.planId === 'premium' ? 'Premium trial started for 30 days. Use a tokenized payment provider before charging real customers.' : 'Free plan activated.' });
+  res.json({ subscription, message: parsed.data.planId === 'free' ? 'Free plan activated.' : `${selectedPlan.name} demo trial started. Use a tokenized payment provider and signed school agreement before charging real customers.` });
 });
 
 router.get('/my-feedback', (req: AuthenticatedRequest, res) => {
@@ -170,14 +175,23 @@ router.post('/my-feedback', (req: AuthenticatedRequest, res) => {
   const id = makeId();
   const now = nowIso();
   run(
-    `INSERT INTO platform_feedback (id, user_id, name, email, category, message, status, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, 'new', ?, ?)`,
+    `INSERT INTO platform_feedback (id, user_id, name, email, category, message, content_type, content_id, difficulty_rating, usefulness_rating, confusion_note, missing_explanation, would_recommend, would_pay, learner_goal, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', ?, ?)`,
     id,
     req.user!.userId,
     parsed.data.name,
     parsed.data.email,
     parsed.data.category,
     parsed.data.message,
+    parsed.data.contentType ?? null,
+    parsed.data.contentId ?? null,
+    parsed.data.difficultyRating ?? null,
+    parsed.data.usefulnessRating ?? null,
+    parsed.data.confusionNote ?? null,
+    parsed.data.missingExplanation ?? null,
+    parsed.data.wouldRecommend ?? null,
+    parsed.data.wouldPay ?? null,
+    parsed.data.learnerGoal ?? null,
     now,
     now
   );

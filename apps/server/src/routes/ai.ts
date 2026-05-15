@@ -3,7 +3,8 @@ import { z } from 'zod';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { getStudentAnalytics } from '../utils/analytics.js';
 import { getStudentMastery, getStudentRecommendations } from '../utils/learningIntelligence.js';
-import { many, mapLesson, mapMistake, nowIso } from '../lib/db.js';
+import { makeId, many, mapLesson, mapMistake, nowIso, run, toDbJson } from '../lib/db.js';
+import { requireEntitlement } from '../utils/accessControl.js';
 
 const router = Router();
 
@@ -97,7 +98,7 @@ const conceptGuides = [
   }
 ];
 
-type TutorMode = 'simple' | 'deep';
+type TutorMode = 'explain' | 'hint' | 'quiz_me' | 'check_answer' | 'summarize' | 'give_example' | 'review_mistake' | 'simple' | 'deep';
 
 type TutorSection = {
   title: string;
@@ -123,7 +124,10 @@ function findConcept(prompt: string) {
 }
 
 function buildModeNote(mode: TutorMode) {
-  if (mode === 'simple') {
+  if (mode === 'hint') return 'I will give a small hint, not the full answer, so you can keep learning actively.';
+  if (mode === 'quiz_me') return 'I will turn the topic into a beginner-safe recall question.';
+  if (mode === 'check_answer') return 'I will check reasoning against defensive concepts and suggest what to improve.';
+  if (mode === 'simple' || mode === 'explain') {
     return 'I will keep this beginner-friendly: definition first, then one concrete example, then one practice step.';
   }
 
@@ -227,10 +231,10 @@ function buildStructuredAnswer(params: {
   };
 }
 
-router.post('/tutor', async (req: AuthenticatedRequest, res) => {
+router.post('/tutor', requireEntitlement('tutor:guided', 'Guided tutor requires Premium or School access. Free learners can use lesson explanations and mistake notebook.'), async (req: AuthenticatedRequest, res) => {
   const parsed = z.object({
     prompt: z.string().min(3).max(3000),
-    mode: z.enum(['simple', 'deep']).default('simple'),
+    mode: z.enum(['explain', 'hint', 'quiz_me', 'check_answer', 'summarize', 'give_example', 'review_mistake', 'simple', 'deep']).default('explain'),
     lessonSlug: z.string().optional()
   }).safeParse(req.body);
 
@@ -274,8 +278,15 @@ router.post('/tutor', async (req: AuthenticatedRequest, res) => {
     : 'Save wrong answers in the mistake notebook so I can personalize recommendations better.';
   const recommendationTitles = recommendations.map((item) => item.title).slice(0, 4);
 
+  const matchedSources = lessonRows.slice(0, 3).map((lesson) => lesson.title);
+
   if (hasUnsafeIntent(prompt)) {
-    return res.json(buildSafeRedirect(parsed.data.mode, weakTopicText, recommendationTitles));
+    run('INSERT INTO tutor_events (id, user_id, event_type, mode, prompt, matched_sources_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', makeId(), req.user!.userId, 'unsafe_request', parsed.data.mode, parsed.data.prompt, toDbJson(matchedSources), nowIso());
+    return res.json({ ...buildSafeRedirect(parsed.data.mode, weakTopicText, recommendationTitles), sources: matchedSources });
+  }
+
+  if (!hasCourseContext) {
+    run('INSERT INTO tutor_events (id, user_id, event_type, mode, prompt, matched_sources_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)', makeId(), req.user!.userId, 'content_gap', parsed.data.mode, parsed.data.prompt, toDbJson(matchedSources), nowIso());
   }
 
   const response = buildStructuredAnswer({
@@ -289,7 +300,9 @@ router.post('/tutor', async (req: AuthenticatedRequest, res) => {
 
   return res.json({
     ...response,
-    coachNote: buildModeNote(parsed.data.mode)
+    coachNote: buildModeNote(parsed.data.mode),
+    tutorLabel: 'Guided tutor fallback (deterministic; retrieval-ready, no external LLM configured)',
+    sources: matchedSources
   });
 });
 

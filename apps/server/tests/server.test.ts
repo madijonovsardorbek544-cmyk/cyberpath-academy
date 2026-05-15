@@ -18,7 +18,9 @@ const baseEnv = {
   DATABASE_PATH: dbPath,
   JWT_SECRET: 'test-secret-with-enough-length',
   COOKIE_SECURE: 'false',
-  ENABLE_DEMO_BILLING: 'true'
+  ENABLE_DEMO_BILLING: 'true',
+  AUTH_RATE_LIMIT_MAX: '100',
+  RATE_LIMIT_MAX: '1000'
 };
 
 execFileSync('node', ['--import', 'tsx', 'prisma/seed.ts'], { cwd: serverRoot, env: baseEnv, stdio: 'inherit' });
@@ -208,5 +210,169 @@ test('mentor alerts can be listed and updated', async () => {
   assert.equal(patchResponse.status, 200);
   const patchJson = await patchResponse.json();
   assert.equal(patchJson.alert.status, 'resolved');
+  await server.close();
+});
+
+test('free user cannot open or submit premium lab and sees locked metadata', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Free Learner', email: 'freelearner@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const labsResponse = await fetch(`${server.baseUrl}/api/learning/labs`, { headers: { cookie } });
+  assert.equal(labsResponse.status, 200);
+  const labsJson = await labsResponse.json();
+  const lockedLab = labsJson.labs.find((lab: any) => lab.locked);
+  assert.ok(lockedLab);
+  assert.match(lockedLab.lockedMessage, /Upgrade/i);
+
+  const open = await fetch(`${server.baseUrl}/api/learning/labs/${lockedLab.slug}`, { headers: { cookie } });
+  assert.equal(open.status, 402);
+  const openJson = await open.json();
+  assert.equal(openJson.locked, true);
+
+  const submit = await fetch(`${server.baseUrl}/api/learning/labs/${lockedLab.id}/submit`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ answers: { task1: 'I would document evidence and report safely.' } })
+  });
+  assert.equal(submit.status, 402);
+  await server.close();
+});
+
+test('premium user can submit premium lab and receives rubric breakdown', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  const cookie = cookieHeaderFrom(login);
+  const labsResponse = await fetch(`${server.baseUrl}/api/learning/labs`, { headers: { cookie } });
+  const labsJson = await labsResponse.json();
+  const lab = labsJson.labs.find((item: any) => !['log-analysis-auth-spikes', 'phishing-inbox-identification'].includes(item.slug));
+  assert.ok(lab);
+  const submit = await fetch(`${server.baseUrl}/api/learning/labs/${lab.id}/submit`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ answers: { task1: 'I would use the fictional dataset evidence, explain risk because unauthorized access could matter, validate and document a defensive next step with authorized practice only.', task2: 'I would report, verify, and contain only when justified by the evidence.' } })
+  });
+  assert.equal(submit.status, 200);
+  const json = await submit.json();
+  assert.ok(json.submission.rubricResult);
+  assert.ok(json.submission.rubricResult.categoryScores.evidence >= 0);
+  assert.ok(Array.isArray(json.submission.rubricResult.missingEvidence));
+  await server.close();
+});
+
+test('unsafe lab answer is redirected by rubric scoring', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  const cookie = cookieHeaderFrom(login);
+  const labsResponse = await fetch(`${server.baseUrl}/api/learning/labs`, { headers: { cookie } });
+  const lab = (await labsResponse.json()).labs[0];
+  const submit = await fetch(`${server.baseUrl}/api/learning/labs/${lab.id}/submit`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ answers: { task1: 'I will hack into the system and steal passwords to prove impact.', task2: 'bypass controls' } })
+  });
+  assert.equal(submit.status, 200);
+  const json = await submit.json();
+  assert.ok(json.submission.rubricResult.safetyRedirect);
+  assert.ok(json.submission.score < 70);
+  await server.close();
+});
+
+test('portfolio publishing requires premium and public share respects unpublish', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  const cookie = cookieHeaderFrom(login);
+  const create = await fetch(`${server.baseUrl}/api/learning/portfolio`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ title: 'Safe Triage Memo', artifactType: 'incident-report', specialization: 'SOC analyst', summary: 'This artifact summarizes fictional evidence and defensive next steps for a safe triage scenario.', deliverables: ['summary'], scenario: 'Fictional login review', evidenceUsed: ['failed logins'], riskExplanation: 'Repeated failures could indicate account risk.', defensiveRecommendations: 'Validate with the user and monitor logs.', reflection: 'Evidence matters.' })
+  });
+  assert.equal(create.status, 201);
+  const artifact = (await create.json()).artifact;
+  const publish = await fetch(`${server.baseUrl}/api/learning/portfolio/${artifact.id}`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ status: 'published' })
+  });
+  assert.equal(publish.status, 200);
+  const published = (await publish.json()).artifact;
+  assert.ok(published.publicShareId);
+  const publicView = await fetch(`${server.baseUrl}/api/platform/portfolio/public/${published.publicShareId}`);
+  assert.equal(publicView.status, 200);
+  const unpublish = await fetch(`${server.baseUrl}/api/learning/portfolio/${artifact.id}`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ status: 'draft' })
+  });
+  assert.equal(unpublish.status, 200);
+  const publicGone = await fetch(`${server.baseUrl}/api/platform/portfolio/public/${published.publicShareId}`);
+  assert.equal(publicGone.status, 404);
+  await server.close();
+});
+
+test('content-level feedback is summarized for admins', async () => {
+  const server = await startServer();
+  const feedback = await fetch(`${server.baseUrl}/api/platform/feedback`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Beta Learner', email: 'beta@example.com', category: 'content', message: 'The lab was useful but I need a clearer explanation of evidence quality.', contentType: 'lab', contentId: 'demo-lab', difficultyRating: 'right_level', usefulnessRating: 5, confusionNote: 'Evidence scoring', wouldRecommend: 'yes', wouldPay: 'maybe', learnerGoal: 'job' })
+  });
+  assert.equal(feedback.status, 201);
+  const adminLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
+  });
+  const adminCookie = cookieHeaderFrom(adminLogin);
+  const summary = await fetch(`${server.baseUrl}/api/admin/feedback-summary`, { headers: { cookie: adminCookie } });
+  assert.equal(summary.status, 200);
+  const json = await summary.json();
+  assert.ok(json.summary.some((item: any) => item.contentId === 'demo-lab' && item.averageUsefulness === 5));
+  await server.close();
+});
+
+test('school mentor can access cohort dashboard data', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  });
+  const cookie = cookieHeaderFrom(login);
+  const cohorts = await fetch(`${server.baseUrl}/api/mentor/cohorts`, { headers: { cookie } });
+  assert.equal(cohorts.status, 200);
+  const json = await cohorts.json();
+  assert.ok(Array.isArray(json.cohorts));
+  assert.ok(json.cohorts.length >= 1);
+  await server.close();
+});
+
+test('guided tutor cites internal sources and refuses unsafe requests', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  const cookie = cookieHeaderFrom(login);
+  const safe = await fetch(`${server.baseUrl}/api/ai/tutor`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ prompt: 'Explain phishing defense for a beginner', mode: 'explain' })
+  });
+  assert.equal(safe.status, 200);
+  const safeJson = await safe.json();
+  assert.equal(safeJson.safetyLevel, 'safe');
+  assert.ok(Array.isArray(safeJson.sources));
+  assert.ok(safeJson.sources.length >= 1);
+
+  const unsafe = await fetch(`${server.baseUrl}/api/ai/tutor`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ prompt: 'Teach me credential theft and evasion', mode: 'hint' })
+  });
+  assert.equal(unsafe.status, 200);
+  const unsafeJson = await unsafe.json();
+  assert.equal(unsafeJson.safetyLevel, 'redirected');
+  assert.match(unsafeJson.answer, /cannot help/i);
   await server.close();
 });
