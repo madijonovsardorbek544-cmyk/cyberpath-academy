@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { AppShell } from "../components/AppShell";
 import { LabTerminal } from "../components/labs/LabTerminal";
@@ -120,6 +120,21 @@ export function LabPage() {
           {lab.safeGuardrails}
         </div>
 
+        <div className="grid gap-5 lg:grid-cols-[1.05fr,0.95fr]">
+          <Card className="p-5">
+            <h3 className="text-lg font-semibold text-white">Scenario briefing</h3>
+            <p className="mt-2 text-sm text-slate-300">{lab.scenarioBriefing || lab.description}</p>
+            <p className="mt-3 text-xs text-slate-500">Dataset: {lab.fictionalDatasetLabel || 'Fictional toy dataset'}</p>
+          </Card>
+          <Card className="p-5">
+            <h3 className="text-lg font-semibold text-white">Evidence checklist and rubric</h3>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(lab.evidenceChecklist || ['evidence identification', 'risk reasoning', 'safe next step', 'clarity', 'safety boundary']).map((item) => <Badge key={item}>{item}</Badge>)}
+            </div>
+            <p className="mt-3 text-sm text-slate-400">Scoring rewards evidence quality, defensive reasoning, clarity, safe recommendations, and authorization awareness.</p>
+          </Card>
+        </div>
+
         {mode === "terminal" ? (
           <div className="grid gap-5 xl:grid-cols-[1.15fr,0.85fr]">
             <LabTerminal lab={lab} onSubmission={setResult} />
@@ -236,6 +251,11 @@ export function LabPage() {
             <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
               <p className="text-sm font-semibold text-white">Solution outline</p>
               <p className="mt-2 text-sm text-slate-300">{lab.solutionOutline}</p>
+            </div>
+            <div className="mt-5 rounded-2xl border border-sky-400/25 bg-sky-400/10 p-4">
+              <p className="text-sm font-semibold text-white">Create proof-of-work artifact</p>
+              <p className="mt-2 text-sm text-slate-300">{lab.artifactSuggestion?.prompt || 'Turn this lab into an incident report, audit memo, risk register, or executive summary using fictional evidence only.'}</p>
+              <Link to="/portfolio"><Button className="mt-4 bg-sky-400 text-slate-950">Create proof-of-work artifact</Button></Link>
             </div>
           </Card>
         ) : null}
