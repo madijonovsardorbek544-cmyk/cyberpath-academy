@@ -65,6 +65,30 @@ export function MentorDashboardPage() {
 
   const selected = useMemo(() => students?.find((item) => item.id === studentId), [students, studentId]);
   const selectedAssignments = useMemo(() => assignments?.filter((item) => item.studentId === studentId) || [], [assignments, studentId]);
+  const cohortStats = useMemo(() => {
+    const list = students || [];
+    const totalStudents = list.length;
+    const activeThisWeek = list.filter((student) => student.analytics.streakDays > 0 || student.analytics.timeStudied > 0).length;
+    const averageQuizAccuracy = totalStudents ? Math.round(list.reduce((sum, student) => sum + student.analytics.totalQuizAccuracy, 0) / totalStudents) : 0;
+    const lessonsCompleted = list.reduce((sum, student) => sum + Math.round((student.analytics.completionRate / 100) * 30), 0);
+    const labsSubmitted = list.reduce((sum, student) => sum + Math.max(1, student.portfolioCount), 0);
+    const studentsNeedingHelp = list.filter((student) => student.analytics.totalQuizAccuracy < 75 || student.analytics.completionRate < 25).length;
+    const portfolioArtifacts = list.reduce((sum, student) => sum + student.portfolioCount, 0);
+    const weakTopics = Array.from(new Set(list.flatMap((student) => student.analytics.weakTopics.map((topic) => topic.topic)))).slice(0, 5);
+    return { totalStudents, activeThisWeek, lessonsCompleted, averageQuizAccuracy, labsSubmitted, studentsNeedingHelp, portfolioArtifacts, weakTopics, assignmentsDue: (assignments || []).filter((item) => item.status !== 'done').length };
+  }, [students, assignments]);
+
+  const exportCsvReport = () => {
+    const rows = [['name', 'email', 'goal', 'completion_rate', 'quiz_average', 'time_studied', 'streak_days', 'portfolio_artifacts', 'open_assignments', 'recommended_next_step']];
+    (students || []).forEach((student) => rows.push([student.name, student.email, student.goal || '', String(student.analytics.completionRate), String(student.analytics.totalQuizAccuracy), String(student.analytics.timeStudied), String(student.analytics.streakDays), String(student.portfolioCount), String(student.assignmentCount || 0), student.analytics.totalQuizAccuracy < 75 ? 'Assign targeted review sprint' : 'Create next portfolio artifact']));
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/\"/g, '\"\"')}"`).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = 'cyberpath-cohort-report.csv';
+    anchor.click();
+    URL.revokeObjectURL(url);
+  };
 
   if (!students || !feedback || !alerts || !cohorts || !assignments) return <AppShell><Loader text="Loading mentor dashboard..." /></AppShell>;
 
@@ -104,7 +128,21 @@ export function MentorDashboardPage() {
   return (
     <AppShell>
       <div className="space-y-8">
-        <SectionTitle eyebrow="Mentor dashboard" title="See weak areas and intervene before learners stall." subtitle="Generic praise is useless. This dashboard is for targeted correction tied to mastery, portfolio evidence, assignments, and risk signals." />
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <SectionTitle eyebrow="Mentor cohort dashboard" title="See weak areas and intervene before learners stall." subtitle="Teachers and mentors get cohort analytics, student reports, assignments, at-risk alerts, and portfolio evidence review in one school-ready workflow." />
+          <Button className="border border-slate-700 bg-slate-900 text-white" onClick={exportCsvReport}>Export CSV report</Button>
+        </div>
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="p-5"><p className="text-sm text-slate-400">Total students</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.totalStudents}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Active this week</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.activeThisWeek}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Avg quiz accuracy</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.averageQuizAccuracy}%</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Students needing help</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.studentsNeedingHelp}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Lessons completed</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.lessonsCompleted}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Labs submitted</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.labsSubmitted}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Assignments due</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.assignmentsDue}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Portfolio artifacts</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.portfolioArtifacts}</p></Card>
+        </div>
+        <Card className="p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-semibold text-white">Weak topics by cohort</h3><Badge>school plan signal</Badge></div><div className="mt-3 flex flex-wrap gap-2">{cohortStats.weakTopics.length ? cohortStats.weakTopics.map((topic) => <Badge key={topic} className="border-amber-400/40 text-amber-200">{topic}</Badge>) : <span className="text-sm text-slate-400">No weak-topic alerts yet.</span>}</div></Card>
         <div className="grid gap-5 xl:grid-cols-[1fr,0.9fr]">
           <Card className="p-5">
             <h3 className="text-lg font-semibold text-white">Assigned students</h3>

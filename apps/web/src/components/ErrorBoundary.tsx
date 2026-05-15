@@ -37,7 +37,7 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
               <p className="text-xs uppercase tracking-[0.3em] text-sky-300">Application error</p>
               <h1 className="mt-3 text-3xl font-semibold text-white">Something broke in the interface.</h1>
               <p className="mt-3 text-sm text-slate-300">
-                Reload the page to recover. If this is the public demo, stale demo data from an older build may be the cause.
+                Reload the page to recover. If you are viewing the public demo, reset demo data to clear stale browser storage.
               </p>
               <div className="mt-6 flex flex-wrap justify-center gap-3">
                 <Button className="bg-sky-400 text-slate-950" onClick={() => window.location.reload()}>Reload</Button>

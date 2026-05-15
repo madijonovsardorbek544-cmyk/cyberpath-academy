@@ -364,7 +364,7 @@ export function StudentDashboardPage() {
                 <h3 className="text-lg font-semibold text-white">Portfolio and guided projects</h3>
                 <p className="mt-1 text-sm text-slate-400">Proof beats claims. Build artifacts that survive scrutiny.</p>
               </div>
-              <Link to="/paths" className="text-sm text-sky-300">Explore projects</Link>
+              <div className="flex flex-wrap gap-3"><Link to="/labs" className="text-sm text-sky-300">Finish a lab</Link><Link to="/portfolio" className="text-sm text-sky-300">Create proof-of-work artifact</Link></div>
             </div>
             <div className="mt-4 space-y-3">
               {dashboard.learnerProjects[0] ? (

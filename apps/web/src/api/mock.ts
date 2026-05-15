@@ -73,6 +73,21 @@ type LabSubmission = {
   createdAt: string;
 };
 
+type WaitlistSubmission = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  organization?: string | null;
+  countryCity?: string | null;
+  studentCount?: number | null;
+  interestLevel: string;
+  message?: string | null;
+  createdAt: string;
+};
+
+type AnalyticsEvent = { id: string; eventName: string; role?: string; createdAt: string };
+
 type DemoDb = {
   users: DemoUser[];
   lessons: Lesson[];
@@ -94,13 +109,15 @@ type DemoDb = {
   mentorAlerts: MentorAlert[];
   cohorts: Cohort[];
   feedback: FeedbackItem[];
+  waitlist: WaitlistSubmission[];
+  analyticsEvents: AnalyticsEvent[];
   subscriptions: Subscription[];
   sessionUserId?: string;
 };
 
-const DB_VERSION = 3;
+const DB_VERSION = 4;
 export const DB_KEY = `cyberpath-demo-db-v${DB_VERSION}`;
-const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2"];
+const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2", "cyberpath-demo-db-v3"];
 
 const now = () => new Date().toISOString();
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -174,7 +191,11 @@ const labs: Lab[] = [
   { id: uid("lab"), slug: "secure-coding-toy-fix", title: "Secure Coding Toy Fix", category: "Secure coding review", difficulty: "Advanced", description: "Read a tiny toy code snippet and explain a safe remediation.", dataset: { code: "app.get('/admin', (req, res) => { return res.send(secretData); })" }, tasks: [{ id: "task1", prompt: "What is the likely issue?", expectedKeywords: ["access control", "authorization", "missing check"] }, { id: "task2", prompt: "What would a safe fix include?", expectedKeywords: ["authorize", "role", "least privilege", "check"] }], safeGuardrails: "Use toy code only. Focus on safe remediation and code review thinking.", solutionOutline: "Identify missing authorization and recommend an explicit role or permission check." },
   { id: uid("lab"), slug: "mock-cloud-iam-review", title: "Mock Cloud IAM Review", category: "Cloud/IAM review", difficulty: "Advanced", description: "Inspect a fake cloud dashboard summary and reduce excessive privilege.", dataset: { roles: [{ user: "intern-app", permission: "admin" }, { user: "billing-job", permission: "read-billing" }] }, tasks: [{ id: "task1", prompt: "Which assignment violates least privilege?", expectedKeywords: ["intern", "admin", "least privilege"] }, { id: "task2", prompt: "What should change?", expectedKeywords: ["reduce", "specific", "scope", "role"] }], safeGuardrails: "No real cloud accounts are involved. This is purely a defensive least-privilege review.", solutionOutline: "Downgrade the over-privileged identity and replace broad rights with scoped access." },
   { id: uid("lab"), slug: "misconfiguration-review-demo", title: "Demo Misconfiguration Review", category: "Misconfiguration review", difficulty: "Intermediate", description: "Review a fake server checklist and identify unsafe defaults.", dataset: { checklist: ["Default admin password unchanged", "Automatic updates disabled", "MFA enabled for admins"] }, tasks: [{ id: "task1", prompt: "Name two unsafe defaults.", expectedKeywords: ["default password", "updates disabled"] }, { id: "task2", prompt: "What remediation order makes sense?", expectedKeywords: ["password", "update", "mfa", "priority"] }], safeGuardrails: "The configuration is fictional. The point is safe review and prioritization.", solutionOutline: "Fix default credentials first, restore updates, and keep strong authentication in place." },
-  { id: uid("lab"), slug: "demo-access-review", title: "Demo Access Control Review", category: "Access control review", difficulty: "Intermediate", description: "Inspect a toy app role matrix and spot broken access control.", dataset: { matrix: [{ role: "student", action: "view own progress", allowed: true }, { role: "student", action: "edit all users", allowed: true }] }, tasks: [{ id: "task1", prompt: "Which permission is wrong?", expectedKeywords: ["student", "edit all users", "wrong"] }, { id: "task2", prompt: "Which principle is violated?", expectedKeywords: ["least privilege", "authorization", "access control"] }], safeGuardrails: "This is a demo app. Focus on safe design review only.", solutionOutline: "Remove broad admin-like power from student role and enforce proper authorization." }
+  { id: uid("lab"), slug: "demo-access-review", title: "Demo Access Control Review", category: "Access control review", difficulty: "Intermediate", description: "Inspect a toy app role matrix and spot broken access control.", scenarioBriefing: "A fictional school portal is being reviewed before a class pilot.", fictionalDatasetLabel: "Toy role matrix", evidenceChecklist: ["over-broad student permission", "least-privilege violation", "safe remediation"], artifactSuggestion: { type: "access-review-memo", title: "Access review memo", prompt: "Summarize the incorrect permission, risk, and safe least-privilege change." }, dataset: { matrix: [{ role: "student", action: "view own progress", allowed: true }, { role: "student", action: "edit all users", allowed: true }] }, tasks: [{ id: "task1", prompt: "Which permission is wrong?", expectedKeywords: ["student", "edit all users", "wrong"], hints: ["Compare learner permissions with administrator actions."] }, { id: "task2", prompt: "Which principle is violated?", expectedKeywords: ["least privilege", "authorization", "access control"], hints: ["Name the defensive design principle, not an attack technique."] }], safeGuardrails: "This is a demo app. Focus on safe design review only.", solutionOutline: "Remove broad admin-like power from student role and enforce proper authorization.", rubric: { evidenceIdentification: 20, riskReasoning: 20, safeNextStep: 20, clarity: 20, safetyBoundary: 20 } },
+  { id: uid("lab"), slug: "password-policy-audit", title: "Password Policy Audit", category: "Policy audit", difficulty: "Beginner", description: "Review a fictional school password policy and recommend safer, usable improvements.", scenarioBriefing: "A learning center wants a student-safe account policy before launch.", fictionalDatasetLabel: "Fictional policy excerpt", evidenceChecklist: ["weak minimum length", "missing MFA for staff", "unclear reset process"], artifactSuggestion: { type: "password-policy-audit", title: "Password policy audit memo", prompt: "Write a concise audit with evidence, risk, and prioritized defensive recommendations." }, dataset: { policy: ["Minimum password length: 6", "MFA: optional for staff", "Password reset: handled by any club mentor", "Password manager: allowed"] }, tasks: [{ id: "task1", prompt: "Which policy items create the most risk?", expectedKeywords: ["length", "mfa", "reset"] }, { id: "task2", prompt: "Recommend two safer changes that are realistic for students.", expectedKeywords: ["longer", "mfa", "verified", "manager"] }], safeGuardrails: "Fictional policy only. Do not request, collect, or test real passwords.", solutionOutline: "Increase length, require MFA for privileged staff, and make reset approvals explicit.", rubric: { evidenceIdentification: 20, riskReasoning: 20, safeNextStep: 20, clarity: 20, safetyBoundary: 20 } },
+  { id: uid("lab"), slug: "risk-register-review", title: "Risk Register Review", category: "GRC/risk", difficulty: "Intermediate", description: "Prioritize fictional risks for a school cyber club pilot.", scenarioBriefing: "A principal asks which launch risks should be handled before onboarding students.", fictionalDatasetLabel: "Toy risk register", evidenceChecklist: ["impact", "likelihood", "owner", "treatment"], artifactSuggestion: { type: "risk-register", title: "School pilot risk register", prompt: "Create a short risk register with owners and treatment actions." }, dataset: { risks: [{ item: "No parent-facing safety summary", likelihood: "medium", impact: "high" }, { item: "Mentor dashboard export not reviewed", likelihood: "low", impact: "medium" }, { item: "Unsafe external links in club notes", likelihood: "medium", impact: "high" }] }, tasks: [{ id: "task1", prompt: "Which two risks should be prioritized and why?", expectedKeywords: ["safety", "external links", "impact"] }, { id: "task2", prompt: "Assign a safe treatment action for one risk.", expectedKeywords: ["owner", "mitigate", "review", "policy"] }], safeGuardrails: "This is governance practice with fictional risks, not legal advice or real incident handling.", solutionOutline: "Prioritize student safety communication and external-link review, then assign owners and mitigations.", rubric: { evidenceIdentification: 20, riskReasoning: 20, safeNextStep: 20, clarity: 20, safetyBoundary: 20 } },
+  { id: uid("lab"), slug: "network-log-review-basic", title: "Basic Network Log Review", category: "Log analysis", difficulty: "Beginner", description: "Review fictional network flow summaries and write a cautious defensive note.", scenarioBriefing: "A club laptop shows repeated outbound connections in a fictional training log.", fictionalDatasetLabel: "Toy flow log", evidenceChecklist: ["repeated destination", "unusual port label", "benign explanation", "defensive next step"], artifactSuggestion: { type: "incident-report", title: "Network log review note", prompt: "Document what stands out, what you cannot conclude yet, and the safest next step." }, dataset: { flows: [{ host: "club-laptop-02", destination: "203.0.113.45", service: "unknown-training-service", count: 18 }, { host: "club-laptop-02", destination: "198.51.100.20", service: "https", count: 5 }] }, tasks: [{ id: "task1", prompt: "What stands out without overclaiming?", expectedKeywords: ["repeated", "unknown", "review"] }, { id: "task2", prompt: "What should a defender do next?", expectedKeywords: ["validate", "ask", "document", "monitor"] }], safeGuardrails: "Fictional metadata only. Do not scan, probe, or contact any real address.", solutionOutline: "Flag the repeated unknown service, preserve the log, ask for expected-app context, and monitor or escalate if unexplained.", rubric: { evidenceIdentification: 20, riskReasoning: 20, safeNextStep: 20, clarity: 20, safetyBoundary: 20 } },
+  { id: uid("lab"), slug: "ai-security-awareness-scenario", title: "AI Security Awareness Scenario", category: "AI security awareness", difficulty: "Beginner", description: "Classify safe and unsafe uses of an AI assistant in a school cyber club.", scenarioBriefing: "A teacher wants guidelines for AI use during beginner cyber labs.", fictionalDatasetLabel: "Toy classroom scenarios", evidenceChecklist: ["private data boundary", "allowed learning help", "human review", "school policy"], artifactSuggestion: { type: "executive-summary", title: "AI safety classroom summary", prompt: "Write a parent/teacher-friendly summary of safe AI use boundaries." }, dataset: { scenarios: ["Student asks AI to explain a glossary term", "Student pastes a real classmate email into AI", "Mentor asks AI to draft a generic incident-report template", "Student asks for steps against a real website"] }, tasks: [{ id: "task1", prompt: "Which scenarios are acceptable and which are not?", expectedKeywords: ["glossary", "template", "private", "real website"] }, { id: "task2", prompt: "Write one classroom rule that keeps AI use safe.", expectedKeywords: ["fictional", "no private data", "authorized", "defensive"] }], safeGuardrails: "Defensive awareness only. No real personal data, real-target instructions, or bypass guidance.", solutionOutline: "Allow explanation and generic templates; prohibit private data sharing and real-target requests.", rubric: { evidenceIdentification: 20, riskReasoning: 20, safeNextStep: 20, clarity: 20, safetyBoundary: 20 } }
 ];
 
 const capstones: Capstone[] = [
@@ -472,6 +493,16 @@ function seedDb(): DemoDb {
     { id: uid("support"), userId: studentId, name: "Amina Student", email: "student@cyberpath.local", category: "feature", message: "I would like a clearer checklist after each lab.", status: "new", createdAt: daysAgo(1), updatedAt: daysAgo(1) }
   ];
 
+  const waitlist: WaitlistSubmission[] = [
+    { id: uid("waitlist"), name: "Demo School Director", email: "director@example.edu", role: "school owner", organization: "Tashkent Learning Center", countryCity: "Uzbekistan / Tashkent", studentCount: 80, interestLevel: "school pilot", message: "Interested in a safe cyber club pilot with mentor reports.", createdAt: daysAgo(1) }
+  ];
+
+  const analyticsEvents: AnalyticsEvent[] = [
+    { id: uid("event"), eventName: "demo_start", role: "student", createdAt: daysAgo(2) },
+    { id: uid("event"), eventName: "demo_role_selected", role: "mentor", createdAt: daysAgo(1) },
+    { id: uid("event"), eventName: "waitlist_view", createdAt: daysAgo(1) }
+  ];
+
   const subscriptions: Subscription[] = [
     { id: uid("sub"), userId: studentId, planId: "free", status: "active", billingCycle: "monthly", currentPeriodEnd: null, providerCustomerId: null, providerSubscriptionId: null, createdAt: daysAgo(10), updatedAt: daysAgo(10) }
   ];
@@ -500,6 +531,8 @@ function seedDb(): DemoDb {
     mentorAlerts,
     cohorts,
     feedback,
+    waitlist,
+    analyticsEvents,
     subscriptions,
     sessionUserId: studentId
   };
@@ -527,6 +560,8 @@ function isValidDemoDb(value: Partial<DemoDb> | null): value is DemoDb {
     Array.isArray(value.mentorAlerts) &&
     Array.isArray(value.cohorts) &&
     Array.isArray(value.feedback) &&
+    Array.isArray(value.waitlist) &&
+    Array.isArray(value.analyticsEvents) &&
     Array.isArray(value.subscriptions)
   );
 }
@@ -1048,6 +1083,10 @@ function handleGet<T>(path: string): T {
         attempts: db.attempts.length,
         feedbackItems: db.mentorFeedback.length,
         openPlatformFeedback: db.feedback.filter((item) => item.status !== "resolved").length,
+        waitlistSubmissions: db.waitlist.length,
+        schoolPilotInterest: db.waitlist.filter((item) => /school|pilot|classroom/i.test(item.interestLevel)).length,
+        demoStarts: db.analyticsEvents.filter((item) => item.eventName === "demo_start" || item.eventName === "demo_role_selected").length,
+        artifactsCreated: db.portfolio.length,
         queuedEmails: 1,
         completionRate
       },
@@ -1055,6 +1094,14 @@ function handleGet<T>(path: string): T {
       lessons: db.lessons,
       labs: db.labs,
       platformFeedback: db.feedback,
+      waitlist: db.waitlist,
+      validationMetrics: {
+        usefulnessScore: db.feedback.length ? Math.round(db.feedback.reduce((sum, item) => sum + (item.usefulnessScore ?? 4), 0) / db.feedback.length) : 0,
+        willingnessToPay: { yes: db.feedback.filter((item) => item.willingnessToPay === "yes").length, maybe: db.feedback.filter((item) => item.willingnessToPay === "maybe").length, no: db.feedback.filter((item) => item.willingnessToPay === "no").length },
+        confusionThemes: ["lab checklist clarity", "IAM terminology", "portfolio quality expectations"],
+        mostRequestedTopics: ["SOC Level 1", "Cloud IAM", "Uzbek glossary", "School reports"],
+        demoConversionSignals: { landingToDemo: 42, demoToWaitlist: 12, schoolPilotRequests: db.waitlist.length }
+      },
       emailOutbox: [
         { id: "email-demo-welcome", toEmail: "student@cyberpath.local", subject: "Welcome to CyberPath Academy", messageType: "welcome", status: "queued", createdAt: daysAgo(1) }
       ],
@@ -1288,6 +1335,34 @@ function handlePost<T>(path: string, body: unknown): T {
     return { message: `Demo checkout activated ${selected.name}. No payment information was collected.`, subscription } as T;
   }
 
+
+  if (path === "/platform/waitlist") {
+    const data = body as Partial<WaitlistSubmission>;
+    const item: WaitlistSubmission = {
+      id: uid("waitlist"),
+      name: data.name || "Demo pilot lead",
+      email: data.email || "pilot@example.edu",
+      role: data.role || "teacher",
+      organization: data.organization || null,
+      countryCity: data.countryCity || null,
+      studentCount: typeof data.studentCount === "number" ? data.studentCount : null,
+      interestLevel: data.interestLevel || "school pilot",
+      message: data.message || null,
+      createdAt: now()
+    };
+    db.waitlist.unshift(item);
+    db.feedback.unshift({ id: uid("feedback"), userId: null, name: item.name, email: item.email, category: "waitlist", message: `${item.role} from ${item.organization || "unknown organization"} requested ${item.interestLevel}: ${item.message || "No message"}`, status: "new", usefulnessScore: 5, willingnessToPay: /school|pilot/i.test(item.interestLevel) ? "maybe" : "no", audienceRole: item.role, goal: item.interestLevel, createdAt: now(), updatedAt: now() });
+    writeDb(db);
+    return { message: "Thanks — your public beta / school pilot interest was saved in this demo browser.", waitlist: item } as T;
+  }
+
+  if (path === "/platform/analytics/event") {
+    const data = body as { eventName?: string; role?: string };
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: data.eventName || "demo_event", role: data.role, createdAt: now() });
+    writeDb(db);
+    return { ok: true } as T;
+  }
+
   if (path === "/platform/feedback" || path === "/platform/my-feedback") {
     const maybeUser = getSessionUser(db);
     const data = body as Partial<FeedbackItem>;
@@ -1299,6 +1374,11 @@ function handlePost<T>(path: string, body: unknown): T {
       category: data.category || "support",
       message: data.message || "Demo feedback",
       status: "new",
+      usefulnessScore: data.usefulnessScore ?? null,
+      difficulty: data.difficulty ?? null,
+      willingnessToPay: data.willingnessToPay ?? null,
+      audienceRole: data.audienceRole ?? null,
+      goal: data.goal ?? null,
       createdAt: now(),
       updatedAt: now()
     };

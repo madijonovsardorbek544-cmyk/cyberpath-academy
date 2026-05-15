@@ -26,6 +26,9 @@ jobs:
       - name: Seed database
         run: npm run db:setup
 
+      - name: Smoke test public mock demo
+        run: npm run smoke:mock --workspace web
+
       - name: Build
         run: npm run build
 

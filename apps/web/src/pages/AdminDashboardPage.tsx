@@ -56,7 +56,8 @@ export function AdminDashboardPage() {
   return (
     <AppShell>
       <div className="space-y-8">
-        <SectionTitle eyebrow="Admin dashboard" title="Manage users, content, and operational discipline." subtitle="This pass adds content CRUD, role changes, feedback queue visibility, email outbox visibility, and audit logs instead of pretending operations happen by magic." />
+        <SectionTitle eyebrow="Admin dashboard · beta operations" title="Manage users, content, cohorts, validation, and product health." subtitle="This is deliberately framed as beta operations: content quality, school-pilot demand, feedback, subscriptions, platform health, and demo conversion signals." />
+        <div className="rounded-2xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-50">Beta operations note: simulated demo metrics are directional only. Production should store events server-side with privacy review, retention rules, and school-safe reporting.</div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
           <StatCard label="Users" value={data.stats.users} />
           <StatCard label="Lessons" value={data.stats.lessons} />
@@ -64,6 +65,30 @@ export function AdminDashboardPage() {
           <StatCard label="Completion rate" value={`${data.stats.completionRate}%`} />
           <StatCard label="Open feedback" value={data.stats.openPlatformFeedback} />
           <StatCard label="Queued emails" value={data.stats.queuedEmails} />
+          <StatCard label="Waitlist" value={data.stats.waitlistSubmissions ?? 0} />
+          <StatCard label="School interest" value={data.stats.schoolPilotInterest ?? 0} />
+          <StatCard label="Demo starts" value={data.stats.demoStarts ?? 0} />
+          <StatCard label="Artifacts" value={data.stats.artifactsCreated ?? 0} />
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-[1fr,1fr]">
+          <Card className="p-5">
+            <h3 className="text-lg font-semibold text-white">Startup validation metrics</h3>
+            <div className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Usefulness score: {data.validationMetrics?.usefulnessScore ?? 0}/5</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Demo → waitlist: {data.validationMetrics?.demoConversionSignals?.demoToWaitlist ?? 0}%</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Willingness to pay: yes {data.validationMetrics?.willingnessToPay?.yes ?? 0}, maybe {data.validationMetrics?.willingnessToPay?.maybe ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">School pilot requests: {data.validationMetrics?.demoConversionSignals?.schoolPilotRequests ?? 0}</div>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">{(data.validationMetrics?.mostRequestedTopics || []).map((topic: string) => <Badge key={topic}>{topic}</Badge>)}</div>
+            <p className="mt-3 text-sm text-slate-400">Confusion themes: {(data.validationMetrics?.confusionThemes || []).join(', ')}</p>
+          </Card>
+          <Card className="p-5">
+            <h3 className="text-lg font-semibold text-white">School pilot / waitlist pipeline</h3>
+            <div className="mt-4 space-y-3 max-h-[300px] overflow-auto pr-1">
+              {(data.waitlist || []).map((item: any) => <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="font-medium text-white">{item.name}</p><Badge>{item.interestLevel}</Badge></div><p className="mt-1 text-sm text-slate-400">{item.organization || 'No org'} · {item.countryCity || 'No location'} · {item.studentCount || 0} students</p><p className="mt-2 text-sm text-slate-300">{item.message}</p></div>)}
+            </div>
+          </Card>
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1fr,1fr]">

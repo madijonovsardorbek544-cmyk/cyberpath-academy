@@ -160,6 +160,10 @@ export type Lab = {
   category: string;
   difficulty: string;
   description: string;
+  scenarioBriefing?: string;
+  fictionalDatasetLabel?: string;
+  evidenceChecklist?: string[];
+  artifactSuggestion?: { type: string; title: string; prompt: string };
   dataset: any;
   tasks: { id: string; prompt: string; expectedKeywords?: string[]; expectedEvidence?: string[]; hints?: string[] }[];
   safeGuardrails: string;
@@ -215,11 +219,29 @@ export type FeedbackItem = {
   userId?: string | null;
   name: string;
   email: string;
-  category: 'bug' | 'content' | 'feature' | 'billing' | 'support' | string;
+  category: 'bug' | 'content' | 'feature' | 'billing' | 'support' | 'validation' | 'waitlist' | string;
   message: string;
   status: 'new' | 'reviewed' | 'resolved' | string;
+  usefulnessScore?: number | null;
+  difficulty?: 'too_easy' | 'right_level' | 'too_hard' | string | null;
+  willingnessToPay?: 'yes' | 'maybe' | 'no' | string | null;
+  audienceRole?: 'student' | 'parent' | 'teacher' | 'mentor' | 'school_owner' | string | null;
+  goal?: string | null;
   createdAt: string;
   updatedAt?: string;
+};
+
+export type WaitlistSubmission = {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  organization?: string | null;
+  countryCity?: string | null;
+  studentCount?: number | null;
+  interestLevel: string;
+  message?: string | null;
+  createdAt: string;
 };
 
 export type Capstone = {
