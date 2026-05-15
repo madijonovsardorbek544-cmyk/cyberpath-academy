@@ -3,6 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { Loader } from '../components/ui';
+import { isMockApiMode } from '../api/client';
 
 const LandingPage = lazy(() => import('../pages/LandingPage').then((module) => ({ default: module.LandingPage })));
 const LoginPage = lazy(() => import('../pages/LoginPage').then((module) => ({ default: module.LoginPage })));
@@ -27,6 +28,16 @@ const TermsPage = lazy(() => import('../pages/TermsPage').then((module) => ({ de
 const SafetyPage = lazy(() => import('../pages/SafetyPage').then((module) => ({ default: module.SafetyPage })));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
 
+function DemoBanner() {
+  if (!isMockApiMode) return null;
+
+  return (
+    <div className="border-b border-sky-300/20 bg-sky-950/95 px-4 py-3 text-center text-sm text-sky-50 shadow-lg shadow-sky-950/20">
+      Public demo mode: data is simulated and may reset. Full backend features require a deployed API.
+    </div>
+  );
+}
+
 function DashboardRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
@@ -39,33 +50,36 @@ function DashboardRedirect() {
 export function App() {
   return (
     <HashRouter>
-      <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100"><Loader text="Loading CyberPath Academy..." /></div>}>
-        <Routes>
-          <Route path="/" element={<LandingPage />} />
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/reset-password" element={<ResetPage />} />
-          <Route path="/pricing" element={<BillingPage publicView />} />
-          <Route path="/public/artifacts/:shareId" element={<PublicArtifactPage />} />
-          <Route path="/support" element={<SupportPage />} />
-          <Route path="/privacy" element={<PrivacyPage />} />
-          <Route path="/terms" element={<TermsPage />} />
-          <Route path="/safety" element={<SafetyPage />} />
-          <Route path="/onboarding" element={<ProtectedRoute roles={['student']}><OnboardingPage /></ProtectedRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
-          <Route path="/paths" element={<ProtectedRoute><LearningPathsPage /></ProtectedRoute>} />
-          <Route path="/practice" element={<ProtectedRoute><PracticeHubPage /></ProtectedRoute>} />
-          <Route path="/lessons/:slug" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
-          <Route path="/labs" element={<ProtectedRoute><LabsPage /></ProtectedRoute>} />
-          <Route path="/labs/:slug" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
-          <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
-          <Route path="/mistakes" element={<ProtectedRoute roles={['student', 'mentor', 'admin']}><MistakesPage /></ProtectedRoute>} />
-          <Route path="/tutor" element={<ProtectedRoute><AITutorPage /></ProtectedRoute>} />
-          <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-          <Route path="/mentor" element={<ProtectedRoute roles={['mentor', 'admin']}><MentorDashboardPage /></ProtectedRoute>} />
-          <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminDashboardPage /></ProtectedRoute>} />
-          <Route path="*" element={<NotFoundPage />} />
-        </Routes>
-      </Suspense>
+      <div className="min-h-screen bg-slate-950 text-slate-100">
+        <DemoBanner />
+        <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100"><Loader text="Loading CyberPath Academy..." /></div>}>
+          <Routes>
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/reset-password" element={<ResetPage />} />
+            <Route path="/pricing" element={<BillingPage publicView />} />
+            <Route path="/public/artifacts/:shareId" element={<PublicArtifactPage />} />
+            <Route path="/support" element={<SupportPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/terms" element={<TermsPage />} />
+            <Route path="/safety" element={<SafetyPage />} />
+            <Route path="/onboarding" element={<ProtectedRoute roles={['student']}><OnboardingPage /></ProtectedRoute>} />
+            <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
+            <Route path="/paths" element={<ProtectedRoute><LearningPathsPage /></ProtectedRoute>} />
+            <Route path="/practice" element={<ProtectedRoute><PracticeHubPage /></ProtectedRoute>} />
+            <Route path="/lessons/:slug" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
+            <Route path="/labs" element={<ProtectedRoute><LabsPage /></ProtectedRoute>} />
+            <Route path="/labs/:slug" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
+            <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />
+            <Route path="/mistakes" element={<ProtectedRoute roles={['student', 'mentor', 'admin']}><MistakesPage /></ProtectedRoute>} />
+            <Route path="/tutor" element={<ProtectedRoute><AITutorPage /></ProtectedRoute>} />
+            <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
+            <Route path="/mentor" element={<ProtectedRoute roles={['mentor', 'admin']}><MentorDashboardPage /></ProtectedRoute>} />
+            <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminDashboardPage /></ProtectedRoute>} />
+            <Route path="*" element={<NotFoundPage />} />
+          </Routes>
+        </Suspense>
+      </div>
     </HashRouter>
   );
 }

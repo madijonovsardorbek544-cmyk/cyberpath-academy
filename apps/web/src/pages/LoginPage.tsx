@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Button, Card, Input, SectionTitle } from "../components/ui";
+import { isMockApiMode } from "../api/client";
 
 export function LoginPage() {
   const navigate = useNavigate();
@@ -12,6 +13,25 @@ export function LoginPage() {
   const [password, setPassword] = useState("Student123!");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  const enterDemo = async (role: "student" | "mentor" | "admin" = "student") => {
+    const accounts = {
+      student: { email: "student@cyberpath.local", password: "Student123!" },
+      mentor: { email: "mentor@cyberpath.local", password: "Mentor123!" },
+      admin: { email: "admin@cyberpath.local", password: "Admin123!" }
+    };
+    setLoading(true);
+    setError("");
+    try {
+      const account = accounts[role];
+      await login(account.email, account.password);
+      navigate("/dashboard");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Demo login failed.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -38,12 +58,23 @@ export function LoginPage() {
           <Link to="/" className="text-sm text-sky-300">← Back to landing</Link>
           <SectionTitle eyebrow="Authentication" title="Sign in fast, or create a clean account." subtitle="Use the seeded demo accounts immediately or create a fresh student account. Password reset is available in dev mode with a visible reset token." />
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-white">Demo accounts</h3>
-            <div className="mt-4 space-y-3 text-sm text-slate-300">
-              <p><strong>Student:</strong> student@cyberpath.local / Student123!</p>
-              <p><strong>Mentor:</strong> mentor@cyberpath.local / Mentor123!</p>
-              <p><strong>Admin:</strong> admin@cyberpath.local / Admin123!</p>
-            </div>
+            <h3 className="text-lg font-semibold text-white">{isMockApiMode ? "Public demo access" : "Seeded local accounts"}</h3>
+            {isMockApiMode ? (
+              <div className="mt-4 space-y-4 text-sm text-slate-300">
+                <p>Use a one-click demo account to review the student, mentor, or admin experience without connecting to a live backend.</p>
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                  <Button className="bg-sky-400 text-slate-950" disabled={loading} onClick={() => enterDemo("student")}>Try student demo</Button>
+                  <Button className="border border-slate-700 bg-slate-900 text-white" disabled={loading} onClick={() => enterDemo("mentor")}>Try mentor demo</Button>
+                  <Button className="border border-slate-700 bg-slate-900 text-white" disabled={loading} onClick={() => enterDemo("admin")}>Try admin demo</Button>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3 text-sm text-slate-300">
+                <p><strong>Student:</strong> student@cyberpath.local / Student123!</p>
+                <p><strong>Mentor:</strong> mentor@cyberpath.local / Mentor123!</p>
+                <p><strong>Admin:</strong> admin@cyberpath.local / Admin123!</p>
+              </div>
+            )}
           </Card>
         </div>
         <Card className="p-6 sm:p-8">

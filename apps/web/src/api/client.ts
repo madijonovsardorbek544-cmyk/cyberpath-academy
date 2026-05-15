@@ -4,6 +4,7 @@ const API_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.PROD ? '/api' : 'http://localhost:4000/api');
 const API_MODE = import.meta.env.VITE_API_MODE || 'api';
+export const isMockApiMode = API_MODE === 'mock';
 const REQUEST_TIMEOUT_MS = 12000;
 
 function getFriendlyNetworkMessage(error: unknown) {
@@ -23,7 +24,7 @@ function getFriendlyNetworkMessage(error: unknown) {
 }
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
-  if (API_MODE === 'mock') {
+  if (isMockApiMode) {
     const method = (options.method || 'GET').toUpperCase();
     const body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
     if (method === 'GET') return await mockApi.get<T>(path);

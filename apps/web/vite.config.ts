@@ -2,8 +2,11 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
+const isGitHubPages = process.env.VITE_GITHUB_PAGES === "true";
+const base = isGitHubPages ? "/cyberpath-academy/" : "/";
+
 export default defineConfig({
-  base: "./",
+  base,
   plugins: [
     react(),
     VitePWA({
@@ -16,7 +19,8 @@ export default defineConfig({
         theme_color: "#0f172a",
         background_color: "#020617",
         display: "standalone",
-        start_url: "/",
+        start_url: base,
+        scope: base,
         icons: [
           { src: "pwa-192x192.png", sizes: "192x192", type: "image/png" },
           { src: "pwa-512x512.png", sizes: "512x512", type: "image/png" },
