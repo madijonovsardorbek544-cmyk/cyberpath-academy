@@ -30,7 +30,7 @@ export function LandingPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const { locale, setLocale, t } = useLocale();
-  const [waitlist, setWaitlist] = useState({ name: '', email: '', role: 'teacher', organization: '', countryCity: '', studentCount: '', interestLevel: 'school pilot', message: '' });
+  const [waitlist, setWaitlist] = useState({ name: '', email: '', role: 'teacher', organization: '', countryCity: '', studentCount: '', interestLevel: 'interested', message: '' });
   const [waitlistMessage, setWaitlistMessage] = useState('');
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
 
@@ -48,12 +48,21 @@ export function LandingPage() {
 
   const submitWaitlist = async (event: FormEvent) => {
     event.preventDefault();
-    const response = await api.post<{ message: string }>('/platform/waitlist', {
-      ...waitlist,
-      studentCount: waitlist.studentCount ? Number(waitlist.studentCount) : null
+    const response = await api.post<{ message: string }>('/platform/pilot-leads', {
+      contactName: waitlist.name,
+      email: waitlist.email,
+      role: waitlist.role === 'school owner' ? 'school_leader' : waitlist.role === 'learning center' ? 'learning_center_owner' : waitlist.role,
+      organizationName: waitlist.organization || 'Unknown organization',
+      cityCountry: waitlist.countryCity || 'Unknown city/country',
+      studentCount: waitlist.studentCount ? Number(waitlist.studentCount) : null,
+      currentCyberLevel: 'Beginner / needs structured defensive cybersecurity program',
+      needsMost: waitlist.message || 'School-safe defensive cybersecurity pilot, mentor dashboard, and student reports.',
+      interestLevel: waitlist.interestLevel,
+      wouldPay: 'maybe',
+      message: waitlist.message || null
     });
     setWaitlistMessage(response.message);
-    setWaitlist({ name: '', email: '', role: 'teacher', organization: '', countryCity: '', studentCount: '', interestLevel: 'school pilot', message: '' });
+    setWaitlist({ name: '', email: '', role: 'teacher', organization: '', countryCity: '', studentCount: '', interestLevel: 'interested', message: '' });
   };
 
   return (
@@ -67,7 +76,7 @@ export function LandingPage() {
           <div className="flex flex-wrap items-center gap-3">
             <select aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}><option value="en">EN</option><option value="uz">UZ</option><option value="ru">RU</option></select>
             <Link className="text-sm text-slate-300" to="/pricing">{t('pricing')}</Link>
-            <Link className="text-sm text-slate-300" to="/support">Pilot form</Link>
+            <Link className="text-sm text-sky-300" to="/school-pilot">Request school pilot</Link>
             <Link className="text-sm text-slate-300" to="/login">{t('login')}</Link>
           </div>
         </header>
@@ -75,8 +84,8 @@ export function LandingPage() {
         <section className="grid gap-8 py-16 lg:grid-cols-[1.1fr,0.9fr] lg:items-center">
           <div className="space-y-6">
             <Badge className="border-sky-400/20 bg-sky-400/10 text-sky-200">Defensive-only · Fictional labs · Mentor dashboards · Uzbek/English friendly</Badge>
-            <h1 className="max-w-5xl text-4xl font-semibold leading-tight text-white sm:text-6xl">Cybersecurity education schools can actually trust.</h1>
-            <p className="max-w-3xl text-lg text-slate-300">CyberPath Academy helps schools and beginner students learn defensive cybersecurity safely through structured lessons, fictional labs, portfolio artifacts, mentor dashboards, and measurable role readiness.</p>
+            <h1 className="max-w-5xl text-4xl font-semibold leading-tight text-white sm:text-6xl">Safe defensive cybersecurity learning for schools, cyber clubs, and beginner students.</h1>
+            <p className="max-w-3xl text-lg text-slate-300">Structured lessons, fictional labs, mentor dashboards, student reports, and portfolio proof — without unsafe hacking content.</p>
             <div className="rounded-3xl border border-amber-400/25 bg-amber-400/10 p-4 text-sm text-amber-50">
               Public demo notice: this GitHub Pages build uses simulated frontend data. Use the buttons below to preview the student, mentor, and admin experience without creating accounts.
             </div>
@@ -86,6 +95,7 @@ export function LandingPage() {
               <Button className="border border-violet-400/40 bg-violet-400/10 text-violet-100" disabled={!!demoLoading} onClick={() => enterDemo('admin')}>{demoLoading === 'admin' ? 'Opening...' : 'Try Admin Demo'}</Button>
             </div>
             <div className="grid gap-3 text-sm text-slate-400 sm:grid-cols-3"><span className="flex items-center gap-2"><Lock size={16} /> Fictional data only</span><span className="flex items-center gap-2"><BadgeCheck size={16} /> Authorized practice</span><span className="flex items-center gap-2"><Shield size={16} /> No real-target hacking</span></div>
+            <Link to="/school-pilot"><Button className="bg-emerald-400 text-slate-950">Request school pilot</Button></Link>
           </div>
           <Card className="p-6">
             <div className="grid gap-4">
@@ -114,7 +124,7 @@ export function LandingPage() {
         </section>
 
         <section className="grid gap-5 py-10 lg:grid-cols-[1fr,0.9fr]">
-          <Card className="p-6"><SectionTitle eyebrow="Public beta waitlist / school pilot" title="Help validate if this should become a real school product." subtitle="This pipeline matters more than adding random features." />{waitlistMessage ? <div className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100">{waitlistMessage}</div> : null}<form className="mt-5 grid gap-3" onSubmit={submitWaitlist}><div className="grid gap-3 sm:grid-cols-2"><Input required placeholder="Name" value={waitlist.name} onChange={(e) => setWaitlist({ ...waitlist, name: e.target.value })} /><Input required type="email" placeholder="Email" value={waitlist.email} onChange={(e) => setWaitlist({ ...waitlist, email: e.target.value })} /></div><div className="grid gap-3 sm:grid-cols-2"><Select value={waitlist.role} onChange={(e) => setWaitlist({ ...waitlist, role: e.target.value })}>{['student', 'parent', 'teacher', 'mentor', 'school owner', 'learning center'].map((role) => <option key={role}>{role}</option>)}</Select><Input placeholder="School / organization" value={waitlist.organization} onChange={(e) => setWaitlist({ ...waitlist, organization: e.target.value })} /></div><div className="grid gap-3 sm:grid-cols-3"><Input placeholder="Country / city" value={waitlist.countryCity} onChange={(e) => setWaitlist({ ...waitlist, countryCity: e.target.value })} /><Input type="number" min="0" placeholder="# students" value={waitlist.studentCount} onChange={(e) => setWaitlist({ ...waitlist, studentCount: e.target.value })} /><Select value={waitlist.interestLevel} onChange={(e) => setWaitlist({ ...waitlist, interestLevel: e.target.value })}>{['school pilot', 'classroom trial', 'student premium', 'feedback interview', 'just exploring'].map((interest) => <option key={interest}>{interest}</option>)}</Select></div><Textarea placeholder="What would make this useful for your class, club, or learning goal?" value={waitlist.message} onChange={(e) => setWaitlist({ ...waitlist, message: e.target.value })} /><Button className="bg-sky-400 text-slate-950">Request pilot / join waitlist</Button></form></Card>
+          <Card className="p-6"><SectionTitle eyebrow="Public beta waitlist / school pilot" title="Help validate if this should become a real school product." subtitle="This pipeline matters more than adding random features." />{waitlistMessage ? <div className="mt-4 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-3 text-sm text-emerald-100">{waitlistMessage}</div> : null}<form className="mt-5 grid gap-3" onSubmit={submitWaitlist}><div className="grid gap-3 sm:grid-cols-2"><Input required placeholder="Name" value={waitlist.name} onChange={(e) => setWaitlist({ ...waitlist, name: e.target.value })} /><Input required type="email" placeholder="Email" value={waitlist.email} onChange={(e) => setWaitlist({ ...waitlist, email: e.target.value })} /></div><div className="grid gap-3 sm:grid-cols-2"><Select value={waitlist.role} onChange={(e) => setWaitlist({ ...waitlist, role: e.target.value })}>{['student', 'parent', 'teacher', 'mentor', 'school owner', 'learning center'].map((role) => <option key={role}>{role}</option>)}</Select><Input placeholder="School / organization" value={waitlist.organization} onChange={(e) => setWaitlist({ ...waitlist, organization: e.target.value })} /></div><div className="grid gap-3 sm:grid-cols-3"><Input placeholder="Country / city" value={waitlist.countryCity} onChange={(e) => setWaitlist({ ...waitlist, countryCity: e.target.value })} /><Input type="number" min="0" placeholder="# students" value={waitlist.studentCount} onChange={(e) => setWaitlist({ ...waitlist, studentCount: e.target.value })} /><Select value={waitlist.interestLevel} onChange={(e) => setWaitlist({ ...waitlist, interestLevel: e.target.value })}><option value="curious">Curious</option><option value="interested">Interested</option><option value="ready_for_pilot">Ready for pilot</option></Select></div><Textarea placeholder="What would make this useful for your class, club, or learning goal?" value={waitlist.message} onChange={(e) => setWaitlist({ ...waitlist, message: e.target.value })} /><Button className="w-full bg-sky-400 text-slate-950">Request school pilot</Button><Link to="/school-pilot" className="text-center text-sm text-sky-300">Open the full pilot form</Link></form></Card>
           <Card className="p-6"><Globe2 className="text-sky-300" /><h2 className="mt-4 text-2xl font-semibold text-white">Built for emerging-market learners</h2><p className="mt-3 text-sm text-slate-300">The MVP prioritizes beginner clarity, low-cost access, Uzbek/English learning pathways, and school/cohort purchasing because individual-only subscriptions require far more scale.</p><div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-400">Next validation target: 100 demo users, 10 serious feedback interviews, 3 school/cohort pilot conversations, and one paid pilot offer.</div></Card>
         </section>
 

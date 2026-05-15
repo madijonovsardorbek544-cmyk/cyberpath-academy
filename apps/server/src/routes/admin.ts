@@ -10,6 +10,7 @@ import {
   mapFeedback,
   mapLab,
   mapLesson,
+  mapPilotLead,
   mapUser,
   nowIso,
   one,
@@ -79,6 +80,7 @@ router.get('/overview', (req: AuthenticatedRequest, res) => {
   const platformFeedback = many<Record<string, unknown>>('SELECT * FROM platform_feedback ORDER BY created_at DESC LIMIT 12').map(mapFeedback);
   const emailOutbox = many<Record<string, unknown>>('SELECT * FROM email_outbox ORDER BY created_at DESC LIMIT 12').map(mapEmail);
   const auditLogs = many<Record<string, unknown>>('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 20').map(mapAuditLog);
+  const pilotLeads = many<Record<string, unknown>>('SELECT * FROM pilot_leads ORDER BY created_at DESC LIMIT 20').map(mapPilotLead);
 
   createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'admin.overview_viewed', targetType: 'dashboard' });
 
@@ -94,12 +96,15 @@ router.get('/overview', (req: AuthenticatedRequest, res) => {
       feedbackItems: feedbackCount,
       completionRate,
       openPlatformFeedback: count("SELECT COUNT(*) as value FROM platform_feedback WHERE status = 'new'"),
-      queuedEmails: count("SELECT COUNT(*) as value FROM email_outbox WHERE status = 'queued'")
+      queuedEmails: count("SELECT COUNT(*) as value FROM email_outbox WHERE status = 'queued'"),
+      pilotLeads: count('SELECT COUNT(*) as value FROM pilot_leads'),
+      readyPilotLeads: count("SELECT COUNT(*) as value FROM pilot_leads WHERE interest_level = 'ready_for_pilot'")
     },
     users,
     lessons,
     labs,
     platformFeedback,
+    pilotLeads,
     emailOutbox,
     auditLogs
   });

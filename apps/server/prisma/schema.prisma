@@ -202,3 +202,26 @@ model PasswordResetToken {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model PilotLead {
+  id                 String   @id @default(cuid())
+  contactName        String
+  email              String
+  phoneOrTelegram    String?
+  role               String
+  organizationName   String
+  cityCountry        String
+  studentCount       Int?
+  studentAgeRange    String?
+  currentCyberLevel  String
+  needsMost          String
+  interestLevel      String
+  wouldPay           String
+  message            String?
+  status             String   @default("new")
+  notes              String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@map("pilot_leads")
+}

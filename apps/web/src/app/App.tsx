@@ -26,6 +26,7 @@ const SupportPage = lazy(() => import('../pages/SupportPage').then((module) => (
 const PrivacyPage = lazy(() => import('../pages/PrivacyPage').then((module) => ({ default: module.PrivacyPage })));
 const TermsPage = lazy(() => import('../pages/TermsPage').then((module) => ({ default: module.TermsPage })));
 const SafetyPage = lazy(() => import('../pages/SafetyPage').then((module) => ({ default: module.SafetyPage })));
+const SchoolPilotPage = lazy(() => import('../pages/SchoolPilotPage').then((module) => ({ default: module.SchoolPilotPage })));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
 
 function DemoBanner() {
@@ -58,6 +59,8 @@ export function App() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPage />} />
             <Route path="/pricing" element={<BillingPage publicView />} />
+            <Route path="/school-pilot" element={<SchoolPilotPage />} />
+            <Route path="/pilot" element={<SchoolPilotPage />} />
             <Route path="/public/artifacts/:shareId" element={<PublicArtifactPage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />

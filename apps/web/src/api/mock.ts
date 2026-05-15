@@ -1,4 +1,4 @@
-import type { Analytics, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User } from "../types";
+import type { Analytics, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User } from "../types";
 
 type Role = User["role"];
 
@@ -110,14 +110,15 @@ type DemoDb = {
   cohorts: Cohort[];
   feedback: FeedbackItem[];
   waitlist: WaitlistSubmission[];
+  pilotLeads: PilotLead[];
   analyticsEvents: AnalyticsEvent[];
   subscriptions: Subscription[];
   sessionUserId?: string;
 };
 
-const DB_VERSION = 4;
+const DB_VERSION = 5;
 export const DB_KEY = `cyberpath-demo-db-v${DB_VERSION}`;
-const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2", "cyberpath-demo-db-v3"];
+const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2", "cyberpath-demo-db-v3", "cyberpath-demo-db-v4"];
 
 const now = () => new Date().toISOString();
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -496,6 +497,9 @@ function seedDb(): DemoDb {
   const waitlist: WaitlistSubmission[] = [
     { id: uid("waitlist"), name: "Demo School Director", email: "director@example.edu", role: "school owner", organization: "Tashkent Learning Center", countryCity: "Uzbekistan / Tashkent", studentCount: 80, interestLevel: "school pilot", message: "Interested in a safe cyber club pilot with mentor reports.", createdAt: daysAgo(1) }
   ];
+  const pilotLeads: PilotLead[] = [
+    { id: uid("pilot"), contactName: "Demo School Director", email: "director@example.edu", phoneOrTelegram: "@demo_school", role: "school_leader", organizationName: "Tashkent Learning Center", cityCountry: "Tashkent, Uzbekistan", studentCount: 80, studentAgeRange: "14-18", currentCyberLevel: "Cyber club exists but lacks safe structured labs", needsMost: "Mentor dashboard, defensive labs, CSV reports, and parent-safe positioning.", interestLevel: "ready_for_pilot", wouldPay: "maybe", message: "Interested in a safe cyber club pilot with mentor reports.", status: "new", notes: "Demo lead seeded for admin review.", createdAt: daysAgo(1), updatedAt: daysAgo(1) }
+  ];
 
   const analyticsEvents: AnalyticsEvent[] = [
     { id: uid("event"), eventName: "demo_start", role: "student", createdAt: daysAgo(2) },
@@ -532,6 +536,7 @@ function seedDb(): DemoDb {
     cohorts,
     feedback,
     waitlist,
+    pilotLeads,
     analyticsEvents,
     subscriptions,
     sessionUserId: studentId
@@ -561,6 +566,7 @@ function isValidDemoDb(value: Partial<DemoDb> | null): value is DemoDb {
     Array.isArray(value.cohorts) &&
     Array.isArray(value.feedback) &&
     Array.isArray(value.waitlist) &&
+    Array.isArray((value as any).pilotLeads) &&
     Array.isArray(value.analyticsEvents) &&
     Array.isArray(value.subscriptions)
   );
@@ -1065,6 +1071,12 @@ function handleGet<T>(path: string): T {
     return { assignments } as T;
   }
 
+  if (path === "/admin/pilot-leads" || path.startsWith("/platform/pilot-leads")) {
+    const authUser = requireUser(db);
+    ensureRole(authUser, ["admin"]);
+    return { pilotLeads: db.pilotLeads } as T;
+  }
+
   if (path === "/admin/overview") {
     const authUser = requireUser(db);
     ensureRole(authUser, ["admin"]);
@@ -1084,7 +1096,9 @@ function handleGet<T>(path: string): T {
         feedbackItems: db.mentorFeedback.length,
         openPlatformFeedback: db.feedback.filter((item) => item.status !== "resolved").length,
         waitlistSubmissions: db.waitlist.length,
-        schoolPilotInterest: db.waitlist.filter((item) => /school|pilot|classroom/i.test(item.interestLevel)).length,
+        pilotLeads: db.pilotLeads.length,
+        readyPilotLeads: db.pilotLeads.filter((item) => item.interestLevel === "ready_for_pilot").length,
+        schoolPilotInterest: db.pilotLeads.filter((item) => /ready|interested/i.test(item.interestLevel)).length,
         demoStarts: db.analyticsEvents.filter((item) => item.eventName === "demo_start" || item.eventName === "demo_role_selected").length,
         artifactsCreated: db.portfolio.length,
         queuedEmails: 1,
@@ -1095,12 +1109,13 @@ function handleGet<T>(path: string): T {
       labs: db.labs,
       platformFeedback: db.feedback,
       waitlist: db.waitlist,
+      pilotLeads: db.pilotLeads,
       validationMetrics: {
         usefulnessScore: db.feedback.length ? Math.round(db.feedback.reduce((sum, item) => sum + (item.usefulnessScore ?? 4), 0) / db.feedback.length) : 0,
         willingnessToPay: { yes: db.feedback.filter((item) => item.willingnessToPay === "yes").length, maybe: db.feedback.filter((item) => item.willingnessToPay === "maybe").length, no: db.feedback.filter((item) => item.willingnessToPay === "no").length },
         confusionThemes: ["lab checklist clarity", "IAM terminology", "portfolio quality expectations"],
         mostRequestedTopics: ["SOC Level 1", "Cloud IAM", "Uzbek glossary", "School reports"],
-        demoConversionSignals: { landingToDemo: 42, demoToWaitlist: 12, schoolPilotRequests: db.waitlist.length }
+        demoConversionSignals: { landingToDemo: 42, demoToWaitlist: 12, schoolPilotRequests: db.pilotLeads.length }
       },
       emailOutbox: [
         { id: "email-demo-welcome", toEmail: "student@cyberpath.local", subject: "Welcome to CyberPath Academy", messageType: "welcome", status: "queued", createdAt: daysAgo(1) }
@@ -1336,6 +1351,36 @@ function handlePost<T>(path: string, body: unknown): T {
   }
 
 
+
+  if (path === "/platform/pilot-leads") {
+    const data = body as Partial<PilotLead>;
+    if (!data.email || !String(data.email).includes("@")) throw new Error("Invalid school pilot lead.");
+    const item: PilotLead = {
+      id: uid("pilot"),
+      contactName: data.contactName || "Demo pilot lead",
+      email: data.email,
+      phoneOrTelegram: data.phoneOrTelegram || null,
+      role: data.role || "teacher",
+      organizationName: data.organizationName || "Demo School",
+      cityCountry: data.cityCountry || "Demo City",
+      studentCount: typeof data.studentCount === "number" ? data.studentCount : null,
+      studentAgeRange: data.studentAgeRange || null,
+      currentCyberLevel: data.currentCyberLevel || "Beginner",
+      needsMost: data.needsMost || "Safe school-ready cybersecurity pilot",
+      interestLevel: data.interestLevel || "interested",
+      wouldPay: data.wouldPay || "maybe",
+      message: data.message || null,
+      status: "new",
+      notes: null,
+      createdAt: now(),
+      updatedAt: now()
+    };
+    db.pilotLeads.unshift(item);
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: "school_pilot_form_submit", role: item.role, createdAt: now() });
+    writeDb(db);
+    return { message: "School pilot request saved in this demo browser.", pilotLead: item } as T;
+  }
+
   if (path === "/platform/waitlist") {
     const data = body as Partial<WaitlistSubmission>;
     const item: WaitlistSubmission = {
@@ -1513,6 +1558,20 @@ function handlePatch<T>(path: string, body: unknown): T {
     }
     writeDb(db);
     return { artifact, portfolio: db.portfolio } as T;
+  }
+
+  if (path.startsWith("/platform/pilot-leads/")) {
+    const authUser = requireUser(db);
+    ensureRole(authUser, ["admin"]);
+    const id = path.split("/").at(-1)!;
+    const item = db.pilotLeads.find((entry) => entry.id === id);
+    if (!item) throw new Error("Pilot lead not found.");
+    const data = body as Partial<PilotLead>;
+    item.status = data.status || item.status;
+    item.notes = data.notes === undefined ? item.notes : data.notes || null;
+    item.updatedAt = now();
+    writeDb(db);
+    return { pilotLead: item } as T;
   }
 
   if (path.startsWith("/platform/feedback/") && path.endsWith("/status")) {

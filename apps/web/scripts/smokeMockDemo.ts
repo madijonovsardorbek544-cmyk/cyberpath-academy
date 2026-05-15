@@ -43,7 +43,7 @@ for (const route of ['/learning/dashboard', '/learning/paths', '/learning/labs',
 const labs = await mockApi.get<any>('/learning/labs');
 assert.ok(labs.labs.length >= 12, 'mock demo should expose at least 12 safe labs');
 await mockApi.post('/platform/feedback', { name: 'Smoke Visitor', email: 'smoke@example.com', category: 'validation', message: 'Smoke feedback', usefulnessScore: 5, difficulty: 'right_level', willingnessToPay: 'maybe', audienceRole: 'teacher', goal: 'school pilot' });
-await mockApi.post('/platform/waitlist', { name: 'Smoke Pilot', email: 'pilot@example.edu', role: 'teacher', organization: 'Smoke School', countryCity: 'Tashkent', studentCount: 24, interestLevel: 'school pilot', message: 'Smoke pilot request' });
+await mockApi.post('/platform/pilot-leads', { contactName: 'Smoke Pilot', email: 'pilot@example.edu', phoneOrTelegram: '@smoke', role: 'teacher', organizationName: 'Smoke School', cityCountry: 'Tashkent, Uzbekistan', studentCount: 24, studentAgeRange: '14-17', currentCyberLevel: 'Beginner', needsMost: 'Safe labs and mentor reports', interestLevel: 'ready_for_pilot', wouldPay: 'maybe', message: 'Smoke pilot request' });
 
 await login('mentor@cyberpath.local', 'Mentor123!');
 await mockApi.get('/mentor/students');
@@ -55,6 +55,8 @@ await mockApi.get('/mentor/assignments');
 await login('admin@cyberpath.local', 'Admin123!');
 const admin = await mockApi.get<any>('/admin/overview');
 assert.ok(admin.validationMetrics, 'admin overview missing validation metrics');
-assert.ok(admin.waitlist.length >= 1, 'admin overview missing waitlist pipeline');
+assert.ok(admin.pilotLeads.length >= 1, 'admin overview missing pilot lead pipeline');
+const pilotAdmin = await mockApi.get<any>('/platform/pilot-leads');
+assert.ok(pilotAdmin.pilotLeads.length >= 1, 'admin pilot lead review route missing');
 
 console.log('Mock public demo smoke test passed.');

@@ -271,6 +271,29 @@ export function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     );
 
+
+
+    CREATE TABLE IF NOT EXISTS pilot_leads (
+      id TEXT PRIMARY KEY,
+      contact_name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      phone_or_telegram TEXT,
+      role TEXT NOT NULL,
+      organization_name TEXT NOT NULL,
+      city_country TEXT NOT NULL,
+      student_count INTEGER,
+      student_age_range TEXT,
+      current_cyber_level TEXT NOT NULL,
+      needs_most TEXT NOT NULL,
+      interest_level TEXT NOT NULL,
+      would_pay TEXT NOT NULL,
+      message TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      notes TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
     CREATE TABLE IF NOT EXISTS email_outbox (
       id TEXT PRIMARY KEY,
       user_id TEXT,
@@ -512,6 +535,8 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_mentor_links_mentor ON mentor_students(mentor_id);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_user_id);
     CREATE INDEX IF NOT EXISTS idx_platform_feedback_status ON platform_feedback(status);
+    CREATE INDEX IF NOT EXISTS idx_pilot_leads_status ON pilot_leads(status);
+    CREATE INDEX IF NOT EXISTS idx_pilot_leads_created ON pilot_leads(created_at);
     CREATE INDEX IF NOT EXISTS idx_email_outbox_status ON email_outbox(status);
     CREATE INDEX IF NOT EXISTS idx_app_error_events_created ON app_error_events(created_at);
     CREATE INDEX IF NOT EXISTS idx_track_links_track ON track_lesson_links(track_id);
@@ -716,6 +741,30 @@ export function mapFeedback(row: Record<string, unknown>) {
     wouldPay: row.would_pay ? String(row.would_pay) : null,
     learnerGoal: row.learner_goal ? String(row.learner_goal) : null,
     status: String(row.status) as FeedbackStatus,
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at)
+  };
+}
+
+
+export function mapPilotLead(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    contactName: String(row.contact_name),
+    email: String(row.email),
+    phoneOrTelegram: row.phone_or_telegram ? String(row.phone_or_telegram) : null,
+    role: String(row.role),
+    organizationName: String(row.organization_name),
+    cityCountry: String(row.city_country),
+    studentCount: row.student_count === null || row.student_count === undefined ? null : Number(row.student_count),
+    studentAgeRange: row.student_age_range ? String(row.student_age_range) : null,
+    currentCyberLevel: String(row.current_cyber_level),
+    needsMost: String(row.needs_most),
+    interestLevel: String(row.interest_level),
+    wouldPay: String(row.would_pay),
+    message: row.message ? String(row.message) : null,
+    status: String(row.status),
+    notes: row.notes ? String(row.notes) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at)
   };
