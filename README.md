@@ -1,8 +1,48 @@
 # CyberPath Academy
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-0ea5e9?style=for-the-badge)](https://madijonovsardorbek544-cmyk.github.io/cyberpath-academy/)
+
+**Live Demo:** https://madijonovsardorbek544-cmyk.github.io/cyberpath-academy/
+
+The GitHub Pages demo runs the frontend in mock mode. It is for product review only. Full backend/auth/database features require running the Express API or deploying the full stack.
+
 CyberPath Academy helps beginner students and schools learn defensive cybersecurity safely through structured lessons, safe labs, portfolio artifacts, and mentor dashboards.
 
 This repository is a beta MVP for a defensive-only cybersecurity education platform. It includes React/Vite web UI, Express/TypeScript API, SQLite persistence, seeded curriculum, safe fictional labs, role-based dashboards, subscriptions, portfolio artifacts, feedback loops, and tests.
+
+
+## Public Demo
+
+The public product-review demo is available at:
+
+**https://madijonovsardorbek544-cmyk.github.io/cyberpath-academy/**
+
+This deployment is frontend-only on GitHub Pages and uses `VITE_API_MODE=mock`, so it does not require a live Express server. It is intended for portfolio visitors and reviewers who need to click through the product quickly.
+
+What works in demo mode:
+
+- Landing page, pricing/demo surfaces, safety pages, and core app navigation.
+- One-click demo entry for student, mentor, and admin review flows.
+- Seeded lessons, labs, dashboards, analytics-style views, practice hub, mistake notebook, and portfolio-style surfaces backed by mock browser data.
+- Hash-based routing, so deep app routes work on static hosting under `/cyberpath-academy/`.
+
+What is simulated:
+
+- Authentication/session behavior is mock-only and stored in browser-side demo state.
+- SQLite persistence, audit logs, email, billing/demo checkout, mentor/admin writes, quiz/lab submissions, and analytics are simulated by the frontend mock API.
+- Data may reset when browser storage is cleared or when mock data changes between builds.
+
+Run the full stack locally when you need real Express API behavior, SQLite persistence, and backend auth:
+
+```bash
+npm install
+cp apps/server/.env.example apps/server/.env
+cp apps/web/.env.example apps/web/.env
+npm run db:setup
+npm run dev
+```
+
+For a full-stack deployment later, deploy the backend to a host such as Render, Railway, or Fly.io, use persistent storage or a managed database plan, configure the frontend with `VITE_API_URL`, and set production server values such as `COOKIE_SECURE`, `CLIENT_URL`, and `APP_BASE_URL`. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the deployment guide and production checklist.
 
 ## Product model
 - **Free:** limited beginner lessons, starter quizzes/labs, basic dashboard, and mistake notebook.
@@ -57,6 +97,7 @@ The project is intentionally designed around **defensive, fictional, authorized 
 - [Problem](#problem)
 - [Solution](#solution)
 - [What Makes This Project Serious](#what-makes-this-project-serious)
+- [Public Demo](#public-demo)
 - [Product Overview](#product-overview)
 - [Interactive Defensive Terminal Labs](#interactive-defensive-terminal-labs)
 - [Architecture](#architecture)
