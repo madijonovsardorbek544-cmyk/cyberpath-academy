@@ -108,3 +108,22 @@ Limitations include:
 - Browser-side demo state may reset.
 
 Use GitHub Pages for the public demo, not for production users or sensitive data.
+
+## Troubleshooting: public demo application error
+
+If the GitHub Pages demo shows **“Application Error — Something broke in the interface”**, deployment may be working while the frontend is crashing at runtime.
+
+Use this checklist:
+
+1. Open browser developer tools and inspect the Console for the first runtime error.
+2. Click **Reset demo data** on the error page when available. In mock mode this clears CyberPath demo `localStorage` keys and reloads the page.
+3. If the button is unavailable, manually remove old `cyberpath-demo-db-*` localStorage entries for the Pages origin.
+4. Confirm the latest GitHub Pages workflow completed successfully.
+5. Confirm the app was built with `VITE_API_MODE=mock` and `VITE_GITHUB_PAGES=true`.
+6. Confirm any page used in the public demo has a matching mock handler in `apps/web/src/api/mock.ts`.
+
+Remember:
+
+- The GitHub Pages demo is frontend-only.
+- Full backend features require a deployed API and `VITE_API_MODE=api`.
+- Mock data is simulated, browser-local, and can reset between demo database versions.

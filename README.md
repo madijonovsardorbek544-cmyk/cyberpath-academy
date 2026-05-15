@@ -790,3 +790,20 @@ For portfolio reviewers, the strongest signals are:
 ## License
 
 This project is licensed under the MIT License.
+
+## Public demo troubleshooting
+
+If the GitHub Pages public demo shows **“Application Error — Something broke in the interface”**:
+
+1. Open browser developer tools and check the Console for the first runtime error.
+2. Use **Reset demo data** on the error page. This clears only CyberPath mock demo `localStorage` keys and reloads the app.
+3. If needed, manually clear old `cyberpath-demo-db-*` entries from browser localStorage.
+4. Confirm the latest GitHub Pages deploy workflow is green.
+5. Confirm the Pages build is running in frontend-only mock mode with `VITE_API_MODE=mock` and `VITE_GITHUB_PAGES=true`.
+
+Important demo facts:
+
+- GitHub Pages is frontend-only; it has no Express backend, no SQLite database, and no real server session.
+- Every public demo page must be backed by `apps/web/src/api/mock.ts`.
+- Demo data is simulated browser data and may reset after app updates or when storage is cleared.
+- Full backend features require running or deploying the API with `VITE_API_MODE=api` and a configured `VITE_API_URL`.

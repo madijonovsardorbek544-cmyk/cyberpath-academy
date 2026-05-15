@@ -1,4 +1,4 @@
-import type { Analytics, Capstone, Lab, Lesson, QuizQuestion, Roadmap, User } from "../types";
+import type { Analytics, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User } from "../types";
 
 type Role = User["role"];
 
@@ -86,10 +86,21 @@ type DemoDb = {
   mentorFeedback: MentorFeedback[];
   mentorLinks: MentorLink[];
   labSubmissions: LabSubmission[];
+  portfolio: PortfolioArtifact[];
+  certificates: Certificate[];
+  guidedProjects: GuidedProject[];
+  learnerProjects: LearnerProject[];
+  mentorAssignments: MentorAssignment[];
+  mentorAlerts: MentorAlert[];
+  cohorts: Cohort[];
+  feedback: FeedbackItem[];
+  subscriptions: Subscription[];
   sessionUserId?: string;
 };
 
-const DB_KEY = "cyberpath-demo-db-v2";
+const DB_VERSION = 3;
+export const DB_KEY = `cyberpath-demo-db-v${DB_VERSION}`;
+const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2"];
 
 const now = () => new Date().toISOString();
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -173,6 +184,64 @@ const capstones: Capstone[] = [
   { id: uid("cap"), title: "Incident Response Evidence Pack", specialization: "incident responder", summary: "Use fictional logs and host notes to produce a timeline and containment recommendation.", deliverables: ["timeline", "scope statement", "containment proposal"], difficulty: "Intermediate" },
   { id: uid("cap"), title: "Risk and Privacy Mini Assessment", specialization: "GRC analyst", summary: "Assess a fictional service for key risks, privacy concerns, and continuity requirements.", deliverables: ["risk register", "privacy observations", "continuity controls"], difficulty: "Intermediate" }
 ];
+const tracks: Track[] = [
+  {
+    id: 'track-foundations', slug: 'cyber-foundations', title: 'Cyber Foundations', level: 'Beginner', trackType: 'career', estimatedHours: 18,
+    description: 'A safe beginner route through security vocabulary, risk, identity, phishing, and device hygiene.', frameworkRef: 'NICE: Cyber Defense Foundations',
+    hero: 'Start here if you need structure, confidence, and defensive habits before specialization.', targetRoles: ['Student', 'Cyber club member', 'Junior analyst candidate'],
+    skills: ['Security vocabulary', 'Risk thinking', 'Identity basics', 'Phishing defense'], milestones: ['Finish core lessons', 'Pass foundation quizzes', 'Publish first artifact'],
+    entryPoints: ['What Is Cybersecurity?', 'The CIA Triad'], prerequisites: ['Curiosity and basic computer use'], recommendedFor: ['school', 'curiosity', 'cyber club']
+  },
+  {
+    id: 'track-soc', slug: 'soc-analyst', title: 'SOC Analyst Starter', level: 'Beginner to Intermediate', trackType: 'career', estimatedHours: 26,
+    description: 'Practice alert triage, log reading, incident notes, and clear escalation decisions.', frameworkRef: 'NICE: Cyber Defense Analyst',
+    hero: 'Build a practical blue-team foundation without touching real targets.', targetRoles: ['SOC analyst intern', 'Blue-team student'],
+    skills: ['Log analysis', 'Alert triage', 'Incident communication', 'SIEM concepts'], milestones: ['Triage a phishing case', 'Write an incident summary', 'Clear review queue'],
+    entryPoints: ['Logging, SIEM, EDR, and Incident Response'], prerequisites: ['Cyber Foundations recommended'], recommendedFor: ['job', 'university', 'cyber club']
+  },
+  {
+    id: 'track-appsec', slug: 'appsec', title: 'Application Security Basics', level: 'Intermediate', trackType: 'career', estimatedHours: 24,
+    description: 'Learn how web apps fail safely using toy examples, access-control reviews, and secure coding notes.', frameworkRef: 'OWASP Top 10 learning alignment',
+    hero: 'Turn web security into careful review, not exploit chasing.', targetRoles: ['AppSec learner', 'Secure coding student'],
+    skills: ['HTTP basics', 'Session thinking', 'Access control', 'Secure remediation'], milestones: ['Review a toy role matrix', 'Write a secure-code note', 'Explain risk to a non-engineer'],
+    entryPoints: ['How Web Apps Work'], prerequisites: ['Browser and web basics'], recommendedFor: ['university', 'job']
+  },
+  {
+    id: 'track-cloud', slug: 'cloud-security', title: 'Cloud & IAM Defense', level: 'Intermediate', trackType: 'skill', estimatedHours: 20,
+    description: 'Practice least privilege, secrets hygiene, and cloud misconfiguration review in fictional datasets.', frameworkRef: 'CSA / NICE cloud security concepts',
+    hero: 'Understand cloud security as defensive configuration and evidence-based review.', targetRoles: ['Cloud learner', 'Security engineer candidate'],
+    skills: ['IAM review', 'Least privilege', 'Secrets handling', 'Misconfiguration triage'], milestones: ['Complete IAM lab', 'Produce an access-review artifact'],
+    entryPoints: ['Cloud Basics, IAM, Secrets, and Containers'], prerequisites: ['IAM basics'], recommendedFor: ['job', 'university']
+  },
+  {
+    id: 'track-grc', slug: 'grc', title: 'GRC & Risk Foundations', level: 'Beginner', trackType: 'skill', estimatedHours: 16,
+    description: 'Learn risk registers, privacy basics, continuity, and business communication for school cohorts.', frameworkRef: 'NIST CSF / risk management basics',
+    hero: 'Make cybersecurity understandable to decision-makers.', targetRoles: ['GRC learner', 'School cohort student'],
+    skills: ['Risk assessment', 'Control mapping', 'Executive summaries', 'Continuity thinking'], milestones: ['Write a risk register', 'Explain control tradeoffs'],
+    entryPoints: ['Risk, Privacy, Business Continuity, and Disaster Recovery'], prerequisites: ['Cyber Foundations recommended'], recommendedFor: ['school', 'university']
+  },
+  {
+    id: 'track-ai-awareness', slug: 'ai-security-awareness', title: 'AI Security Awareness', level: 'Beginner', trackType: 'skill', estimatedHours: 10,
+    description: 'Understand safe AI use, data handling, prompt boundaries, and defensive review habits.', frameworkRef: 'AI safety and secure-use awareness',
+    hero: 'Use AI tools carefully without leaking data or automating unsafe behavior.', targetRoles: ['Students using AI tools', 'Teachers'],
+    skills: ['Data minimization', 'Prompt safety', 'Model limitation awareness', 'Policy communication'], milestones: ['Write safe AI-use guidance', 'Spot unsafe data sharing'],
+    entryPoints: ['Ethics, Law, and Safe Learning Rules'], prerequisites: ['None'], recommendedFor: ['school', 'curiosity']
+  }
+];
+
+const guidedProjects: GuidedProject[] = [
+  { id: 'project-incident-report', slug: 'incident-report-pack', title: 'Fictional Incident Report Pack', specialization: 'SOC analyst', difficulty: 'Beginner', summary: 'Turn a toy alert into a timeline, severity call, and safe escalation note.', estimatedHours: 3, checkpoints: ['Classify alert', 'Build timeline', 'Write executive summary'], rubric: ['Evidence quality', 'Safe containment logic', 'Clear communication'], starterLessonSlug: 'logging-siem-edr-ir' },
+  { id: 'project-phishing-triage', slug: 'phishing-triage-brief', title: 'Phishing Triage Brief', specialization: 'Awareness / SOC', difficulty: 'Beginner', summary: 'Analyze a fake email and produce a user-safe reporting recommendation.', estimatedHours: 2, checkpoints: ['Identify indicators', 'Assess user impact', 'Recommend safe action'], rubric: ['Indicator precision', 'User-safe language', 'No unsafe interaction'], starterLessonSlug: 'passwords-mfa-and-phishing' },
+  { id: 'project-access-review', slug: 'access-review-memo', title: 'Access Review Memo', specialization: 'Cloud security', difficulty: 'Intermediate', summary: 'Review a toy role matrix and justify least-privilege changes.', estimatedHours: 3, checkpoints: ['Find excessive access', 'Map risk', 'Write remediation plan'], rubric: ['Least-privilege reasoning', 'Business impact', 'Specific remediation'], starterLessonSlug: 'identity-access-basics' },
+  { id: 'project-risk-register', slug: 'school-risk-register', title: 'School Cyber Risk Register', specialization: 'GRC', difficulty: 'Beginner', summary: 'Create a simple risk register for a fictional school club system.', estimatedHours: 3, checkpoints: ['List assets', 'Rate risks', 'Choose controls'], rubric: ['Risk clarity', 'Control fit', 'Readable summary'], starterLessonSlug: 'risk-assets-threats' }
+];
+
+const plans: Plan[] = [
+  { id: 'free', name: 'Free', accessLevel: 50, priceMonthlyUsd: 0, priceMonthlyUzs: 0, description: 'Starter lessons, selected labs, and public demo access.', features: ['Beginner foundations', 'Selected safe labs', 'Mistake notebook preview'] },
+  { id: 'premium', name: 'Premium', accessLevel: 100, priceMonthlyUsd: 3, priceMonthlyUzs: 36000, trialDays: 30, description: 'Full student learning path with guided projects and certificates.', features: ['All lessons and labs', 'Guided portfolio projects', 'Certificate eligibility checks', 'Expanded AI tutor'], paymentMethods: ['Future hosted card checkout', 'Future Payme integration'] },
+  { id: 'school', name: 'School / Cohort', accessLevel: 100, description: 'Mentor dashboards, assignment tracking, cohort reporting, and school-safe rollout support.', features: ['Cohort progress dashboard', 'Weak-area reports', 'Mentor alerts', 'Exportable student summaries'], paymentMethods: ['Invoice / pilot agreement'] }
+];
+
 
 function buildRoadmap(goal = "awareness", experienceLevel = "beginner", score = 0): Roadmap {
   const baseModules = ["Phase 1 foundations", "Technical core", "Blue team fundamentals", "Web and cloud basics", "Professionalization"];
@@ -371,6 +440,42 @@ function seedDb(): DemoDb {
     { id: uid("feedback"), mentorId, studentId: student2Id, message: "Good AppSec intuition. Next step: explain broken access control more precisely and document safer fixes.", createdAt: daysAgo(2) }
   ];
 
+  const portfolio: PortfolioArtifact[] = [
+    { id: uid("artifact"), title: "Phishing triage brief", artifactType: "incident_report", specialization: "SOC analyst", summary: "A concise report explaining indicators, likely user impact, and a safe reporting path for a fictional phishing message.", deliverables: ["indicator table", "user-safe response", "mentor-ready summary"], status: "published", evidenceUrl: null, mentorFeedback: "Good proof of defensive reasoning. Add one sentence on business impact next time.", scenario: "Fictional payroll phishing email", evidenceUsed: ["sender mismatch", "urgent payroll language"], riskExplanation: "Credential capture risk if a learner follows the fake link.", defensiveRecommendations: "Report through approved channel, do not click, preserve headers if policy allows.", reflection: "I learned to separate suspicious signals from assumptions.", publicShareId: "demo-phishing-brief", publishedAt: daysAgo(2), createdAt: daysAgo(5), updatedAt: daysAgo(2) }
+  ];
+
+  const certificates: Certificate[] = [
+    { id: uid("cert"), trackSlug: "cyber-foundations", title: "Cyber Foundations Demo Certificate", status: "issued", issuedAt: daysAgo(1), criteria: { score: 82, completionRate: 33, quizAverage: 78, portfolioCount: 1, labsPassed: 2, assessedSkills: ["risk", "identity", "phishing defense"] } }
+  ];
+
+  const mentorAssignments: MentorAssignment[] = [
+    { id: uid("assign"), mentorId, studentId, lessonId: lessons[9]?.id ?? null, trackSlug: "soc-analyst", title: "Tighten SOC vocabulary", instructions: "Review the logging lesson and write three precise definitions: event, alert, incident.", targetMastery: 75, dueAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), status: "open", rubric: ["precise terms", "safe escalation", "clear examples"], createdAt: daysAgo(1), updatedAt: daysAgo(1) }
+  ];
+
+  const learnerProjects: LearnerProject[] = [
+    { id: uid("learner_project"), userId: studentId, guidedProjectId: guidedProjects[0].id, status: "in_progress", checkpointProgress: ["Classify alert"], reflection: "I need to support severity with evidence.", evidenceUrl: null, createdAt: daysAgo(3), updatedAt: daysAgo(1), project: guidedProjects[0] }
+  ];
+
+  const cohorts: Cohort[] = [
+    { id: uid("cohort"), slug: "demo-school-blue-team", name: "Demo School Blue Team Cohort", description: "A simulated school cohort for mentor and admin dashboards.", cadence: "weekly", startDate: daysAgo(14), endDate: null, mentorId, memberCount: 2, members: [
+      { id: studentId, name: "Amina Student", email: "student@cyberpath.local", membershipRole: "learner" },
+      { id: student2Id, name: "Leo Learner", email: "student2@cyberpath.local", membershipRole: "learner" }
+    ] }
+  ];
+
+  const mentorAlerts: MentorAlert[] = [
+    { id: uid("alert"), studentId, mentorId, cohortId: cohorts[0].id, alertType: "weak_area", category: "retention", severity: "medium", summary: "Amina has repeated misses in foundations vocabulary.", recommendation: "Assign a short review and ask for a one-paragraph explanation in plain language.", status: "open", createdAt: daysAgo(1), updatedAt: daysAgo(1) },
+    { id: uid("alert"), studentId: student2Id, mentorId, cohortId: cohorts[0].id, alertType: "momentum", category: "engagement", severity: "low", summary: "Leo has not published a portfolio artifact yet.", recommendation: "Nudge the access-control review project and give a concrete artifact template.", status: "reviewing", createdAt: daysAgo(2), updatedAt: daysAgo(2) }
+  ];
+
+  const feedback: FeedbackItem[] = [
+    { id: uid("support"), userId: studentId, name: "Amina Student", email: "student@cyberpath.local", category: "feature", message: "I would like a clearer checklist after each lab.", status: "new", createdAt: daysAgo(1), updatedAt: daysAgo(1) }
+  ];
+
+  const subscriptions: Subscription[] = [
+    { id: uid("sub"), userId: studentId, planId: "free", status: "active", billingCycle: "monthly", currentPeriodEnd: null, providerCustomerId: null, providerSubscriptionId: null, createdAt: daysAgo(10), updatedAt: daysAgo(10) }
+  ];
+
   return {
     users,
     lessons,
@@ -387,18 +492,81 @@ function seedDb(): DemoDb {
       { mentorId, studentId: student2Id }
     ],
     labSubmissions,
+    portfolio,
+    certificates,
+    guidedProjects,
+    learnerProjects,
+    mentorAssignments,
+    mentorAlerts,
+    cohorts,
+    feedback,
+    subscriptions,
     sessionUserId: studentId
   };
 }
 
+function isValidDemoDb(value: Partial<DemoDb> | null): value is DemoDb {
+  return Boolean(
+    value &&
+    Array.isArray(value.users) &&
+    Array.isArray(value.lessons) &&
+    Array.isArray(value.quizQuestions) &&
+    Array.isArray(value.labs) &&
+    Array.isArray(value.capstones) &&
+    Array.isArray(value.progress) &&
+    Array.isArray(value.attempts) &&
+    Array.isArray(value.mistakes) &&
+    Array.isArray(value.mentorFeedback) &&
+    Array.isArray(value.mentorLinks) &&
+    Array.isArray(value.labSubmissions) &&
+    Array.isArray(value.portfolio) &&
+    Array.isArray(value.certificates) &&
+    Array.isArray(value.guidedProjects) &&
+    Array.isArray(value.learnerProjects) &&
+    Array.isArray(value.mentorAssignments) &&
+    Array.isArray(value.mentorAlerts) &&
+    Array.isArray(value.cohorts) &&
+    Array.isArray(value.feedback) &&
+    Array.isArray(value.subscriptions)
+  );
+}
+
+export function resetMockDemoData(preserveSession = true): DemoDb {
+  const previousUserEmail = preserveSession ? getSessionUserSafe()?.email : null;
+  [DB_KEY, ...LEGACY_DB_KEYS].forEach((key) => localStorage.removeItem(key));
+  const seeded = seedDb();
+  if (previousUserEmail) {
+    const restored = seeded.users.find((user) => user.email === previousUserEmail);
+    if (restored) seeded.sessionUserId = restored.id;
+  }
+  writeDb(seeded);
+  return seeded;
+}
+
+function getSessionUserSafe(): DemoUser | null {
+  try {
+    const raw = localStorage.getItem(DB_KEY);
+    if (!raw) return null;
+    const db = JSON.parse(raw) as Partial<DemoDb>;
+    if (!db.sessionUserId || !Array.isArray(db.users)) return null;
+    return (db.users as DemoUser[]).find((user) => user.id === db.sessionUserId) || null;
+  } catch {
+    return null;
+  }
+}
+
 function readDb(): DemoDb {
   const raw = localStorage.getItem(DB_KEY);
-  if (!raw) {
-    const seeded = seedDb();
-    writeDb(seeded);
-    return seeded;
+  if (!raw) return resetMockDemoData(false);
+
+  try {
+    const parsed = JSON.parse(raw) as Partial<DemoDb>;
+    if (isValidDemoDb(parsed)) return parsed;
+  } catch {
+    // Corrupt localStorage should never break the public demo.
   }
-  return JSON.parse(raw) as DemoDb;
+
+  return resetMockDemoData(true);
 }
 
 function writeDb(db: DemoDb) {
@@ -531,6 +699,142 @@ function ensureRole(user: DemoUser, roles: Role[]) {
   if (!roles.includes(user.role)) throw new Error("You do not have access to this resource.");
 }
 
+function getLessonWithProgress(db: DemoDb, userId: string, lesson: Lesson): Lesson {
+  const progress = db.progress.find((entry) => entry.userId === userId && entry.lessonId === lesson.id);
+  return { ...lesson, completed: progress?.completed || false, timeSpentMinutes: progress?.timeSpentMinutes || 0 };
+}
+
+function getMastery(db: DemoDb, userId: string) {
+  const analytics = computeAnalytics(db, userId);
+  const completedSlugs = new Set(db.progress.filter((entry) => entry.userId === userId && entry.completed).map((entry) => db.lessons.find((lesson) => lesson.id === entry.lessonId)?.slug).filter(Boolean));
+  const attempts = db.attempts.filter((entry) => entry.userId === userId);
+  const quizAverage = attempts.length ? Math.round(attempts.reduce((sum, item) => sum + item.score, 0) / attempts.length) : 0;
+  const reviews = getDueReviews(db, userId);
+
+  return tracks.map((track, index) => {
+    const relatedLessons = db.lessons.filter((lesson) => {
+      const text = `${lesson.title} ${lesson.phaseTitle} ${lesson.specialization ?? ''}`.toLowerCase();
+      return track.skills.some((skill) => text.includes(skill.toLowerCase().split(' ')[0])) || text.includes(track.slug.split('-')[0]);
+    });
+    const relevantCount = relatedLessons.length || Math.max(4, Math.ceil(db.lessons.length / tracks.length));
+    const completed = relatedLessons.filter((lesson) => completedSlugs.has(lesson.slug)).length || (index === 0 ? analytics.totalCompleted : Math.max(0, analytics.totalCompleted - index * 2));
+    const completionRate = Math.min(100, Math.round((completed / relevantCount) * 100));
+    const score = Math.min(100, Math.round(completionRate * 0.5 + quizAverage * 0.35 + Math.max(analytics.streakDays, 1) * 3));
+    const band = score >= 85 ? 'mastered' : score >= 70 ? 'proficient' : score >= 45 ? 'familiar' : 'attempted';
+    const dueForTrack = reviews.filter((review) => track.skills.some((skill) => review.topic.toLowerCase().includes(skill.toLowerCase().split(' ')[0]))).length;
+
+    return {
+      trackSlug: track.slug,
+      title: track.title,
+      frameworkRef: track.frameworkRef,
+      trackType: track.trackType,
+      estimatedHours: track.estimatedHours,
+      hero: track.hero,
+      score,
+      quizAverage,
+      completionRate,
+      status: score >= 70 ? 'Ready' : score >= 45 ? 'Developing' : 'Foundational',
+      band,
+      evidence: db.portfolio.filter((artifact) => artifact.specialization.toLowerCase().includes(track.slug.split('-')[0])).map((artifact) => artifact.title),
+      nextMilestone: track.milestones[0] ?? 'Complete the next lesson and create evidence.',
+      milestones: track.milestones,
+      skills: track.skills,
+      reviewDueCount: dueForTrack,
+      reviewHealth: Math.max(0, 100 - dueForTrack * 15),
+      confidence: Math.min(100, score + 5),
+      evidenceCount: db.portfolio.length,
+      lessonCount: relatedLessons.length,
+      entryPoints: track.entryPoints,
+      prerequisites: track.prerequisites,
+      recommendedFor: track.recommendedFor
+    };
+  });
+}
+
+function getRecommendations(db: DemoDb, userId: string): Recommendation[] {
+  const mastery = getMastery(db, userId);
+  const weakest = mastery.slice().sort((a, b) => a.score - b.score)[0];
+  const due = getDueReviews(db, userId)[0];
+  const nextLesson = getContinueLesson(db, userId);
+  return [
+    due ? { id: 'rec-review', title: `Clear ${due.topic} review debt`, reason: 'Spaced review prevents beginner concepts from decaying after the demo session.', actionType: 'quiz', actionTarget: '/practice', priority: 'high' } : null,
+    nextLesson ? { id: 'rec-lesson', title: `Finish ${nextLesson.title}`, reason: 'Completing the next lesson unlocks better recommendations and keeps the public demo flow obvious.', actionType: 'lesson', actionTarget: nextLesson.slug, priority: 'medium' } : null,
+    weakest ? { id: 'rec-mastery', title: `Raise ${weakest.title} mastery`, reason: `This track is currently at ${weakest.score}% and is the best place to improve your readiness signal.`, actionType: 'lesson', actionTarget: weakest.trackSlug, priority: weakest.score < 50 ? 'high' : 'medium' } : null,
+    { id: 'rec-portfolio', title: 'Turn the next lab into proof of work', reason: 'A portfolio artifact makes the learning credible for mentors, parents, and school pilots.', actionType: 'portfolio', actionTarget: '/portfolio', priority: 'low' }
+  ].filter(Boolean) as Recommendation[];
+}
+
+function getDueReviews(db: DemoDb, userId: string): ReviewItem[] {
+  return db.mistakes.filter((item) => item.userId === userId).slice(0, 5).map((mistake, index) => ({
+    id: `review-${mistake.id}`,
+    userId,
+    sourceType: 'mistake',
+    sourceId: mistake.id,
+    topic: mistake.topic,
+    subtopic: mistake.subtopic,
+    prompt: mistake.prompt,
+    dueAt: daysAgo(0),
+    lastReviewedAt: mistake.lastSeenAt,
+    intervalDays: index + 1,
+    easeFactor: 2.2,
+    successStreak: Math.max(0, 3 - mistake.repeatCount),
+    status: 'due',
+    createdAt: mistake.createdAt,
+    updatedAt: mistake.lastSeenAt
+  }));
+}
+
+function getContinueLesson(db: DemoDb, userId: string) {
+  const sorted = db.lessons.slice().sort((a, b) => a.phase - b.phase || a.orderIndex - b.orderIndex);
+  const lesson = sorted.find((item) => !db.progress.some((entry) => entry.userId === userId && entry.lessonId === item.id && entry.completed)) ?? sorted[0] ?? null;
+  if (!lesson) return null;
+  return { id: lesson.id, slug: lesson.slug, title: lesson.title, phaseTitle: lesson.phaseTitle, estimatedMinutes: lesson.estimatedMinutes };
+}
+
+function getPracticeHub(db: DemoDb, userId: string) {
+  const user = db.users.find((item) => item.id === userId);
+  const analytics = computeAnalytics(db, userId);
+  const dueReviews = getDueReviews(db, userId);
+  const mastery = getMastery(db, userId);
+  const assignments = db.mentorAssignments.filter((item) => item.studentId === userId && item.status !== 'done');
+  const activeProject = db.learnerProjects.find((item) => item.userId === userId && item.status !== 'done') ?? null;
+  const continueLesson = getContinueLesson(db, userId);
+  const weakest = mastery.slice().sort((a, b) => a.score - b.score)[0] ?? null;
+  const goalTrack = tracks.find((track) => track.recommendedFor?.includes(String(user?.goal || '').toLowerCase())) ?? tracks.find((track) => track.slug.includes(String(user?.goal || '').toLowerCase())) ?? tracks[0];
+  const questSteps = [
+    { id: 'review', label: dueReviews.length ? `Clear ${Math.min(2, dueReviews.length)} due review item(s)` : 'Run one review set', href: '/practice', done: dueReviews.length === 0 },
+    { id: 'lesson', label: continueLesson ? `Complete ${continueLesson.title}` : 'Choose one lesson', href: continueLesson ? `/lessons/${continueLesson.slug}` : '/paths', done: false },
+    { id: 'artifact', label: activeProject ? `Advance ${activeProject.project.title}` : 'Start one proof-of-work artifact', href: '/portfolio', done: db.portfolio.some((artifact) => artifact.status === 'published') }
+  ];
+
+  return {
+    streak: { days: analytics.streakDays, nextMilestone: analytics.streakDays < 7 ? 7 : 14, daysRemaining: Math.max(0, (analytics.streakDays < 7 ? 7 : 14) - analytics.streakDays) },
+    continueLesson,
+    recoveryPlan: analytics.streakDays < 2 ? { title: 'Streak recovery', summary: 'Recover with one review rep, one focused lesson checkpoint, and one small proof-of-work action today.', actions: ['Clear one due review item', 'Spend 15 minutes on the next lesson', 'Update one portfolio note'] } : { title: `Goal-aligned next step: ${goalTrack.title}`, summary: 'Your demo profile has a goal. The dashboard is steering you toward the safest first track for that goal.', actions: ['Finish the highlighted lesson', 'Complete one safe lab', 'Add one artifact note'] },
+    dailyQuest: { title: "Today's high-value plan", rewardLabel: weakest ? `Raise ${weakest.title}` : 'Build momentum', progress: questSteps.filter((step) => step.done).length, total: questSteps.length, steps: questSteps },
+    focusAreas: [
+      dueReviews[0] ? { id: 'due-review', title: `${dueReviews[0].topic} review is due`, description: dueReviews[0].prompt, badge: 'Due now', href: '/practice', actionLabel: 'Clear review' } : null,
+      assignments[0] ? { id: 'assignment', title: assignments[0].title, description: assignments[0].instructions, badge: 'Mentor assigned', href: '/dashboard', actionLabel: 'Open assignment' } : null,
+      weakest ? { id: 'mastery', title: `${weakest.title} mastery challenge`, description: `Current score: ${weakest.score}%. Complete one lesson and one quiz retry to move this lane.`, badge: weakest.trackType === 'skill' ? 'Skill path' : 'Career path', href: '/paths', actionLabel: 'Open path' } : null,
+      { id: 'portfolio', title: 'Portfolio proof suggestion', description: 'After your next lab, create an incident report, access review, risk register, secure coding review, or executive summary.', badge: 'Proof of work', href: '/portfolio', actionLabel: 'Create artifact' }
+    ].filter(Boolean),
+    reviewQueue: dueReviews.map((item) => ({ id: item.id, title: `${item.topic} review`, description: item.prompt, badge: item.status === 'due' ? 'Due' : `${item.intervalDays}d`, href: '/practice', actionLabel: 'Review now' })),
+    assignments: assignments.slice(0, 4),
+    activeProject,
+    paths: mastery.slice(0, 5).map((item) => ({ trackSlug: item.trackSlug, title: item.title, trackType: item.trackType ?? 'career', estimatedHours: item.estimatedHours ?? 0, hero: item.hero ?? item.nextMilestone, score: item.score, completionRate: item.completionRate, quizAverage: item.quizAverage, band: item.band, reviewDueCount: item.reviewDueCount }))
+  };
+}
+
+function getSubscriptionForUser(db: DemoDb, userId: string) {
+  let subscription = db.subscriptions.find((item) => item.userId === userId);
+  if (!subscription) {
+    subscription = { id: uid('sub'), userId, planId: 'free', status: 'active', billingCycle: 'monthly', currentPeriodEnd: null, providerCustomerId: null, providerSubscriptionId: null, createdAt: now(), updatedAt: now() };
+    db.subscriptions.push(subscription);
+    writeDb(db);
+  }
+  return subscription;
+}
+
 const unsafePatterns = ["credential theft", "keylogger", "persistence", "deploy malware", "steal password", "evade detection", "ransomware", "exploit live target", "phish real users", "bypass mfa"];
 
 export const mockApi = {
@@ -556,12 +860,35 @@ function handleGet<T>(path: string): T {
       .slice()
       .sort((a, b) => a.phase - b.phase || a.orderIndex - b.orderIndex)
       .slice(0, 4)
-      .map((lesson) => {
-        const progress = db.progress.find((entry) => entry.userId === authUser.id && entry.lessonId === lesson.id);
-        return { ...lesson, completed: progress?.completed || false, timeSpentMinutes: progress?.timeSpentMinutes || 0 };
-      });
-    const mentorFeedback = db.mentorFeedback.filter((item) => item.studentId === authUser.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3);
-    return { analytics, roadmap: authUser.roadmapJson || null, nextLessons, mentorFeedback, capstones: db.capstones } as T;
+      .map((lesson) => getLessonWithProgress(db, authUser.id, lesson));
+    const mentorFeedback = db.mentorFeedback
+      .filter((item) => item.studentId === authUser.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 3)
+      .map((item) => ({ id: item.id, message: item.message, createdAt: item.createdAt }));
+    return {
+      analytics,
+      roadmap: authUser.roadmapJson || buildRoadmap(authUser.goal || 'school', authUser.experienceLevel || 'beginner', authUser.placementScore || 0),
+      nextLessons,
+      mentorFeedback,
+      capstones: db.capstones,
+      mastery: getMastery(db, authUser.id),
+      recommendations: getRecommendations(db, authUser.id),
+      certificates: db.certificates.filter((item) => item.trackSlug && item.id && item.title),
+      portfolio: db.portfolio.filter((item) => item.id && item.title),
+      cohort: db.cohorts.find((cohort) => cohort.members?.some((member) => member.id === authUser.id)) ?? null,
+      assignments: db.mentorAssignments.filter((item) => item.studentId === authUser.id),
+      dueReviews: getDueReviews(db, authUser.id),
+      guidedProjects: db.guidedProjects,
+      learnerProjects: db.learnerProjects.filter((item) => item.userId === authUser.id),
+      tracks,
+      practiceHub: getPracticeHub(db, authUser.id)
+    } as T;
+  }
+
+  if (path === "/learning/practice-hub") {
+    const authUser = requireUser(db);
+    return { practiceHub: getPracticeHub(db, authUser.id) } as T;
   }
 
   if (path === "/learning/paths") {
@@ -570,7 +897,7 @@ function handleGet<T>(path: string): T {
       title: db.lessons.find((lesson) => lesson.phase === phase)?.phaseTitle || `Phase ${phase}`,
       lessons: db.lessons.filter((lesson) => lesson.phase === phase).sort((a, b) => a.orderIndex - b.orderIndex)
     }));
-    return { phases, capstones: db.capstones, glossary: db.glossary.slice(0, 30), labs: db.labs } as T;
+    return { phases, capstones: db.capstones, glossary: db.glossary.slice(0, 30).map((item, index) => ({ id: `glossary-${index}`, ...item })), labs: db.labs, tracks, guidedProjects: db.guidedProjects } as T;
   }
 
   if (path === "/learning/mistakes") {
@@ -581,7 +908,7 @@ function handleGet<T>(path: string): T {
   if (path === "/learning/mistakes/review-quiz") {
     const authUser = requireUser(db);
     const mistakes = db.mistakes.filter((item) => item.userId === authUser.id).slice(0, 10);
-    return { quiz: mistakes.map((mistake, index) => ({ id: `review-${index}`, type: "short-response", topic: mistake.topic, prompt: `Review prompt: ${mistake.prompt}`, explanation: mistake.explanation, correctAnswer: mistake.correctAnswer })) } as T;
+    return { quiz: mistakes.map((mistake, index) => ({ id: `review-${index}`, type: "short-response", topic: mistake.topic, prompt: `Review prompt: ${mistake.prompt}`, explanation: mistake.explanation, correctAnswer: mistake.correctAnswer })), recommendations: getRecommendations(db, authUser.id) } as T;
   }
 
   if (path === "/learning/labs") {
@@ -607,13 +934,64 @@ function handleGet<T>(path: string): T {
     return { lesson: { ...lesson, quizQuestions, completed: progress?.completed || false, timeSpentMinutes: progress?.timeSpentMinutes || 0 } } as T;
   }
 
+  if (path === "/learning/analytics") {
+    const authUser = requireUser(db);
+    return { analytics: computeAnalytics(db, authUser.id) } as T;
+  }
+
+  if (path === "/learning/glossary") {
+    return { glossary: db.glossary.map((item, index) => ({ id: `glossary-${index}`, ...item })) } as T;
+  }
+
+  if (path === "/learning/capstones") {
+    return { capstones: db.capstones } as T;
+  }
+
+  if (path === "/learning/portfolio") {
+    const authUser = requireUser(db);
+    return { portfolio: db.portfolio.filter((item) => item.id && item.title) } as T;
+  }
+
+  if (path === "/learning/projects") {
+    const authUser = requireUser(db);
+    return { guidedProjects: db.guidedProjects, learnerProjects: db.learnerProjects.filter((item) => item.userId === authUser.id) } as T;
+  }
+
+  if (path === "/learning/assignments") {
+    const authUser = requireUser(db);
+    return { assignments: db.mentorAssignments.filter((item) => item.studentId === authUser.id) } as T;
+  }
+
+  if (path === "/platform/plans") {
+    return { plans, billingIntegration: { supportEmail: "madijonovsardorbek544@gmail.com", providers: ["Future hosted card checkout", "Future Payme integration"], securityNotice: "The public demo never collects card numbers. Production billing must use processor-hosted, tokenized checkout and verified webhooks." } } as T;
+  }
+
+  if (path === "/platform/subscription") {
+    const authUser = requireUser(db);
+    const subscription = getSubscriptionForUser(db, authUser.id);
+    return { plans, subscription, plan: plans.find((item) => item.id === subscription.planId) ?? plans[0], demoBillingEnabled: true } as T;
+  }
+
+  if (path === "/platform/my-feedback") {
+    const authUser = requireUser(db);
+    return { feedback: db.feedback.filter((item) => item.userId === authUser.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt)) } as T;
+  }
+
+  if (path.startsWith("/platform/portfolio/public/")) {
+    const shareId = path.split("/").pop()!;
+    const artifact = db.portfolio.find((item) => item.publicShareId === shareId);
+    if (!artifact) throw new Error("Public artifact not found.");
+    const owner = db.users.find((item) => item.role === "student");
+    return { artifact: { ...artifact, ownerName: owner?.name } } as T;
+  }
+
   if (path === "/mentor/students") {
     const authUser = requireUser(db);
     ensureRole(authUser, ["mentor", "admin"]);
     const links = authUser.role === "admin" ? db.users.filter((item) => item.role === "student").map((item) => ({ studentId: item.id })) : db.mentorLinks.filter((link) => link.mentorId === authUser.id);
     const students = links.map((link) => {
       const student = db.users.find((item) => item.id === link.studentId)!;
-      return { ...sanitizeUser(student), analytics: computeAnalytics(db, student.id) };
+      return { ...sanitizeUser(student), analytics: computeAnalytics(db, student.id), mastery: getMastery(db, student.id), portfolioCount: db.portfolio.length, assignmentCount: db.mentorAssignments.filter((item) => item.studentId === student.id && item.status !== "done").length, cohort: db.cohorts.find((cohort) => cohort.members?.some((member) => member.id === student.id)) ?? null };
     });
     return { students } as T;
   }
@@ -626,6 +1004,30 @@ function handleGet<T>(path: string): T {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .map((item) => ({ ...item, student: sanitizeUser(db.users.find((userItem) => userItem.id === item.studentId)!) }));
     return { feedback: items } as T;
+  }
+
+  if (path === "/mentor/alerts") {
+    const authUser = requireUser(db);
+    ensureRole(authUser, ["mentor", "admin"]);
+    const alerts = db.mentorAlerts
+      .filter((item) => authUser.role === "admin" || item.mentorId === authUser.id)
+      .map((item) => ({ ...item, student: db.users.find((userItem) => userItem.id === item.studentId) ? { name: db.users.find((userItem) => userItem.id === item.studentId)!.name, email: db.users.find((userItem) => userItem.id === item.studentId)!.email } : null }));
+    return { alerts } as T;
+  }
+
+  if (path === "/mentor/cohorts") {
+    const authUser = requireUser(db);
+    ensureRole(authUser, ["mentor", "admin"]);
+    return { cohorts: db.cohorts.filter((item) => authUser.role === "admin" || item.mentorId === authUser.id) } as T;
+  }
+
+  if (path === "/mentor/assignments") {
+    const authUser = requireUser(db);
+    ensureRole(authUser, ["mentor", "admin"]);
+    const assignments = db.mentorAssignments
+      .filter((item) => authUser.role === "admin" || item.mentorId === authUser.id)
+      .map((item) => ({ ...item, student: db.users.find((userItem) => userItem.id === item.studentId) ? { name: db.users.find((userItem) => userItem.id === item.studentId)!.name, email: db.users.find((userItem) => userItem.id === item.studentId)!.email } : null }));
+    return { assignments } as T;
   }
 
   if (path === "/admin/overview") {
@@ -645,11 +1047,21 @@ function handleGet<T>(path: string): T {
         labs: db.labs.length,
         attempts: db.attempts.length,
         feedbackItems: db.mentorFeedback.length,
+        openPlatformFeedback: db.feedback.filter((item) => item.status !== "resolved").length,
+        queuedEmails: 1,
         completionRate
       },
       users: db.users.map(sanitizeUser),
       lessons: db.lessons,
-      labs: db.labs
+      labs: db.labs,
+      platformFeedback: db.feedback,
+      emailOutbox: [
+        { id: "email-demo-welcome", toEmail: "student@cyberpath.local", subject: "Welcome to CyberPath Academy", messageType: "welcome", status: "queued", createdAt: daysAgo(1) }
+      ],
+      auditLogs: [
+        { id: "audit-demo-seed", action: "demo.seeded", targetType: "mock_db", targetId: DB_KEY, createdAt: daysAgo(1) },
+        { id: "audit-demo-feedback", action: "platform.feedback_received", targetType: "feedback", targetId: db.feedback[0]?.id ?? null, createdAt: db.feedback[0]?.createdAt ?? now() }
+      ]
     } as T;
   }
 
@@ -806,6 +1218,106 @@ function handlePost<T>(path: string, body: unknown): T {
     return { submission } as T;
   }
 
+  if (path === "/learning/certificates/claim") {
+    const authUser = requireUser(db);
+    const existing = db.certificates.filter((item) => item.id && item.trackSlug);
+    if (!existing.length) {
+      db.certificates.push({ id: uid("cert"), trackSlug: "cyber-foundations", title: "Cyber Foundations Demo Certificate", status: "issued", issuedAt: now(), criteria: { score: 80, completionRate: computeAnalytics(db, authUser.id).completionRate, quizAverage: computeAnalytics(db, authUser.id).totalQuizAccuracy, portfolioCount: db.portfolio.length, labsPassed: db.labSubmissions.length } });
+      writeDb(db);
+    }
+    return { certificates: db.certificates } as T;
+  }
+
+  if (path === "/learning/portfolio") {
+    const authUser = requireUser(db);
+    const data = body as Partial<PortfolioArtifact>;
+    const artifact: PortfolioArtifact = {
+      id: uid("artifact"),
+      title: data.title || "Demo portfolio artifact",
+      artifactType: data.artifactType || "incident_report",
+      specialization: data.specialization || "SOC analyst",
+      summary: data.summary || "A defensive proof-of-work artifact created in the public demo.",
+      deliverables: data.deliverables?.length ? data.deliverables : ["summary", "evidence", "recommendations"],
+      status: data.status || "draft",
+      evidenceUrl: data.evidenceUrl ?? null,
+      mentorFeedback: data.mentorFeedback ?? null,
+      scenario: data.scenario,
+      evidenceUsed: data.evidenceUsed ?? [],
+      riskExplanation: data.riskExplanation,
+      defensiveRecommendations: data.defensiveRecommendations,
+      reflection: data.reflection,
+      publicShareId: data.status === "published" ? uid("share") : null,
+      publishedAt: data.status === "published" ? now() : null,
+      createdAt: now(),
+      updatedAt: now()
+    };
+    db.portfolio.unshift(artifact);
+    writeDb(db);
+    return { artifact, portfolio: db.portfolio.filter((item) => item.id) } as T;
+  }
+
+  if (path === "/learning/projects") {
+    const authUser = requireUser(db);
+    const data = body as { guidedProjectId?: string; projectId?: string };
+    const guidedProjectId = data.guidedProjectId || data.projectId || db.guidedProjects[0]?.id;
+    const project = db.guidedProjects.find((item) => item.id === guidedProjectId) ?? db.guidedProjects[0];
+    if (!project) throw new Error("No guided project available.");
+    let learnerProject = db.learnerProjects.find((item) => item.userId === authUser.id && item.guidedProjectId === project.id);
+    if (!learnerProject) {
+      learnerProject = { id: uid("learner_project"), userId: authUser.id, guidedProjectId: project.id, status: "in_progress", checkpointProgress: [], reflection: null, evidenceUrl: null, createdAt: now(), updatedAt: now(), project };
+      db.learnerProjects.push(learnerProject);
+    } else {
+      learnerProject.status = learnerProject.status === "not_started" ? "in_progress" : learnerProject.status;
+      learnerProject.updatedAt = now();
+    }
+    writeDb(db);
+    return { learnerProjects: db.learnerProjects.filter((item) => item.userId === authUser.id) } as T;
+  }
+
+  if (path === "/platform/subscription/demo-checkout") {
+    const authUser = requireUser(db);
+    const data = body as { planId?: string };
+    const selected = plans.find((item) => item.id === data.planId) ?? plans[0];
+    let subscription = getSubscriptionForUser(db, authUser.id);
+    subscription.planId = selected.id;
+    subscription.status = "active";
+    subscription.billingCycle = "monthly";
+    subscription.currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    subscription.updatedAt = now();
+    writeDb(db);
+    return { message: `Demo checkout activated ${selected.name}. No payment information was collected.`, subscription } as T;
+  }
+
+  if (path === "/platform/feedback" || path === "/platform/my-feedback") {
+    const maybeUser = getSessionUser(db);
+    const data = body as Partial<FeedbackItem>;
+    const item: FeedbackItem = {
+      id: uid("feedback"),
+      userId: path === "/platform/my-feedback" ? maybeUser?.id ?? null : maybeUser?.id ?? null,
+      name: data.name || maybeUser?.name || "Public demo visitor",
+      email: data.email || maybeUser?.email || "demo@example.com",
+      category: data.category || "support",
+      message: data.message || "Demo feedback",
+      status: "new",
+      createdAt: now(),
+      updatedAt: now()
+    };
+    db.feedback.unshift(item);
+    writeDb(db);
+    return { message: "Thanks — demo feedback was saved locally.", feedback: item } as T;
+  }
+
+  if (path === "/mentor/assignments") {
+    const authUser = requireUser(db);
+    ensureRole(authUser, ["mentor", "admin"]);
+    const data = body as Partial<MentorAssignment>;
+    if (!data.studentId) throw new Error("Choose a student before creating an assignment.");
+    const assignment: MentorAssignment = { id: uid("assign"), mentorId: authUser.id, studentId: data.studentId, lessonId: data.lessonId ?? null, trackSlug: data.trackSlug ?? null, title: data.title || "Demo mentor assignment", instructions: data.instructions || "Complete the assigned review and explain your evidence.", targetMastery: data.targetMastery ?? null, dueAt: data.dueAt ?? null, status: "open", rubric: data.rubric ?? [], createdAt: now(), updatedAt: now() };
+    db.mentorAssignments.unshift(assignment);
+    writeDb(db);
+    return { assignment } as T;
+  }
+
   if (path === "/ai/tutor") {
     const authUser = requireUser(db);
     const data = body as { prompt: string; mode: "simple" | "deep" };
@@ -908,6 +1420,61 @@ function handlePatch<T>(path: string, body: unknown): T {
     Object.assign(lab, body as Partial<Lab>);
     writeDb(db);
     return { lab } as T;
+  }
+
+  if (path.startsWith("/learning/portfolio/")) {
+    const id = path.split("/").pop()!;
+    const artifact = db.portfolio.find((item) => item.id === id);
+    if (!artifact) throw new Error("Portfolio artifact not found.");
+    Object.assign(artifact, body as Partial<PortfolioArtifact>, { updatedAt: now() });
+    if ((body as Partial<PortfolioArtifact>).status === "published" && !artifact.publicShareId) {
+      artifact.publicShareId = uid("share");
+      artifact.publishedAt = now();
+    }
+    writeDb(db);
+    return { artifact, portfolio: db.portfolio } as T;
+  }
+
+  if (path.startsWith("/platform/feedback/") && path.endsWith("/status")) {
+    ensureRole(authUser, ["admin"]);
+    const id = path.split("/")[3];
+    const item = db.feedback.find((entry) => entry.id === id);
+    if (!item) throw new Error("Feedback item not found.");
+    item.status = (body as { status: string }).status;
+    item.updatedAt = now();
+    writeDb(db);
+    return { feedback: item } as T;
+  }
+
+  if (path.startsWith("/mentor/alerts/")) {
+    ensureRole(authUser, ["mentor", "admin"]);
+    const id = path.split("/").pop()!;
+    const item = db.mentorAlerts.find((entry) => entry.id === id);
+    if (!item) throw new Error("Alert not found.");
+    item.status = (body as { status: MentorAlert["status"] }).status;
+    item.updatedAt = now();
+    writeDb(db);
+    return { alert: item } as T;
+  }
+
+  if (path.startsWith("/mentor/assignments/")) {
+    ensureRole(authUser, ["mentor", "admin"]);
+    const id = path.split("/").pop()!;
+    const item = db.mentorAssignments.find((entry) => entry.id === id);
+    if (!item) throw new Error("Assignment not found.");
+    Object.assign(item, body as Partial<MentorAssignment>, { updatedAt: now() });
+    writeDb(db);
+    return { assignment: item } as T;
+  }
+
+  if (path.startsWith("/learning/assignments/")) {
+    const id = path.split("/").pop()!;
+    const item = db.mentorAssignments.find((entry) => entry.id === id && entry.studentId === authUser.id);
+    if (!item) throw new Error("Assignment not found.");
+    item.status = (body as { status: string }).status;
+    item.updatedAt = now();
+    writeDb(db);
+    return { assignment: item } as T;
   }
 
   throw new Error(`No mock PATCH handler for ${path}`);
