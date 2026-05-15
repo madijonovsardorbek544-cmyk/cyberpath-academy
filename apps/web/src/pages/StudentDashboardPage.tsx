@@ -4,7 +4,7 @@ import { Bar, BarChart, PolarAngleAxis, PolarGrid, Radar, RadarChart, Responsive
 import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { Badge, Button, Card, EmptyState, ErrorState, Loader, SectionTitle, StatCard } from '../components/ui';
-import type { DashboardResponse } from '../types';
+import type { Analytics, DashboardResponse, PracticeHub } from '../types';
 
 type RecommendationCard = {
   id: string;
@@ -12,6 +12,31 @@ type RecommendationCard = {
   copy: string;
   href: string;
   label: string;
+};
+
+const defaultAnalytics: Analytics = {
+  totalCompleted: 0,
+  completionRate: 0,
+  totalQuizAccuracy: 0,
+  weakTopics: [],
+  topicAccuracy: [],
+  timeStudied: 0,
+  streakDays: 0,
+  milestones: [],
+  readiness: { specialization: 0, capstone: 0 },
+  skillRadar: []
+};
+
+const defaultPracticeHub: PracticeHub = {
+  streak: { days: 0, nextMilestone: 7, daysRemaining: 7 },
+  continueLesson: null,
+  recoveryPlan: null,
+  dailyQuest: { title: 'Start your first focused learning session', rewardLabel: 'Build momentum', progress: 0, total: 0, steps: [] },
+  focusAreas: [],
+  reviewQueue: [],
+  assignments: [],
+  activeProject: null,
+  paths: []
 };
 
 export function StudentDashboardPage() {
@@ -46,20 +71,38 @@ export function StudentDashboardPage() {
     };
   }, [refreshKey]);
 
+  const dashboard = useMemo(() => data ? {
+    ...data,
+    analytics: data.analytics ?? defaultAnalytics,
+    nextLessons: data.nextLessons ?? [],
+    mentorFeedback: data.mentorFeedback ?? [],
+    capstones: data.capstones ?? [],
+    mastery: data.mastery ?? [],
+    recommendations: data.recommendations ?? [],
+    certificates: data.certificates ?? [],
+    portfolio: data.portfolio ?? [],
+    assignments: data.assignments ?? [],
+    dueReviews: data.dueReviews ?? [],
+    guidedProjects: data.guidedProjects ?? [],
+    learnerProjects: data.learnerProjects ?? [],
+    tracks: data.tracks ?? [],
+    practiceHub: data.practiceHub ?? defaultPracticeHub
+  } : null, [data]);
+
   const nextLesson = useMemo(() => {
-    if (!data) return null;
-    return data.practiceHub.continueLesson ?? data.nextLessons.find((lesson) => !lesson.completed) ?? data.nextLessons[0] ?? null;
-  }, [data]);
+    if (!dashboard) return null;
+    return dashboard.practiceHub.continueLesson ?? dashboard.nextLessons.find((lesson) => !lesson.completed) ?? dashboard.nextLessons[0] ?? null;
+  }, [dashboard]);
 
   const weakTopics = useMemo(() => {
-    if (!data) return [];
-    return [...data.analytics.topicAccuracy]
+    if (!dashboard) return [];
+    return [...(dashboard.analytics.topicAccuracy ?? [])]
       .sort((a, b) => a.accuracy - b.accuracy)
       .slice(0, 3);
-  }, [data]);
+  }, [dashboard]);
 
   const nextMoves = useMemo<RecommendationCard[]>(() => {
-    if (!data) return [];
+    if (!dashboard) return [];
 
     const cards: RecommendationCard[] = [];
 
@@ -73,11 +116,11 @@ export function StudentDashboardPage() {
       });
     }
 
-    if (data.dueReviews[0]) {
+    if (dashboard.dueReviews[0]) {
       cards.push({
         id: 'due-review',
-        title: `Clear review debt in ${data.dueReviews[0].topic}`,
-        copy: `You have ${data.dueReviews.length} review item${data.dueReviews.length === 1 ? '' : 's'} due. Skipping these is how forgetting wins.`,
+        title: `Clear review debt in ${dashboard.dueReviews[0].topic}`,
+        copy: `You have ${dashboard.dueReviews.length} review item${dashboard.dueReviews.length === 1 ? '' : 's'} due. Skipping these is how forgetting wins.`,
         href: '/practice',
         label: 'Open practice hub'
       });
@@ -104,7 +147,7 @@ export function StudentDashboardPage() {
     }
 
     return cards.slice(0, 3);
-  }, [data, nextLesson, weakTopics]);
+  }, [dashboard, nextLesson, weakTopics]);
 
   const claimCertificates = async () => {
     setClaimingCertificates(true);
@@ -126,7 +169,7 @@ export function StudentDashboardPage() {
     );
   }
 
-  if (error || !data) {
+  if (error || !dashboard) {
     return (
       <AppShell>
         <ErrorState
@@ -149,10 +192,10 @@ export function StudentDashboardPage() {
         />
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Lessons completed" value={data.analytics.totalCompleted} hint={`${data.analytics.completionRate}% of the mapped curriculum`} />
-          <StatCard label="Quiz accuracy" value={`${data.analytics.totalQuizAccuracy}%`} hint="Average across recorded attempts" />
-          <StatCard label="Time studied" value={`${data.analytics.timeStudied} min`} hint={`Streak ${data.analytics.streakDays} day${data.analytics.streakDays === 1 ? '' : 's'}`} />
-          <StatCard label="Review pressure" value={data.dueReviews.length} hint={data.dueReviews.length ? 'Do not let forgetting compound.' : 'No review debt right now.'} />
+          <StatCard label="Lessons completed" value={dashboard.analytics.totalCompleted} hint={`${dashboard.analytics.completionRate}% of the mapped curriculum`} />
+          <StatCard label="Quiz accuracy" value={`${dashboard.analytics.totalQuizAccuracy}%`} hint="Average across recorded attempts" />
+          <StatCard label="Time studied" value={`${dashboard.analytics.timeStudied} min`} hint={`Streak ${dashboard.analytics.streakDays} day${dashboard.analytics.streakDays === 1 ? '' : 's'}`} />
+          <StatCard label="Review pressure" value={dashboard.dueReviews.length} hint={dashboard.dueReviews.length ? 'Do not let forgetting compound.' : 'No review debt right now.'} />
         </div>
 
         <div className="grid gap-5 xl:grid-cols-[1.2fr,0.8fr]">
@@ -169,15 +212,15 @@ export function StudentDashboardPage() {
                 ? `${nextLesson.estimatedMinutes} minutes. Finish the lesson, take the quiz seriously, then clear one review action so the learning actually sticks.`
                 : 'You do not need more random browsing. Choose a path, start one lesson, and create evidence.'}
             </p>
-            {data.practiceHub.recoveryPlan ? (
+            {dashboard.practiceHub.recoveryPlan ? (
               <div className="mt-5 rounded-3xl border border-amber-400/25 bg-amber-400/5 p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-lg font-semibold text-amber-100">{data.practiceHub.recoveryPlan.title}</p>
+                  <p className="text-lg font-semibold text-amber-100">{dashboard.practiceHub.recoveryPlan.title}</p>
                   <Badge className="border-amber-400/35 text-amber-200">recovery mode</Badge>
                 </div>
-                <p className="mt-2 text-sm text-amber-100/85">{data.practiceHub.recoveryPlan.summary}</p>
+                <p className="mt-2 text-sm text-amber-100/85">{dashboard.practiceHub.recoveryPlan.summary}</p>
                 <ul className="mt-4 space-y-2 text-sm text-amber-50/90">
-                  {data.practiceHub.recoveryPlan.actions.map((item) => <li key={item}>• {item}</li>)}
+                  {dashboard.practiceHub.recoveryPlan.actions.map((item) => <li key={item}>• {item}</li>)}
                 </ul>
               </div>
             ) : null}
@@ -227,11 +270,11 @@ export function StudentDashboardPage() {
                 <h3 className="text-lg font-semibold text-white">Topic accuracy</h3>
                 <p className="mt-1 text-sm text-slate-400">This is where the score story becomes concrete.</p>
               </div>
-              <Badge>{data.analytics.topicAccuracy.length} tracked topics</Badge>
+              <Badge>{dashboard.analytics.topicAccuracy.length} tracked topics</Badge>
             </div>
             <div className="mt-4 h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.analytics.topicAccuracy.length ? data.analytics.topicAccuracy : [{ topic: 'No data yet', accuracy: 0 }] }>
+                <BarChart data={dashboard.analytics.topicAccuracy.length ? dashboard.analytics.topicAccuracy : [{ topic: 'No data yet', accuracy: 0 }] }>
                   <XAxis dataKey="topic" tick={{ fill: '#cbd5e1', fontSize: 12 }} />
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
                   <Tooltip />
@@ -246,11 +289,11 @@ export function StudentDashboardPage() {
                 <h3 className="text-lg font-semibold text-white">Skill radar</h3>
                 <p className="mt-1 text-sm text-slate-400">A faster read on breadth versus imbalance.</p>
               </div>
-              <Badge>{data.mastery.length} mastery lanes</Badge>
+              <Badge>{dashboard.mastery.length} mastery lanes</Badge>
             </div>
             <div className="mt-4 h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={data.analytics.skillRadar}>
+                <RadarChart data={dashboard.analytics.skillRadar}>
                   <PolarGrid />
                   <PolarAngleAxis dataKey="skill" tick={{ fill: '#cbd5e1', fontSize: 12 }} />
                   <Radar name="Skill" dataKey="value" fillOpacity={0.45} />
@@ -267,10 +310,10 @@ export function StudentDashboardPage() {
                 <h3 className="text-lg font-semibold text-white">Adaptive next steps</h3>
                 <p className="mt-1 text-sm text-slate-400">Your recommendations should be specific, not motivational wallpaper.</p>
               </div>
-              {data.cohort ? <Badge>{data.cohort.name}</Badge> : <Badge>Solo track</Badge>}
+              {dashboard.cohort ? <Badge>{dashboard.cohort.name}</Badge> : <Badge>Solo track</Badge>}
             </div>
             <div className="mt-4 space-y-3">
-              {data.recommendations.length ? data.recommendations.map((item) => (
+              {dashboard.recommendations.length ? dashboard.recommendations.map((item) => (
                 <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-medium text-white">{item.title}</p>
@@ -288,10 +331,10 @@ export function StudentDashboardPage() {
                 <h3 className="text-lg font-semibold text-white">Review queue and assignments</h3>
                 <p className="mt-1 text-sm text-slate-400">This is the work that protects retention and accountability.</p>
               </div>
-              <Badge>{data.assignments.length + data.dueReviews.length} active items</Badge>
+              <Badge>{dashboard.assignments.length + dashboard.dueReviews.length} active items</Badge>
             </div>
             <div className="mt-4 space-y-3">
-              {data.dueReviews.slice(0, 3).map((item) => (
+              {dashboard.dueReviews.slice(0, 3).map((item) => (
                 <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-medium text-white">{item.topic}</p>
@@ -300,7 +343,7 @@ export function StudentDashboardPage() {
                   <p className="mt-2 text-sm text-slate-400">{item.prompt}</p>
                 </div>
               ))}
-              {data.assignments.slice(0, 2).map((item) => (
+              {dashboard.assignments.slice(0, 2).map((item) => (
                 <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-medium text-white">{item.title}</p>
@@ -309,7 +352,7 @@ export function StudentDashboardPage() {
                   <p className="mt-2 text-sm text-slate-400">{item.instructions}</p>
                 </div>
               ))}
-              {!data.assignments.length && !data.dueReviews.length ? <EmptyState title="No pressure items right now" description="That is good, but do not let the dashboard go quiet. Start another focused lesson today." /> : null}
+              {!dashboard.assignments.length && !dashboard.dueReviews.length ? <EmptyState title="No pressure items right now" description="That is good, but do not let the dashboard go quiet. Start another focused lesson today." /> : null}
             </div>
           </Card>
         </div>
@@ -324,17 +367,17 @@ export function StudentDashboardPage() {
               <Link to="/paths" className="text-sm text-sky-300">Explore projects</Link>
             </div>
             <div className="mt-4 space-y-3">
-              {data.learnerProjects[0] ? (
+              {dashboard.learnerProjects[0] ? (
                 <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="font-medium text-white">Active project: {data.learnerProjects[0].project.title}</p>
-                    <Badge>{data.learnerProjects[0].status}</Badge>
+                    <p className="font-medium text-white">Active project: {dashboard.learnerProjects[0].project.title}</p>
+                    <Badge>{dashboard.learnerProjects[0].status}</Badge>
                   </div>
-                  <p className="mt-2 text-sm text-slate-400">{data.learnerProjects[0].project.summary}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">{data.learnerProjects[0].checkpointProgress.map((item) => <Badge key={item}>{item}</Badge>)}</div>
+                  <p className="mt-2 text-sm text-slate-400">{dashboard.learnerProjects[0].project.summary}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">{dashboard.learnerProjects[0].checkpointProgress.map((item) => <Badge key={item}>{item}</Badge>)}</div>
                 </div>
               ) : null}
-              {data.portfolio.length ? data.portfolio.map((artifact) => (
+              {dashboard.portfolio.length ? dashboard.portfolio.map((artifact) => (
                 <div key={artifact.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <p className="font-medium text-white">{artifact.title}</p>
@@ -358,7 +401,7 @@ export function StudentDashboardPage() {
               <Button className="bg-sky-400 text-slate-950" disabled={claimingCertificates} onClick={claimCertificates}>{claimingCertificates ? 'Claiming...' : 'Claim eligible'}</Button>
             </div>
             <div className="mt-4 space-y-3">
-              {data.certificates.length ? data.certificates.map((certificate) => (
+              {dashboard.certificates.length ? dashboard.certificates.map((certificate) => (
                 <div key={certificate.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <p className="font-medium text-white">{certificate.title}</p>
                   <p className="mt-1 text-sm text-slate-400">Issued: {certificate.issuedAt ? new Date(certificate.issuedAt).toLocaleDateString() : 'Pending issuance'}</p>
@@ -366,7 +409,7 @@ export function StudentDashboardPage() {
                 </div>
               )) : <EmptyState title="No certificates yet" description="That is normal. Earn them through completed work, cleaner quiz performance, and stronger mastery." />}
               <div className="space-y-3 pt-2">
-                {data.mastery.map((track) => (
+                {dashboard.mastery.map((track) => (
                   <div key={track.trackSlug} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
