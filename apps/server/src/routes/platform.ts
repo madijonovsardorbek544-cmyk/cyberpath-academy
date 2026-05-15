@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { env } from '../config/env.js';
 import { createAuditLog } from '../utils/audit.js';
-import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapPortfolioArtifact, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
+import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapPilotLead, mapPortfolioArtifact, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
 import { planCatalog } from '../utils/accessControl.js';
 
 const router = Router();
@@ -26,6 +26,27 @@ const feedbackSchema = z.object({
 
 
 
+const pilotLeadSchema = z.object({
+  contactName: z.string().trim().min(2).max(100),
+  email: z.string().trim().email(),
+  phoneOrTelegram: z.string().trim().max(80).optional().nullable(),
+  role: z.enum(['student', 'parent', 'teacher', 'mentor', 'school_leader', 'learning_center_owner', 'other']),
+  organizationName: z.string().trim().min(2).max(160),
+  cityCountry: z.string().trim().min(2).max(120),
+  studentCount: z.number().int().min(0).max(100000).optional().nullable(),
+  studentAgeRange: z.string().trim().max(80).optional().nullable(),
+  currentCyberLevel: z.string().trim().min(2).max(240),
+  needsMost: z.string().trim().min(5).max(500),
+  interestLevel: z.enum(['curious', 'interested', 'ready_for_pilot']),
+  wouldPay: z.enum(['yes', 'no', 'maybe']),
+  message: z.string().trim().max(2000).optional().nullable()
+});
+
+const pilotLeadStatusSchema = z.object({
+  status: z.enum(['new', 'contacted', 'qualified', 'pilot_started', 'closed']).optional(),
+  notes: z.string().trim().max(2000).optional().nullable()
+});
+
 router.get('/plans', (_req, res) => {
   const paymentProviders = [
     env.paymeMerchantId ? 'payme' : null,
@@ -43,6 +64,39 @@ router.get('/plans', (_req, res) => {
       securityNotice: 'Do not store or display raw card numbers in your codebase. Use processor-hosted, tokenized checkout only.'
     }
   });
+});
+
+
+router.post('/pilot-leads', (req, res) => {
+  const parsed = pilotLeadSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid school pilot lead.', errors: parsed.error.flatten() });
+  }
+  const id = makeId();
+  const now = nowIso();
+  run(
+    `INSERT INTO pilot_leads (id, contact_name, email, phone_or_telegram, role, organization_name, city_country, student_count, student_age_range, current_cyber_level, needs_most, interest_level, would_pay, message, status, notes, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'new', NULL, ?, ?)`,
+    id,
+    parsed.data.contactName,
+    parsed.data.email,
+    parsed.data.phoneOrTelegram || null,
+    parsed.data.role,
+    parsed.data.organizationName,
+    parsed.data.cityCountry,
+    parsed.data.studentCount ?? null,
+    parsed.data.studentAgeRange || null,
+    parsed.data.currentCyberLevel,
+    parsed.data.needsMost,
+    parsed.data.interestLevel,
+    parsed.data.wouldPay,
+    parsed.data.message || null,
+    now,
+    now
+  );
+  createAuditLog({ action: 'platform.pilot_lead_submitted', targetType: 'pilot_lead', targetId: id, metadata: { email: parsed.data.email, role: parsed.data.role, interestLevel: parsed.data.interestLevel } });
+  const pilotLead = mapPilotLead(one<Record<string, unknown>>('SELECT * FROM pilot_leads WHERE id = ?', id));
+  return res.status(201).json({ message: 'School pilot request received. We will use this to qualify a safe, defensive cohort pilot — not to send spam.', pilotLead });
 });
 
 router.post('/feedback', (req, res) => {
@@ -107,6 +161,36 @@ router.get('/portfolio/public/:shareId', (req, res) => {
 });
 
 router.use(requireAuth);
+
+
+router.get('/pilot-leads', (req: AuthenticatedRequest, res) => {
+  if (req.user!.role !== 'admin') return res.status(403).json({ message: 'Only admins can review school pilot leads.' });
+  const status = typeof req.query.status === 'string' ? req.query.status : undefined;
+  const allowed = ['new', 'contacted', 'qualified', 'pilot_started', 'closed'];
+  const rows = status && allowed.includes(status)
+    ? many<Record<string, unknown>>('SELECT * FROM pilot_leads WHERE status = ? ORDER BY created_at DESC', status)
+    : many<Record<string, unknown>>('SELECT * FROM pilot_leads ORDER BY created_at DESC');
+  return res.json({ pilotLeads: rows.map(mapPilotLead) });
+});
+
+router.patch('/pilot-leads/:id', (req: AuthenticatedRequest, res) => {
+  if (req.user!.role !== 'admin') return res.status(403).json({ message: 'Only admins can update school pilot leads.' });
+  const parsed = pilotLeadStatusSchema.safeParse(req.body);
+  if (!parsed.success || (!parsed.data.status && parsed.data.notes === undefined)) {
+    return res.status(400).json({ message: 'Invalid pilot lead update.', errors: parsed.success ? undefined : parsed.error.flatten() });
+  }
+  const existing = one<Record<string, unknown> | null>('SELECT * FROM pilot_leads WHERE id = ?', req.params.id);
+  if (!existing) return res.status(404).json({ message: 'Pilot lead not found.' });
+  run(
+    'UPDATE pilot_leads SET status = ?, notes = ?, updated_at = ? WHERE id = ?',
+    parsed.data.status ?? String(existing.status),
+    parsed.data.notes === undefined ? (existing.notes ?? null) : (parsed.data.notes || null),
+    nowIso(),
+    req.params.id
+  );
+  createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'platform.pilot_lead_updated', targetType: 'pilot_lead', targetId: String(req.params.id), metadata: parsed.data });
+  return res.json({ pilotLead: mapPilotLead(one<Record<string, unknown>>('SELECT * FROM pilot_leads WHERE id = ?', req.params.id)) });
+});
 
 router.get('/subscription', (req: AuthenticatedRequest, res) => {
   const row = one<Record<string, unknown> | null>('SELECT * FROM subscriptions WHERE user_id = ?', req.user!.userId);

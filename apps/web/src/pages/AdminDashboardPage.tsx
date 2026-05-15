@@ -65,8 +65,8 @@ export function AdminDashboardPage() {
           <StatCard label="Completion rate" value={`${data.stats.completionRate}%`} />
           <StatCard label="Open feedback" value={data.stats.openPlatformFeedback} />
           <StatCard label="Queued emails" value={data.stats.queuedEmails} />
-          <StatCard label="Waitlist" value={data.stats.waitlistSubmissions ?? 0} />
-          <StatCard label="School interest" value={data.stats.schoolPilotInterest ?? 0} />
+          <StatCard label="Pilot leads" value={data.stats.pilotLeads ?? data.stats.waitlistSubmissions ?? 0} />
+          <StatCard label="Ready pilots" value={data.stats.readyPilotLeads ?? data.stats.schoolPilotInterest ?? 0} />
           <StatCard label="Demo starts" value={data.stats.demoStarts ?? 0} />
           <StatCard label="Artifacts" value={data.stats.artifactsCreated ?? 0} />
         </div>
@@ -143,6 +143,35 @@ export function AdminDashboardPage() {
               <Textarea value={labDraft} onChange={(event) => setLabDraft(event.target.value)} className="min-h-[300px]" />
               <Button className="bg-sky-400 text-slate-950">Create lab</Button>
             </form>
+          </Card>
+        </div>
+
+        <div className="grid gap-5 xl:grid-cols-[1.2fr,0.8fr]">
+          <Card className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-semibold text-white">School pilot leads</h3><Badge>{data.pilotLeads?.length ?? 0} leads</Badge></div>
+            <div className="mt-4 space-y-3 max-h-[420px] overflow-auto pr-1">
+              {(data.pilotLeads || []).map((lead: any) => (
+                <div key={lead.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div><p className="font-medium text-white">{lead.contactName} · {lead.organizationName}</p><p className="text-sm text-slate-400">{lead.cityCountry} · {lead.studentCount ?? 'unknown'} students · {lead.role}</p></div>
+                    <Select className="w-auto min-w-[150px]" value={lead.status} onChange={async (event) => { await api.patch(`/platform/pilot-leads/${lead.id}`, { status: event.target.value }); load(); }}>
+                      {['new', 'contacted', 'qualified', 'pilot_started', 'closed'].map((status) => <option key={status} value={status}>{status}</option>)}
+                    </Select>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2"><Badge>{lead.interestLevel}</Badge><Badge>Would pay: {lead.wouldPay}</Badge><Badge>{lead.studentAgeRange || 'age n/a'}</Badge></div>
+                  <p className="mt-3 text-sm text-slate-300">Needs: {lead.needsMost}</p>
+                  {lead.message ? <p className="mt-2 text-sm text-slate-400">Message: {lead.message}</p> : null}
+                  <Textarea className="mt-3" placeholder="Admin follow-up notes" value={lead.notes || ''} onChange={(event) => setData((prev: any) => ({ ...prev, pilotLeads: prev.pilotLeads.map((item: any) => item.id === lead.id ? { ...item, notes: event.target.value } : item) }))} />
+                  <Button className="mt-3 bg-slate-200 text-slate-950" onClick={async () => { await api.patch(`/platform/pilot-leads/${lead.id}`, { notes: lead.notes || null }); load(); }}>Save notes</Button>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card className="p-5">
+            <h3 className="text-lg font-semibold text-white">Pilot quality checklist</h3>
+            <div className="mt-4 space-y-3 text-sm text-slate-300">
+              {['Call decision-maker within 48 hours', 'Confirm age range, class size, device constraints', 'Show mentor dashboard and CSV report', 'Collect willingness-to-pay and safety objections', 'Only promise defensive fictional labs'].map((item) => <div key={item} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3">{item}</div>)}
+            </div>
           </Card>
         </div>
 

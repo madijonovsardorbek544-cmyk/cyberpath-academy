@@ -231,6 +231,28 @@ export type FeedbackItem = {
   updatedAt?: string;
 };
 
+
+export type PilotLead = {
+  id: string;
+  contactName: string;
+  email: string;
+  phoneOrTelegram?: string | null;
+  role: 'student' | 'parent' | 'teacher' | 'mentor' | 'school_leader' | 'learning_center_owner' | 'other' | string;
+  organizationName: string;
+  cityCountry: string;
+  studentCount?: number | null;
+  studentAgeRange?: string | null;
+  currentCyberLevel: string;
+  needsMost: string;
+  interestLevel: 'curious' | 'interested' | 'ready_for_pilot' | string;
+  wouldPay: 'yes' | 'no' | 'maybe' | string;
+  message?: string | null;
+  status: 'new' | 'contacted' | 'qualified' | 'pilot_started' | 'closed' | string;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type WaitlistSubmission = {
   id: string;
   name: string;

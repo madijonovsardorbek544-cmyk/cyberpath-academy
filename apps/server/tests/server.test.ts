@@ -376,3 +376,69 @@ test('guided tutor cites internal sources and refuses unsafe requests', async ()
   assert.match(unsafeJson.answer, /cannot help/i);
   await server.close();
 });
+
+
+test('school pilot lead flow validates, stores, and restricts admin review', async () => {
+  const server = await startServer();
+  const validLead = {
+    contactName: 'Pilot Teacher',
+    email: 'pilot.teacher@example.edu',
+    phoneOrTelegram: '@pilotteacher',
+    role: 'teacher',
+    organizationName: 'Demo Learning Center',
+    cityCountry: 'Tashkent, Uzbekistan',
+    studentCount: 24,
+    studentAgeRange: '14-17',
+    currentCyberLevel: 'Beginner cyber club with no structured defensive labs',
+    needsMost: 'A safe cohort dashboard, fictional labs, and student reports for parents.',
+    interestLevel: 'ready_for_pilot',
+    wouldPay: 'maybe',
+    message: 'We want to test with one after-school cohort.'
+  };
+
+  const create = await fetch(`${server.baseUrl}/api/platform/pilot-leads`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify(validLead)
+  });
+  assert.equal(create.status, 201);
+  const created = await create.json();
+  assert.equal(created.pilotLead.email, validLead.email);
+  assert.equal(created.pilotLead.status, 'new');
+
+  const invalid = await fetch(`${server.baseUrl}/api/platform/pilot-leads`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ ...validLead, email: 'not-an-email' })
+  });
+  assert.equal(invalid.status, 400);
+
+  const studentLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  const studentCookie = cookieHeaderFrom(studentLogin);
+  const denied = await fetch(`${server.baseUrl}/api/platform/pilot-leads`, { headers: { cookie: studentCookie } });
+  assert.equal(denied.status, 403);
+
+  const adminLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
+  });
+  const adminCookie = cookieHeaderFrom(adminLogin);
+  const list = await fetch(`${server.baseUrl}/api/platform/pilot-leads`, { headers: { cookie: adminCookie } });
+  assert.equal(list.status, 200);
+  const listJson = await list.json();
+  assert.ok(listJson.pilotLeads.some((lead: any) => lead.email === validLead.email));
+
+  const update = await fetch(`${server.baseUrl}/api/platform/pilot-leads/${created.pilotLead.id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie: adminCookie },
+    body: JSON.stringify({ status: 'contacted', notes: 'Scheduled discovery call.' })
+  });
+  assert.equal(update.status, 200);
+  const updateJson = await update.json();
+  assert.equal(updateJson.pilotLead.status, 'contacted');
+  assert.equal(updateJson.pilotLead.notes, 'Scheduled discovery call.');
+  await server.close();
+});

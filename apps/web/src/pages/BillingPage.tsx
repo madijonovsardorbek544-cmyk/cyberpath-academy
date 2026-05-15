@@ -84,6 +84,8 @@ function BillingContent({ publicView = false }: { publicView?: boolean }) {
               <Button className="mt-5 bg-sky-400 text-slate-950" onClick={() => activateDemoPlan(plan.id)}>
                 Start plan
               </Button>
+            ) : plan.id === 'school' ? (
+              <Link to="/school-pilot"><Button className="mt-5 bg-emerald-400 text-slate-950">Start school pilot</Button></Link>
             ) : (
               <Link to="/login"><Button className="mt-5 bg-sky-400 text-slate-950">Create account</Button></Link>
             )}
