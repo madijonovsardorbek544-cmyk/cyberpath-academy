@@ -46,6 +46,12 @@ await mockApi.post('/platform/feedback', { name: 'Smoke Visitor', email: 'smoke@
 await mockApi.post('/platform/pilot-leads', { contactName: 'Smoke Pilot', email: 'pilot@example.edu', phoneOrTelegram: '@smoke', role: 'teacher', organizationName: 'Smoke School', cityCountry: 'Tashkent, Uzbekistan', studentCount: 24, studentAgeRange: '14-17', currentCyberLevel: 'Beginner', needsMost: 'Safe labs and mentor reports', interestLevel: 'ready_for_pilot', wouldPay: 'maybe', message: 'Smoke pilot request' });
 
 await login('mentor@cyberpath.local', 'Mentor123!');
+const mentorDashboard = await mockApi.get<any>('/mentor/cohort-dashboard');
+assert.ok(mentorDashboard.metrics.totalStudents >= 2, 'mentor dashboard missing cohort metrics');
+assert.ok(Array.isArray(mentorDashboard.students), 'mentor dashboard missing student progress table');
+assert.ok(Array.isArray(mentorDashboard.weakTopicHeatmap), 'mentor dashboard missing weak-topic heatmap');
+assert.ok(Array.isArray(mentorDashboard.labSubmissions), 'mentor dashboard missing lab submission review queue');
+assert.ok(Array.isArray(mentorDashboard.artifactReviews), 'mentor dashboard missing artifact review queue');
 await mockApi.get('/mentor/students');
 await mockApi.get('/mentor/feedback');
 await mockApi.get('/mentor/alerts');

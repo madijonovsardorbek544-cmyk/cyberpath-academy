@@ -62,7 +62,7 @@ const labSubmitSchema = z.object({ answers: z.record(z.any()) });
 const sessionSchema = z.object({ minutes: z.number().min(1).max(240), lessonId: z.string().optional() });
 const portfolioSchema = z.object({
   title: z.string().min(3).max(120),
-  artifactType: z.enum(['incident-report', 'risk-register', 'secure-code-review', 'iam-review', 'executive-summary', 'capstone-plan']),
+  artifactType: z.enum(['incident-report', 'phishing-triage-note', 'access-review-memo', 'password-policy-audit', 'secure-code-review-summary', 'cloud-iam-review', 'risk-register', 'executive-summary', 'capstone-plan', 'secure-code-review', 'iam-review']),
   specialization: z.string().min(2).max(80),
   summary: z.string().min(20).max(2000),
   deliverables: z.array(z.string().min(2)).min(1).max(10),
@@ -594,7 +594,8 @@ router.post('/labs/:id/submit', (req: AuthenticatedRequest, res) => {
     submission: {
       ...submission,
       answers: fromDbJson(submission.answers, {}),
-      rubricResult: result
+      rubricResult: result,
+      artifactSuggestion: { type: 'incident-report', title: `${lab.title} proof-of-work artifact`, prompt: 'Create proof-of-work artifact from this lab using fictional evidence, risk reasoning, defensive recommendations, and safety awareness.' }
     }
   });
 });
@@ -715,6 +716,10 @@ router.post('/portfolio', (req: AuthenticatedRequest, res) => {
   const parsed = portfolioSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid portfolio artifact.', errors: parsed.error.flatten() });
+  }
+  if (parsed.data.sourceLabSubmissionId) {
+    const source = one<Record<string, unknown> | null>('SELECT id FROM lab_submissions WHERE id = ? AND user_id = ?', parsed.data.sourceLabSubmissionId, req.user!.userId);
+    if (!source) return res.status(403).json({ message: 'Students can only create artifacts from their own lab submissions.' });
   }
   const id = makeId();
   const now = nowIso();

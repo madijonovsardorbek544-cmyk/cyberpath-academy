@@ -30,12 +30,22 @@ type MentorFeedbackItem = {
   student: { name: string; email: string };
 };
 
+type CohortDashboard = {
+  metrics: { totalStudents: number; activeThisWeek: number; inactiveStudents: number; lessonsCompleted: number; quizAverage: number; labsSubmitted: number; portfolioArtifactsCreated: number; weakTopics: string[]; assignmentsDue: number; studentsNeedingHelp: number };
+  students: { id: string; name: string; email: string; goalPath: string; lessonsCompleted: number; quizAccuracy: number; labsCompleted: number; portfolioArtifacts: number; lastActiveAt: string; riskStatus: string; recommendedNextAction: string }[];
+  weakTopicHeatmap: { topic: string; affectedStudents: number; intensity: number }[];
+  inactiveAlerts: { studentId: string; name: string; lastActiveAt: string; recommendedNextAction: string }[];
+  labSubmissions: { id: string; studentName: string; labTitle: string; score: number; feedback: string; createdAt: string }[];
+  artifactReviews: { id: string; title: string; artifactType: string; status: string; studentName?: string; mentorFeedback?: string | null }[];
+};
+
 export function MentorDashboardPage() {
   const [students, setStudents] = useState<MentorStudent[] | null>(null);
   const [feedback, setFeedback] = useState<MentorFeedbackItem[] | null>(null);
   const [alerts, setAlerts] = useState<(MentorAlert & { student?: { name: string; email: string } | null })[] | null>(null);
   const [cohorts, setCohorts] = useState<Cohort[] | null>(null);
   const [assignments, setAssignments] = useState<MentorAssignment[] | null>(null);
+  const [cohortDashboard, setCohortDashboard] = useState<CohortDashboard | null>(null);
   const [studentId, setStudentId] = useState('');
   const [message, setMessage] = useState('Your momentum is real, but your terminology is still loose in risk and IAM. Tighten definitions and justify each action with evidence.');
   const [assignmentTitle, setAssignmentTitle] = useState('Mastery recovery sprint');
@@ -44,13 +54,15 @@ export function MentorDashboardPage() {
   const [assignmentTargetMastery, setAssignmentTargetMastery] = useState('70');
 
   const load = async () => {
-    const [studentData, feedbackData, alertsData, cohortsData, assignmentsData] = await Promise.all([
+    const [dashboardData, studentData, feedbackData, alertsData, cohortsData, assignmentsData] = await Promise.all([
+      api.get<CohortDashboard>('/mentor/cohort-dashboard'),
       api.get<{ students: MentorStudent[] }>('/mentor/students'),
       api.get<{ feedback: MentorFeedbackItem[] }>('/mentor/feedback'),
       api.get<{ alerts: (MentorAlert & { student?: { name: string; email: string } | null })[] }>('/mentor/alerts'),
       api.get<{ cohorts: Cohort[] }>('/mentor/cohorts'),
       api.get<{ assignments: MentorAssignment[] }>('/mentor/assignments')
     ]);
+    setCohortDashboard(dashboardData);
     setStudents(studentData.students);
     setFeedback(feedbackData.feedback);
     setAlerts(alertsData.alerts);
@@ -90,7 +102,7 @@ export function MentorDashboardPage() {
     URL.revokeObjectURL(url);
   };
 
-  if (!students || !feedback || !alerts || !cohorts || !assignments) return <AppShell><Loader text="Loading mentor dashboard..." /></AppShell>;
+  if (!students || !feedback || !alerts || !cohorts || !assignments || !cohortDashboard) return <AppShell><Loader text="Loading mentor dashboard..." /></AppShell>;
 
   const submitFeedback = async (event: FormEvent) => {
     event.preventDefault();
@@ -133,16 +145,21 @@ export function MentorDashboardPage() {
           <Button className="border border-slate-700 bg-slate-900 text-white" onClick={exportCsvReport}>Export CSV report</Button>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <Card className="p-5"><p className="text-sm text-slate-400">Total students</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.totalStudents}</p></Card>
-          <Card className="p-5"><p className="text-sm text-slate-400">Active this week</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.activeThisWeek}</p></Card>
-          <Card className="p-5"><p className="text-sm text-slate-400">Avg quiz accuracy</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.averageQuizAccuracy}%</p></Card>
-          <Card className="p-5"><p className="text-sm text-slate-400">Students needing help</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.studentsNeedingHelp}</p></Card>
-          <Card className="p-5"><p className="text-sm text-slate-400">Lessons completed</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.lessonsCompleted}</p></Card>
-          <Card className="p-5"><p className="text-sm text-slate-400">Labs submitted</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.labsSubmitted}</p></Card>
-          <Card className="p-5"><p className="text-sm text-slate-400">Assignments due</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.assignmentsDue}</p></Card>
-          <Card className="p-5"><p className="text-sm text-slate-400">Portfolio artifacts</p><p className="mt-2 text-3xl font-semibold text-white">{cohortStats.portfolioArtifacts}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Total students</p><p className="mt-2 text-3xl font-semibold text-white">{cohortDashboard.metrics.totalStudents}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Active this week</p><p className="mt-2 text-3xl font-semibold text-white">{cohortDashboard.metrics.activeThisWeek}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Avg quiz accuracy</p><p className="mt-2 text-3xl font-semibold text-white">{cohortDashboard.metrics.quizAverage}%</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Students needing help</p><p className="mt-2 text-3xl font-semibold text-white">{cohortDashboard.metrics.studentsNeedingHelp}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Lessons completed</p><p className="mt-2 text-3xl font-semibold text-white">{cohortDashboard.metrics.lessonsCompleted}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Labs submitted</p><p className="mt-2 text-3xl font-semibold text-white">{cohortDashboard.metrics.labsSubmitted}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Assignments due</p><p className="mt-2 text-3xl font-semibold text-white">{cohortDashboard.metrics.assignmentsDue}</p></Card>
+          <Card className="p-5"><p className="text-sm text-slate-400">Portfolio artifacts</p><p className="mt-2 text-3xl font-semibold text-white">{cohortDashboard.metrics.portfolioArtifactsCreated}</p></Card>
         </div>
-        <Card className="p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-semibold text-white">Weak topics by cohort</h3><Badge>school plan signal</Badge></div><div className="mt-3 flex flex-wrap gap-2">{cohortStats.weakTopics.length ? cohortStats.weakTopics.map((topic) => <Badge key={topic} className="border-amber-400/40 text-amber-200">{topic}</Badge>) : <span className="text-sm text-slate-400">No weak-topic alerts yet.</span>}</div></Card>
+        <Card className="p-5"><div className="flex flex-wrap items-center justify-between gap-3"><h3 className="text-lg font-semibold text-white">Weak topics by cohort</h3><Badge>school plan signal</Badge></div><div className="mt-3 flex flex-wrap gap-2">{cohortDashboard.metrics.weakTopics.length ? cohortDashboard.metrics.weakTopics.map((topic) => <Badge key={topic} className="border-amber-400/40 text-amber-200">{topic}</Badge>) : <span className="text-sm text-slate-400">No weak-topic alerts yet.</span>}</div></Card>
+        <div className="grid gap-5 xl:grid-cols-[1.2fr,0.8fr]">
+          <Card className="p-5 overflow-x-auto"><h3 className="text-lg font-semibold text-white">Student progress and risk table</h3><table className="mt-4 min-w-full text-left text-sm"><thead className="text-slate-400"><tr>{['Name','Goal/path','Lessons','Quiz','Labs','Artifacts','Last active','Risk','Next action'].map((head) => <th key={head} className="px-3 py-2 font-medium">{head}</th>)}</tr></thead><tbody>{cohortDashboard.students.map((student) => <tr key={student.id} className="border-t border-slate-800"><td className="px-3 py-3 text-white">{student.name}</td><td className="px-3 py-3 text-slate-300">{student.goalPath}</td><td className="px-3 py-3 text-slate-300">{student.lessonsCompleted}</td><td className="px-3 py-3 text-slate-300">{student.quizAccuracy}%</td><td className="px-3 py-3 text-slate-300">{student.labsCompleted}</td><td className="px-3 py-3 text-slate-300">{student.portfolioArtifacts}</td><td className="px-3 py-3 text-slate-300">{new Date(student.lastActiveAt).toLocaleDateString()}</td><td className="px-3 py-3"><Badge className={student.riskStatus === 'inactive' || student.riskStatus === 'struggling' ? 'border-rose-400/40 text-rose-200' : student.riskStatus === 'needs attention' ? 'border-amber-400/40 text-amber-200' : 'border-emerald-400/40 text-emerald-200'}>{student.riskStatus}</Badge></td><td className="px-3 py-3 text-slate-300">{student.recommendedNextAction}</td></tr>)}</tbody></table></Card>
+          <div className="space-y-5"><Card className="p-5"><h3 className="text-lg font-semibold text-white">Weak-topic heatmap</h3><div className="mt-4 space-y-3">{cohortDashboard.weakTopicHeatmap.map((item) => <div key={item.topic}><div className="flex justify-between text-sm"><span className="text-slate-300">{item.topic}</span><span className="text-sky-200">{item.affectedStudents} students</span></div><div className="mt-2 h-2 rounded-full bg-slate-800"><div className="h-2 rounded-full bg-amber-300" style={{ width: `${item.intensity}%` }} /></div></div>)}</div></Card><Card className="p-5"><h3 className="text-lg font-semibold text-white">Inactive student alerts</h3><div className="mt-4 space-y-3">{cohortDashboard.inactiveAlerts.length ? cohortDashboard.inactiveAlerts.map((alert) => <div key={alert.studentId} className="rounded-2xl border border-rose-400/20 bg-rose-400/10 p-3 text-sm text-rose-50"><p className="font-medium">{alert.name}</p><p className="mt-1">{alert.recommendedNextAction}</p></div>) : <p className="text-sm text-slate-400">No inactive students in the current demo cohort.</p>}</div></Card></div>
+        </div>
+        <div className="grid gap-5 xl:grid-cols-2"><Card className="p-5"><h3 className="text-lg font-semibold text-white">Lab submission review</h3><div className="mt-4 space-y-3">{cohortDashboard.labSubmissions.slice(0, 4).map((submission) => <div key={submission.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex justify-between gap-3"><p className="font-medium text-white">{submission.studentName} · {submission.labTitle}</p><Badge>{submission.score}%</Badge></div><p className="mt-2 text-sm text-slate-400">{submission.feedback}</p></div>)}</div></Card><Card className="p-5"><h3 className="text-lg font-semibold text-white">Portfolio artifact review</h3><div className="mt-4 space-y-3">{cohortDashboard.artifactReviews.slice(0, 4).map((artifact) => <div key={artifact.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex justify-between gap-3"><p className="font-medium text-white">{artifact.title}</p><Badge>{artifact.status}</Badge></div><p className="mt-2 text-sm text-slate-400">{artifact.studentName || 'Student'} · {artifact.artifactType}</p>{artifact.mentorFeedback ? <p className="mt-2 text-sm text-amber-200">Feedback: {artifact.mentorFeedback}</p> : null}</div>)}</div></Card></div>
         <div className="grid gap-5 xl:grid-cols-[1fr,0.9fr]">
           <Card className="p-5">
             <h3 className="text-lg font-semibold text-white">Assigned students</h3>

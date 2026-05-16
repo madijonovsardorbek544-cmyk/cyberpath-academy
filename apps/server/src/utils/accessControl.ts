@@ -49,7 +49,7 @@ export const planCatalog = [
     priceMonthlyUzs: null,
     trialDays: 30,
     description: 'Cohort access for schools, mentors, and learning centers with assignments, student reports, exports, and cohort analytics.',
-    features: ['Everything in Premium', 'Cohort dashboard', 'Teacher assignment workflow', 'Student reports', 'CSV export', 'Cohort analytics'],
+    features: ['Everything in Premium', 'Cohort dashboard', 'Mentor assignments', 'Student reports', 'CSV export', 'Portfolio review', 'School analytics', 'Pilot support'],
     entitlements: ['lessons:all', 'labs:all', 'tutor:guided', 'certificates:claim', 'projects:guided', 'portfolio:publish', 'analytics:full', 'cohorts:manage', 'reports:export'] as Entitlement[],
     starterLimits: { lessons: Number.POSITIVE_INFINITY, labs: Number.POSITIVE_INFINITY },
     paymentMethods: ['Founder-led demo invoice only until a real provider is configured']
