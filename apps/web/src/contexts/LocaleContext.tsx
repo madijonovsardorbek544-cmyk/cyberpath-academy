@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 
-type Locale = 'en' | 'uz' | 'ru';
+export type Locale = 'en' | 'uz' | 'ru';
 
 type Dict = Record<string, string>;
 
@@ -16,17 +16,29 @@ const dictionaries: Record<Locale, Dict> = {
   }
 };
 
-const LocaleContext = createContext<{ locale: Locale; setLocale: (value: Locale) => void; t: (key: string) => string; } | null>(null);
+export const demoLocaleNotice = 'Uzbek and Russian translations are still in review, so the public beta demo is locked to English for now.';
+
+const availableLocales: Locale[] = ['en'];
+
+function normalizeLocale(value: unknown): Locale {
+  return availableLocales.includes(value as Locale) ? (value as Locale) : 'en';
+}
+
+const LocaleContext = createContext<{ locale: Locale; setLocale: (value: Locale) => void; t: (key: string) => string; localeNotice: string; availableLocales: Locale[]; } | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocale] = useState<Locale>(() => (localStorage.getItem('cyberpath-locale') as Locale) || ((import.meta.env.VITE_DEFAULT_LOCALE as Locale | undefined) ?? 'en'));
+  const [locale, setLocaleState] = useState<Locale>(() => normalizeLocale(localStorage.getItem('cyberpath-locale') || import.meta.env.VITE_DEFAULT_LOCALE));
+
+  const setLocale = (value: Locale) => {
+    setLocaleState(normalizeLocale(value));
+  };
 
   useEffect(() => {
     localStorage.setItem('cyberpath-locale', locale);
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const value = useMemo(() => ({ locale, setLocale, t: (key: string) => dictionaries[locale][key] ?? dictionaries.en[key] ?? key }), [locale]);
+  const value = useMemo(() => ({ locale, setLocale, t: (key: string) => dictionaries[locale][key] ?? dictionaries.en[key] ?? key, localeNotice: demoLocaleNotice, availableLocales }), [locale]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
