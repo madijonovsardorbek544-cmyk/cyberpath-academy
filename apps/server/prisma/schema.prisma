@@ -28,6 +28,7 @@ model User {
   updatedAt        DateTime             @updatedAt
   progress         LessonProgress[]
   quizAttempts     QuizAttempt[]
+  skillAttempts    SkillExerciseAttempt[]
   mistakes         Mistake[]
   labSubmissions   LabSubmission[]
   sentFeedback     MentorFeedback[]     @relation("MentorSentFeedback")
@@ -117,6 +118,24 @@ model QuizAttempt {
   createdAt        DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model SkillExerciseAttempt {
+  id         String   @id @default(cuid())
+  userId     String
+  skillId    String
+  exerciseId String
+  mode       String
+  isCorrect  Boolean  @default(false)
+  scoreDelta Int      @default(0)
+  scoreAfter Int      @default(0)
+  answerJson Json?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, skillId, createdAt])
+  @@map("skill_exercise_attempts")
 }
 
 model Mistake {

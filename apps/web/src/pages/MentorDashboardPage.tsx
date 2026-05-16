@@ -144,7 +144,7 @@ export function MentorDashboardPage() {
     <AppShell>
       <div className="space-y-8">
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <SectionTitle eyebrow="Mentor cohort dashboard" title="See weak areas and intervene before learners stall." subtitle="Teachers and mentors get cohort analytics, student reports, assignments, at-risk alerts, and portfolio evidence review in one school-ready workflow." />
+          <SectionTitle eyebrow="Teacher cohort dashboard" title="See weak areas and intervene before learners stall." subtitle="Teachers and mentors get cohort analytics, student reports, assignments, at-risk alerts, and portfolio evidence review in one school-ready workflow." />
           <Button className="border border-slate-700 bg-slate-900 text-white" onClick={exportCsvReport}>Export CSV report</Button>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">

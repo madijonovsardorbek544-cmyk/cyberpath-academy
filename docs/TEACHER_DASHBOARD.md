@@ -26,3 +26,8 @@ Mentors can assign targeted work with title, instructions, target mastery, due d
 ## At-risk alerts
 
 Current alert categories include weak area, engagement/momentum, inactivity, and low accuracy signals. Future backend work should centralize alert generation from mastery decay and repeated misses.
+
+## Route aliases
+
+The product UI now exposes `/teacher` for school users while `/mentor` remains as a backwards-compatible redirect. The API exposes both `/api/teacher/*` and `/api/mentor/*` for the same role-protected cohort workflows.
+
