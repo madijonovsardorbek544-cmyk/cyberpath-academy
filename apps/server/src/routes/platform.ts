@@ -25,6 +25,15 @@ const feedbackSchema = z.object({
 });
 
 
+const bugReportSchema = z.object({
+  page: z.string().trim().min(1).max(300),
+  happened: z.string().trim().min(5).max(2000),
+  expected: z.string().trim().min(5).max(2000),
+  deviceBrowser: z.string().trim().min(1).max(500),
+  screenshotNote: z.string().trim().max(500).optional().nullable(),
+  contact: z.string().trim().max(160).optional().nullable(),
+  severity: z.enum(['low', 'medium', 'high', 'blocking'])
+});
 
 const pilotLeadSchema = z.object({
   contactName: z.string().trim().min(2).max(100),
@@ -66,6 +75,32 @@ router.get('/plans', (_req, res) => {
   });
 });
 
+
+
+router.post('/bug-reports', (req, res) => {
+  const parsed = bugReportSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ message: 'Invalid bug report.', errors: parsed.error.flatten() });
+  }
+  const id = makeId();
+  const now = nowIso();
+  const contact = parsed.data.contact && parsed.data.contact.includes('@') ? parsed.data.contact : 'beta-bug@example.com';
+  const message = `BUG REPORT\nPage: ${parsed.data.page}\nSeverity: ${parsed.data.severity}\nHappened: ${parsed.data.happened}\nExpected: ${parsed.data.expected}\nDevice/browser: ${parsed.data.deviceBrowser}\nScreenshot placeholder: ${parsed.data.screenshotNote || 'none'}\nContact: ${parsed.data.contact || 'none'}`;
+  run(
+    `INSERT INTO platform_feedback (id, user_id, name, email, category, message, content_type, content_id, difficulty_rating, usefulness_rating, confusion_note, missing_explanation, would_recommend, would_pay, learner_goal, status, created_at, updated_at)
+     VALUES (?, NULL, 'Beta bug reporter', ?, 'bug', ?, 'project', ?, NULL, NULL, ?, ?, NULL, NULL, NULL, 'new', ?, ?)`,
+    id,
+    contact,
+    message,
+    parsed.data.page,
+    parsed.data.happened,
+    parsed.data.expected,
+    now,
+    now
+  );
+  createAuditLog({ action: 'platform.bug_report_submitted', targetType: 'platform_feedback', targetId: id, metadata: { severity: parsed.data.severity, page: parsed.data.page } });
+  return res.status(201).json({ message: 'Bug report submitted for beta triage.', bugReport: { id, ...parsed.data, status: 'new', notes: null, createdAt: now, updatedAt: now } });
+});
 
 router.post('/pilot-leads', (req, res) => {
   const parsed = pilotLeadSchema.safeParse(req.body);

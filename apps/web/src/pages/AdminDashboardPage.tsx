@@ -71,6 +71,33 @@ export function AdminDashboardPage() {
           <StatCard label="Artifacts" value={data.stats.artifactsCreated ?? 0} />
         </div>
 
+
+
+        <div className="grid gap-5 xl:grid-cols-[1fr,1fr]">
+          <Card className="p-5">
+            <h3 className="text-lg font-semibold text-white">Founder beta validation dashboard</h3>
+            <div className="mt-4 grid gap-3 text-sm text-slate-300 sm:grid-cols-2">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Signups: {data.stats.signups ?? data.stats.students ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Onboarding completions: {data.stats.onboardingCompletions ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Lesson completions: {data.stats.lessonCompletions ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Practice sessions: {data.stats.practiceSessionsCompleted ?? data.stats.attempts ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Labs submitted: {data.stats.labsSubmitted ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Feedback submitted: {data.stats.feedbackSubmitted ?? data.validationMetrics?.totalFeedback ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Users stuck: {data.stats.usersStuck ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Most abandoned page: {data.stats.mostAbandonedPage ?? 'Not enough data'}</div>
+            </div>
+          </Card>
+          <Card className="p-5">
+            <h3 className="text-lg font-semibold text-white">Beta readiness score</h3>
+            <div className="mt-4 space-y-3 text-sm text-slate-300">
+              {Object.entries(data.validationMetrics?.betaReadiness || { productStability: 70, learningCompletion: data.stats.completionRate ?? 0, feedbackVolume: Math.min(100, (data.platformFeedback?.length ?? 0) * 5), pilotInterest: Math.min(100, (data.pilotLeads?.length ?? 0) * 25), artifactCreationRate: Math.min(100, (data.stats.artifactsCreated ?? 0) * 20) }).map(([label, value]) => (
+                <div key={label} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex justify-between gap-3"><span>{label.replace(/([A-Z])/g, ' $1')}</span><span className="text-sky-200">{String(value)}%</span></div><div className="mt-2 h-2 rounded-full bg-slate-800"><div className="h-2 rounded-full bg-sky-400" style={{ width: `${Math.min(100, Number(value) || 0)}%` }} /></div></div>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-slate-500">Readiness is for a 10–30 user controlled beta, not a paid public launch.</p>
+          </Card>
+        </div>
+
         <div className="grid gap-5 xl:grid-cols-[1fr,1fr]">
           <Card className="p-5">
             <h3 className="text-lg font-semibold text-white">Startup validation metrics</h3>
@@ -79,9 +106,11 @@ export function AdminDashboardPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Demo → waitlist: {data.validationMetrics?.demoConversionSignals?.demoToWaitlist ?? 0}%</div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Willingness to pay: yes {data.validationMetrics?.willingnessToPay?.yes ?? 0}, maybe {data.validationMetrics?.willingnessToPay?.maybe ?? 0}</div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">School pilot requests: {data.validationMetrics?.demoConversionSignals?.schoolPilotRequests ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Would recommend: yes {data.validationMetrics?.wouldRecommend?.yes ?? 0}, maybe {data.validationMetrics?.wouldRecommend?.maybe ?? 0}, no {data.validationMetrics?.wouldRecommend?.no ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Bugs reported: {data.validationMetrics?.bugsReported ?? data.bugReports?.length ?? 0}</div>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">{(data.validationMetrics?.mostRequestedTopics || []).map((topic: string) => <Badge key={topic}>{topic}</Badge>)}</div>
-            <p className="mt-3 text-sm text-slate-400">Confusion themes: {(data.validationMetrics?.confusionThemes || []).join(', ')}</p>
+            <p className="mt-3 text-sm text-slate-400">Most confusing pages: {(data.validationMetrics?.mostConfusingPages || data.validationMetrics?.confusionThemes || []).join(', ')}</p>
           </Card>
           <Card className="p-5">
             <h3 className="text-lg font-semibold text-white">School pilot / waitlist pipeline</h3>
@@ -189,6 +218,21 @@ export function AdminDashboardPage() {
                   </div>
                   <p className="mt-3 text-sm text-slate-300">{item.message}</p>
                   <p className="mt-2 text-xs text-slate-500">{item.email}</p>
+                </div>
+              ))}
+            </div>
+          </Card>
+          <Card className="p-5">
+            <h3 className="text-lg font-semibold text-white">Beta bug reports</h3>
+            <div className="mt-4 space-y-3 max-h-[360px] overflow-auto pr-1">
+              {(data.bugReports || []).map((item: any) => (
+                <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                  <div className="flex items-center justify-between gap-3"><Badge>{item.severity}</Badge><Select value={item.status} onChange={async (event) => { await api.patch(`/platform/bug-reports/${item.id}`, { status: event.target.value }); load(); }}>{['new', 'investigating', 'fixed', 'closed'].map((status) => <option key={status} value={status}>{status}</option>)}</Select></div>
+                  <p className="mt-3 text-sm text-white">{item.page}</p>
+                  <p className="mt-2 text-sm text-slate-300">Happened: {item.happened}</p>
+                  <p className="mt-1 text-sm text-slate-400">Expected: {item.expected}</p>
+                  <Textarea className="mt-3" placeholder="Admin notes" value={item.notes || ''} onChange={(event) => setData((prev: any) => ({ ...prev, bugReports: prev.bugReports.map((bug: any) => bug.id === item.id ? { ...bug, notes: event.target.value } : bug) }))} />
+                  <Button className="mt-3 bg-slate-200 text-slate-950" onClick={async () => { await api.patch(`/platform/bug-reports/${item.id}`, { notes: item.notes || null }); load(); }}>Save notes</Button>
                 </div>
               ))}
             </div>

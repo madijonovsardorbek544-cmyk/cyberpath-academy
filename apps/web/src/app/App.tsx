@@ -3,7 +3,7 @@ import { HashRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ProtectedRoute } from '../components/ProtectedRoute';
 import { Loader } from '../components/ui';
-import { isMockApiMode } from '../api/client';
+import { BetaBanner } from '../components/BetaMode';
 
 const LandingPage = lazy(() => import('../pages/LandingPage').then((module) => ({ default: module.LandingPage })));
 const LoginPage = lazy(() => import('../pages/LoginPage').then((module) => ({ default: module.LoginPage })));
@@ -31,17 +31,9 @@ const PrivacyPage = lazy(() => import('../pages/PrivacyPage').then((module) => (
 const TermsPage = lazy(() => import('../pages/TermsPage').then((module) => ({ default: module.TermsPage })));
 const SafetyPage = lazy(() => import('../pages/SafetyPage').then((module) => ({ default: module.SafetyPage })));
 const SchoolPilotPage = lazy(() => import('../pages/SchoolPilotPage').then((module) => ({ default: module.SchoolPilotPage })));
+const BetaChecklistPage = lazy(() => import('../pages/BetaChecklistPage').then((module) => ({ default: module.BetaChecklistPage })));
+const BugReportPage = lazy(() => import('../pages/BugReportPage').then((module) => ({ default: module.BugReportPage })));
 const NotFoundPage = lazy(() => import('../pages/NotFoundPage').then((module) => ({ default: module.NotFoundPage })));
-
-function DemoBanner() {
-  if (!isMockApiMode) return null;
-
-  return (
-    <div className="border-b border-sky-300/20 bg-sky-950/95 px-4 py-3 text-center text-sm text-sky-50 shadow-lg shadow-sky-950/20">
-      Public demo mode: data is simulated and may reset. Full backend features require a deployed API.
-    </div>
-  );
-}
 
 function DashboardRedirect() {
   const { user } = useAuth();
@@ -57,7 +49,7 @@ export function App() {
   return (
     <HashRouter>
       <div className="min-h-screen bg-slate-950 text-slate-100">
-        <DemoBanner />
+        <BetaBanner />
         <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100"><Loader text="Loading CyberPath Academy..." /></div>}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
@@ -68,6 +60,8 @@ export function App() {
             <Route path="/pilot" element={<SchoolPilotPage />} />
             <Route path="/public/artifacts/:shareId" element={<PublicArtifactPage />} />
             <Route path="/support" element={<SupportPage />} />
+            <Route path="/report-bug" element={<BugReportPage />} />
+            <Route path="/beta-checklist" element={<ProtectedRoute><BetaChecklistPage /></ProtectedRoute>} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/terms" element={<TermsPage />} />
             <Route path="/safety" element={<SafetyPage />} />

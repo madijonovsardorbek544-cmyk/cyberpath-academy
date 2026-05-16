@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api/client";
 import { AppShell } from "../components/AppShell";
+import { BetaFeedbackCard } from "../components/BetaMode";
 import { LabTerminal } from "../components/labs/LabTerminal";
 import { Badge, Button, Card, Loader, SectionTitle, Textarea } from "../components/ui";
 import type { Lab } from "../types";
@@ -259,6 +260,7 @@ export function LabPage() {
             </div>
           </Card>
         ) : null}
+        <BetaFeedbackCard context="lab_submission" title="Lab feedback" />
       </div>
     </AppShell>
   );

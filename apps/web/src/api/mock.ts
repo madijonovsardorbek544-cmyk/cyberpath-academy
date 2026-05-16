@@ -1,4 +1,4 @@
-import type { Analytics, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User, SkillMasteryRecord, MasteryState, PracticeMode, Exercise } from "../types";
+import type { Analytics, BugReport, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User, SkillMasteryRecord, MasteryState, PracticeMode, Exercise } from "../types";
 import { exerciseCatalog, isExerciseCorrect, skillCatalog, skillCategories } from "../learningContent";
 
 type Role = User["role"];
@@ -89,7 +89,7 @@ type WaitlistSubmission = {
   createdAt: string;
 };
 
-type AnalyticsEvent = { id: string; eventName: string; role?: string; createdAt: string };
+type AnalyticsEvent = { id: string; eventName: string; role?: string; page?: string; createdAt: string };
 
 type DemoDb = {
   users: DemoUser[];
@@ -116,14 +116,15 @@ type DemoDb = {
   feedback: FeedbackItem[];
   waitlist: WaitlistSubmission[];
   pilotLeads: PilotLead[];
+  bugReports: BugReport[];
   analyticsEvents: AnalyticsEvent[];
   subscriptions: Subscription[];
   sessionUserId?: string;
 };
 
-const DB_VERSION = 6;
+const DB_VERSION = 7;
 export const DB_KEY = `cyberpath-demo-db-v${DB_VERSION}`;
-const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2", "cyberpath-demo-db-v3", "cyberpath-demo-db-v4", "cyberpath-demo-db-v5"];
+const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2", "cyberpath-demo-db-v3", "cyberpath-demo-db-v4", "cyberpath-demo-db-v5", "cyberpath-demo-db-v6"];
 
 const now = () => new Date().toISOString();
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -586,6 +587,9 @@ function seedDb(): DemoDb {
     feedback,
     waitlist,
     pilotLeads,
+    bugReports: [
+      { id: uid("bug"), page: "/labs/demo-access-review", happened: "Demo seeded example: hint text was hard to notice on mobile.", expected: "Hint should be visible before submission.", deviceBrowser: "Demo browser", screenshotNote: "placeholder", contact: "qa@example.com", severity: "medium", status: "new", notes: "Seeded beta QA item.", createdAt: daysAgo(1), updatedAt: daysAgo(1) }
+    ],
     analyticsEvents,
     subscriptions,
     sessionUserId: studentId
@@ -618,6 +622,7 @@ function isValidDemoDb(value: Partial<DemoDb> | null): value is DemoDb {
     Array.isArray(value.feedback) &&
     Array.isArray(value.waitlist) &&
     Array.isArray((value as any).pilotLeads) &&
+    Array.isArray((value as any).bugReports) &&
     Array.isArray(value.analyticsEvents) &&
     Array.isArray(value.subscriptions)
   );
@@ -1402,6 +1407,12 @@ function handleGet<T>(path: string): T {
     return { pilotLeads: db.pilotLeads } as T;
   }
 
+  if (path === "/platform/bug-reports") {
+    const authUser = requireUser(db);
+    ensureRole(authUser, ["admin"]);
+    return { bugReports: db.bugReports.sort((a, b) => b.createdAt.localeCompare(a.createdAt)) } as T;
+  }
+
   if (path === "/admin/overview") {
     const authUser = requireUser(db);
     ensureRole(authUser, ["admin"]);
@@ -1420,6 +1431,16 @@ function handleGet<T>(path: string): T {
         attempts: db.attempts.length,
         feedbackItems: db.mentorFeedback.length,
         openPlatformFeedback: db.feedback.filter((item) => item.status !== "resolved").length,
+        feedbackSubmitted: db.feedback.length,
+        bugsReported: db.bugReports.length,
+        blockingBugs: db.bugReports.filter((item) => item.severity === "blocking" && !["fixed", "closed"].includes(item.status)).length,
+        signups: db.users.filter((item) => item.role === "student").length,
+        onboardingCompletions: db.users.filter((item) => item.role === "student" && item.roadmapJson).length,
+        lessonCompletions: completionCount,
+        practiceSessionsCompleted: db.skillExerciseAttempts.length + db.attempts.length,
+        labsSubmitted: db.labSubmissions.length,
+        usersStuck: db.users.filter((item) => item.role === "student" && !item.roadmapJson).length,
+        mostAbandonedPage: db.users.filter((item) => item.role === "student" && !item.roadmapJson).length ? "/onboarding" : "/practice/session",
         waitlistSubmissions: db.waitlist.length,
         pilotLeads: db.pilotLeads.length,
         readyPilotLeads: db.pilotLeads.filter((item) => item.interestLevel === "ready_for_pilot").length,
@@ -1433,14 +1454,21 @@ function handleGet<T>(path: string): T {
       lessons: db.lessons,
       labs: db.labs,
       platformFeedback: db.feedback,
+      bugReports: db.bugReports,
       waitlist: db.waitlist,
       pilotLeads: db.pilotLeads,
       validationMetrics: {
-        usefulnessScore: db.feedback.length ? Math.round(db.feedback.reduce((sum, item) => sum + (item.usefulnessScore ?? 4), 0) / db.feedback.length) : 0,
+        totalFeedback: db.feedback.length,
+        usefulnessScore: db.feedback.length ? Math.round((db.feedback.reduce((sum, item) => sum + (item.usefulnessScore ?? 4), 0) / db.feedback.length) * 10) / 10 : 0,
         willingnessToPay: { yes: db.feedback.filter((item) => item.willingnessToPay === "yes").length, maybe: db.feedback.filter((item) => item.willingnessToPay === "maybe").length, no: db.feedback.filter((item) => item.willingnessToPay === "no").length },
+        wouldRecommend: { yes: db.feedback.filter((item) => /Would recommend: yes/i.test(item.message)).length, maybe: db.feedback.filter((item) => /Would recommend: maybe/i.test(item.message)).length, no: db.feedback.filter((item) => /Would recommend: no/i.test(item.message)).length },
+        bugsReported: db.bugReports.length,
+        schoolPilotLeads: db.pilotLeads.length,
+        mostConfusingPages: Array.from(new Set(db.feedback.map((item) => item.goal || item.category))).slice(0, 5),
         confusionThemes: ["lab checklist clarity", "IAM terminology", "portfolio quality expectations"],
         mostRequestedTopics: ["SOC Level 1", "Cloud IAM", "Uzbek glossary", "School reports"],
-        demoConversionSignals: { landingToDemo: 42, demoToWaitlist: 12, schoolPilotRequests: db.pilotLeads.length }
+        demoConversionSignals: { landingToDemo: 42, demoToWaitlist: 12, schoolPilotRequests: db.pilotLeads.length },
+        betaReadiness: { productStability: Math.max(0, 100 - db.bugReports.filter((item) => !["fixed", "closed"].includes(item.status)).length * 10), learningCompletion: Math.min(100, completionCount * 10), feedbackVolume: Math.min(100, db.feedback.length * 5), pilotInterest: Math.min(100, db.pilotLeads.length * 25), artifactCreationRate: Math.min(100, db.portfolio.length * 20) }
       },
       emailOutbox: [
         { id: "email-demo-welcome", toEmail: "student@cyberpath.local", subject: "Welcome to CyberPath Academy", messageType: "welcome", status: "queued", createdAt: daysAgo(1) }
@@ -1715,6 +1743,15 @@ function handlePost<T>(path: string, body: unknown): T {
 
 
 
+  if (path === "/platform/bug-reports") {
+    const data = body as Partial<BugReport>;
+    const item: BugReport = { id: uid("bug"), page: data.page || "unknown", happened: data.happened || "No description", expected: data.expected || "No expected behavior", deviceBrowser: data.deviceBrowser || "unknown", screenshotNote: data.screenshotNote || null, contact: data.contact || null, severity: data.severity || "medium", status: "new", notes: null, createdAt: now(), updatedAt: now() };
+    db.bugReports.unshift(item);
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: "bug_report_submit", page: item.page, createdAt: now() });
+    writeDb(db);
+    return { message: "Bug report saved in this demo browser.", bugReport: item } as T;
+  }
+
   if (path === "/platform/pilot-leads") {
     const data = body as Partial<PilotLead>;
     if (!data.email || !String(data.email).includes("@")) throw new Error("Invalid school pilot lead.");
@@ -1921,6 +1958,18 @@ function handlePatch<T>(path: string, body: unknown): T {
     }
     writeDb(db);
     return { artifact, portfolio: db.portfolio.filter((item) => item.userId === authUser.id && item.id) } as T;
+  }
+
+  if (path.startsWith("/platform/bug-reports/")) {
+    const id = path.split("/").pop()!;
+    const item = db.bugReports.find((entry) => entry.id === id);
+    if (!item) throw new Error("Bug report not found.");
+    const data = body as Partial<BugReport>;
+    item.status = data.status || item.status;
+    item.notes = data.notes ?? item.notes;
+    item.updatedAt = now();
+    writeDb(db);
+    return { bugReport: item } as T;
   }
 
   if (path.startsWith("/platform/pilot-leads/")) {

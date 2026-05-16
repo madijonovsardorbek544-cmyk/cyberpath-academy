@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
+import { BetaFeedbackCard } from '../components/BetaMode';
 import { Badge, Button, Card, Loader, SectionTitle, Textarea } from '../components/ui';
 import type { Exercise, PracticeFeedback, PracticeMode, PracticeSession } from '../types';
 
@@ -58,6 +59,7 @@ export function PracticeSessionPage() {
           {showHints ? <div className="mt-4 space-y-2">{exercise.hints.slice(0, showHints).map((hint) => <p key={hint} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">Hint: {hint}</p>)}</div> : null}
         </Card>
         {feedback ? <Card className="p-6"><Badge className={feedback.isCorrect ? 'border-emerald-400/50 text-emerald-100' : 'border-rose-400/50 text-rose-100'}>{feedback.isCorrect ? 'correct' : 'review needed'} · {feedback.scoreDelta > 0 ? '+' : ''}{feedback.scoreDelta} mastery</Badge><p className="mt-4 text-slate-300">{feedback.explanation}</p>{feedback.wrongAnswerReason ? <p className="mt-3 text-sm text-rose-100">Why this missed: {feedback.wrongAnswerReason}</p> : null}<p className="mt-3 text-sm text-slate-400">Review: <Link className="text-sky-300" to={`/lessons/${feedback.relatedLessonSlug}`}>{feedback.relatedLessonSlug}</Link></p><div className="mt-5 flex gap-3"><Button className="bg-sky-400 text-slate-950" onClick={next} disabled={index >= session.exercises.length - 1}>Next question</Button><Link to="/skill-tree"><Button className="border border-slate-700 bg-slate-900 text-white">Back to skill tree</Button></Link></div></Card> : null}
+        <BetaFeedbackCard context="practice_session" title="Practice feedback" />
       </div>
     </AppShell>
   );
