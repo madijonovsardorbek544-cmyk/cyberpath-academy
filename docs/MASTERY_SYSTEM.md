@@ -1,0 +1,53 @@
+# Mastery System
+
+CyberPath mastery is a defensive-only learning signal for safe beginner cybersecurity education. It is not a certification claim.
+
+## Skill model
+
+Each skill has an id, title, category, prerequisites, mapped lessons, mapped exercises, optional safe labs, portfolio artifact suggestion, track/path, and review cadence.
+
+Mastery states:
+
+| Score | State |
+| --- | --- |
+| 0-19 | `not_started` |
+| 20-39 | `introduced` |
+| 40-59 | `practiced` |
+| 60-79 | `proficient` |
+| 80-100 | `mastered` |
+
+If the last practice date is older than the skill review cadence, the state becomes `needs_review` and confidence is reduced.
+
+## Scoring inputs
+
+The current implementation supports the full data shape for:
+
+- lesson completion
+- quiz accuracy
+- exercise performance
+- lab score
+- review success streak
+- time since last practice
+- portfolio artifact quality
+- mastery history
+
+Mock mode currently calculates and updates exercise/review mastery directly and seeds realistic records for the demo cohort. Server persistence should use the same fields when the backend model is expanded.
+
+## Exercise effects
+
+Practice submissions update mastery with bounded deltas:
+
+- normal correct practice: positive mastery delta
+- review correct answer: stronger retention delta
+- mastery challenge correct answer: higher mastery impact
+- incorrect answers: small confidence/mastery penalty and a review item/mistake record
+
+Feedback always points to a related lesson and explains the missed safe defensive concept.
+
+## Review decay
+
+Each skill has a review cadence in days. If a learner has not practiced inside that window, the platform marks the skill `needs_review` even when the numeric score is high.
+
+## Safety boundary
+
+Mastery never rewards unauthorized access, real-target testing, credential theft, malware, evasion, persistence, phishing creation, bypassing systems, or data theft. Lab and exercise evidence uses fictional datasets only.

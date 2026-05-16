@@ -227,6 +227,38 @@ export function StudentDashboardPage() {
           <StatCard label="Review pressure" value={dashboard.dueReviews.length} hint={dashboard.dueReviews.length ? 'Do not let forgetting compound.' : 'No review debt right now.'} />
         </div>
 
+        {dashboard.masterySummary ? (
+          <Card className="p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.25em] text-sky-300">Mastery system</p>
+                <h3 className="mt-2 text-2xl font-semibold text-white">Your strongest, weakest, and next-best skills.</h3>
+              </div>
+              <Link to="/skill-tree"><Button className="bg-sky-400 text-slate-950">Open skill tree</Button></Link>
+            </div>
+            <div className="mt-5 grid gap-4 lg:grid-cols-4">
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                <p className="text-sm text-slate-400">Next best skill</p>
+                <p className="mt-2 font-medium text-white">{dashboard.masterySummary.recommendedNextSkill?.title ?? 'Start Cyber Foundations'}</p>
+                <p className="mt-2 text-xs text-slate-500">Chosen from prerequisites, stale reviews, and low mastery.</p>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                <p className="text-sm text-slate-400">Weakest skills</p>
+                <div className="mt-2 flex flex-wrap gap-2">{dashboard.masterySummary.weakestSkills.slice(0, 3).map((skill) => <Badge key={skill.id}>{skill.title}: {skill.mastery.score}%</Badge>)}</div>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                <p className="text-sm text-slate-400">Strongest skills</p>
+                <div className="mt-2 flex flex-wrap gap-2">{dashboard.masterySummary.strongestSkills.slice(0, 3).map((skill) => <Badge key={skill.id}>{skill.title}: {skill.mastery.score}%</Badge>)}</div>
+              </div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
+                <p className="text-sm text-slate-400">Needs review</p>
+                <p className="mt-2 text-2xl font-semibold text-white">{dashboard.masterySummary.needsReview.length}</p>
+                <Link to="/review" className="mt-2 inline-flex text-sm text-sky-300">Review due skills</Link>
+              </div>
+            </div>
+          </Card>
+        ) : null}
+
         <div className="grid gap-5 xl:grid-cols-[1.2fr,0.8fr]">
           <Card className="p-6">
             <div className="flex flex-wrap items-center justify-between gap-3">

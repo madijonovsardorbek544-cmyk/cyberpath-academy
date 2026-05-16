@@ -33,6 +33,9 @@ type MentorFeedbackItem = {
 type CohortDashboard = {
   metrics: { totalStudents: number; activeThisWeek: number; inactiveStudents: number; lessonsCompleted: number; quizAverage: number; labsSubmitted: number; portfolioArtifactsCreated: number; weakTopics: string[]; assignmentsDue: number; studentsNeedingHelp: number };
   students: { id: string; name: string; email: string; goalPath: string; lessonsCompleted: number; quizAccuracy: number; labsCompleted: number; portfolioArtifacts: number; lastActiveAt: string; riskStatus: string; recommendedNextAction: string }[];
+  masteryHeatmap?: { studentId: string; studentName: string; skills: { skillId: string; title: string; category: string; score: number; state: string }[] }[];
+  studentsReadyForLab?: { id: string; name: string }[];
+  studentsNeedingReview?: { id: string; name: string }[];
   weakTopicHeatmap: { topic: string; affectedStudents: number; intensity: number }[];
   inactiveAlerts: { studentId: string; name: string; lastActiveAt: string; recommendedNextAction: string }[];
   labSubmissions: { id: string; studentName: string; labTitle: string; score: number; feedback: string; createdAt: string }[];
@@ -223,6 +226,24 @@ export function MentorDashboardPage() {
             </Card>
           </div>
         </div>
+
+        {cohortDashboard?.masteryHeatmap?.length ? (
+          <Card className="p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 className="text-lg font-semibold text-white">Cohort mastery heatmap</h3>
+                <p className="mt-1 text-sm text-slate-400">Rows are assigned learners; columns are mapped defensive skills. Use this to assign review, labs, or portfolio proof.</p>
+              </div>
+              <div className="flex flex-wrap gap-2"><Badge>{cohortDashboard.studentsNeedingReview?.length ?? 0} need review</Badge><Badge>{cohortDashboard.studentsReadyForLab?.length ?? 0} ready for labs</Badge></div>
+            </div>
+            <div className="mt-5 overflow-x-auto">
+              <table className="min-w-full text-left text-xs">
+                <thead><tr><th className="sticky left-0 bg-slate-950 p-2 text-slate-400">Student</th>{cohortDashboard.masteryHeatmap[0].skills.map((skill) => <th key={skill.skillId} className="min-w-[120px] p-2 text-slate-400">{skill.title}</th>)}</tr></thead>
+                <tbody>{cohortDashboard.masteryHeatmap.map((row) => <tr key={row.studentId} className="border-t border-slate-800"><td className="sticky left-0 bg-slate-950 p-2 font-medium text-white">{row.studentName}</td>{row.skills.map((skill) => <td key={skill.skillId} className="p-2"><span className={`inline-flex rounded-full border px-2 py-1 ${skill.state === 'mastered' ? 'border-emerald-400/40 text-emerald-100' : skill.state === 'needs_review' ? 'border-rose-400/40 text-rose-100' : skill.state === 'proficient' ? 'border-sky-400/40 text-sky-100' : 'border-slate-700 text-slate-300'}`}>{skill.state.replace('_', ' ')} · {skill.score}%</span></td>)}</tr>)}</tbody>
+              </table>
+            </div>
+          </Card>
+        ) : null}
 
         <div className="grid gap-5 xl:grid-cols-[1fr,1fr]">
           <Card className="p-5">

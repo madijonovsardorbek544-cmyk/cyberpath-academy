@@ -12,6 +12,10 @@ const OnboardingPage = lazy(() => import('../pages/OnboardingPage').then((module
 const StudentDashboardPage = lazy(() => import('../pages/StudentDashboardPage').then((module) => ({ default: module.StudentDashboardPage })));
 const LearningPathsPage = lazy(() => import('../pages/LearningPathsPage').then((module) => ({ default: module.LearningPathsPage })));
 const PracticeHubPage = lazy(() => import('../pages/PracticeHubPage').then((module) => ({ default: module.PracticeHubPage })));
+const SkillTreePage = lazy(() => import('../pages/SkillTreePage').then((module) => ({ default: module.SkillTreePage })));
+const SkillDetailPage = lazy(() => import('../pages/SkillDetailPage').then((module) => ({ default: module.SkillDetailPage })));
+const PracticeSessionPage = lazy(() => import('../pages/PracticeSessionPage').then((module) => ({ default: module.PracticeSessionPage })));
+const ReviewPage = lazy(() => import('../pages/ReviewPage').then((module) => ({ default: module.ReviewPage })));
 const LessonPage = lazy(() => import('../pages/LessonPage').then((module) => ({ default: module.LessonPage })));
 const LabsPage = lazy(() => import('../pages/LabsPage').then((module) => ({ default: module.LabsPage })));
 const LabPage = lazy(() => import('../pages/LabPage').then((module) => ({ default: module.LabPage })));
@@ -71,6 +75,10 @@ export function App() {
             <Route path="/dashboard" element={<ProtectedRoute><DashboardRedirect /></ProtectedRoute>} />
             <Route path="/paths" element={<ProtectedRoute><LearningPathsPage /></ProtectedRoute>} />
             <Route path="/practice" element={<ProtectedRoute><PracticeHubPage /></ProtectedRoute>} />
+            <Route path="/practice/session" element={<ProtectedRoute><PracticeSessionPage /></ProtectedRoute>} />
+            <Route path="/review" element={<ProtectedRoute><ReviewPage /></ProtectedRoute>} />
+            <Route path="/skill-tree" element={<ProtectedRoute><SkillTreePage /></ProtectedRoute>} />
+            <Route path="/skills/:skillId" element={<ProtectedRoute><SkillDetailPage /></ProtectedRoute>} />
             <Route path="/lessons/:slug" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
             <Route path="/labs" element={<ProtectedRoute><LabsPage /></ProtectedRoute>} />
             <Route path="/labs/:slug" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
