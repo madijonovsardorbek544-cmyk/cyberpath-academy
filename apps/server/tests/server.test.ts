@@ -534,3 +534,35 @@ test('teacher dashboard alias exposes mentor cohort dashboard', async () => {
   assert.ok(Array.isArray(json.students));
   await server.close();
 });
+
+
+test('backend learning contracts expose the same nine-category defensive skill tree and exercise catalog', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  assert.equal(login.status, 200);
+  const cookie = cookieHeaderFrom(login);
+
+  const tree = await fetch(`${server.baseUrl}/api/learning/skill-tree`, { headers: { cookie } });
+  assert.equal(tree.status, 200);
+  const treeJson = await tree.json();
+  assert.equal(treeJson.categories.length, 9, 'backend skill tree must expose all nine curriculum categories');
+  for (const node of treeJson.categories.flatMap((category: any) => category.nodes)) {
+    assert.ok(node.id && node.title && node.categoryId, 'each skill node needs stable contract fields');
+    assert.ok(node.lessons.length >= 1 || node.exercises.length >= 1, `${node.title} must not be an empty visible node`);
+    assert.ok(node.mastery && typeof node.mastery.score === 'number', `${node.title} must include mastery evidence`);
+  }
+
+  const exercises = await fetch(`${server.baseUrl}/api/learning/exercises`, { headers: { cookie } });
+  assert.equal(exercises.status, 200);
+  const exerciseJson = await exercises.json();
+  assert.ok(exerciseJson.count >= 15, 'backend exercise catalog should match the mock demo catalog');
+  const exerciseTypes = new Set(exerciseJson.exercises.map((exercise: any) => exercise.type));
+  for (const type of ['multiple_choice', 'multi_select', 'true_false', 'matching', 'short_answer', 'scenario_classification', 'evidence_selection', 'risk_ranking', 'log_interpretation', 'policy_review', 'report_writing']) {
+    assert.ok(exerciseTypes.has(type), `exercise catalog missing ${type}`);
+  }
+  await server.close();
+});

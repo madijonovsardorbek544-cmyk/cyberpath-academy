@@ -556,3 +556,47 @@ export type MasterySummary = {
   recommendedNextSkill: SkillTreeNode | null;
   pathProgress: { trackSlug: string; completed: number; total: number; percent: number }[];
 };
+
+export type ContentStatus = 'draft' | 'reviewed' | 'published' | 'needs_update';
+
+export type ContentQualityMetadata = {
+  status: ContentStatus;
+  reviewer?: string | null;
+  lastReviewedAt?: string | null;
+  qualityScore?: number | null;
+  learnerUsefulnessScore?: number | null;
+  confusionNotes?: string[];
+  revisionHistory?: { version: number; changedAt: string; summary: string; reviewer?: string | null }[];
+};
+
+export type LabSubmission = {
+  id: string;
+  labId: string;
+  labSlug?: string;
+  userId: string;
+  answers: Record<string, unknown>;
+  score: number;
+  rubricResult?: Record<string, unknown> | null;
+  submittedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type MentorReport = {
+  id: string;
+  cohortId?: string | null;
+  studentId?: string | null;
+  generatedAt: string;
+  masteryBySkill: SkillMasteryRecord[];
+  lessonCompletion: number;
+  exerciseAccuracy: number;
+  labScores: { labId: string; title: string; score: number }[];
+  artifactQuality: { artifactId: string; title: string; status: PortfolioArtifact['status'] }[];
+  reviewDebt: ReviewItem[];
+  recommendedNextAction: string;
+  teacherNotes?: string | null;
+};
+
+export type Feedback = FeedbackItem;
+export type MasteryRecord = SkillMasteryRecord;
+export type SkillTree = { categories: SkillTreeCategory[]; recommendedNextSkill: SkillTreeNode | null };

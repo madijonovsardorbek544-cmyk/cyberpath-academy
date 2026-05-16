@@ -51,3 +51,7 @@ Each skill has a review cadence in days. If a learner has not practiced inside t
 ## Safety boundary
 
 Mastery never rewards unauthorized access, real-target testing, credential theft, malware, evasion, persistence, phishing creation, bypassing systems, or data theft. Lab and exercise evidence uses fictional datasets only.
+
+## 2026-05-16 implementation note
+
+Current mastery is a credible MVP, not a validated learning-science model. The app tracks skill states (`not_started`, `introduced`, `practiced`, `proficient`, `mastered`, `needs_review`), practice deltas, review debt, weak/strong skills, and next recommended skill. The remaining 10/10 work is learner-data calibration: validate weighting for difficulty, hint usage, repeated mistakes, lab score, portfolio quality, and recency decay against actual learner outcomes.
