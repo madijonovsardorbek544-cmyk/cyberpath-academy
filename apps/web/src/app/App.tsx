@@ -47,7 +47,7 @@ function DashboardRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   const role = user.role ?? 'student';
-  if (role === 'mentor') return <Navigate to="/mentor" replace />;
+  if (role === 'mentor') return <Navigate to="/teacher" replace />;
   if (role === 'admin') return <Navigate to="/admin" replace />;
   if (role === 'student' && !user.roadmapJson) return <Navigate to="/onboarding" replace />;
   return <StudentDashboardPage />;
@@ -86,7 +86,8 @@ export function App() {
             <Route path="/mistakes" element={<ProtectedRoute roles={['student', 'mentor', 'admin']}><MistakesPage /></ProtectedRoute>} />
             <Route path="/tutor" element={<ProtectedRoute><AITutorPage /></ProtectedRoute>} />
             <Route path="/billing" element={<ProtectedRoute><BillingPage /></ProtectedRoute>} />
-            <Route path="/mentor" element={<ProtectedRoute roles={['mentor', 'admin']}><MentorDashboardPage /></ProtectedRoute>} />
+            <Route path="/teacher" element={<ProtectedRoute roles={['mentor', 'admin']}><MentorDashboardPage /></ProtectedRoute>} />
+            <Route path="/mentor" element={<ProtectedRoute roles={['mentor', 'admin']}><Navigate to="/teacher" replace /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute roles={['admin']}><AdminDashboardPage /></ProtectedRoute>} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>

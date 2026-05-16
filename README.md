@@ -42,7 +42,7 @@ npm run db:setup
 npm run dev
 ```
 
-For a full-stack deployment later, deploy the backend to a host such as Render, Railway, or Fly.io, use persistent storage or a managed database plan, configure the frontend with `VITE_API_URL`, and set production server values such as `COOKIE_SECURE`, `CLIENT_URL`, and `APP_BASE_URL`. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the deployment guide and production checklist.
+For a full-stack deployment later, deploy the backend to a host such as Render, Railway, or Fly.io, use persistent storage or a managed database plan, configure the frontend with `VITE_API_URL`, and set production server values such as `COOKIE_SECURE`, `CLIENT_URL`, and `APP_BASE_URL`. See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) for the deployment guide and production checklist. See [`docs/LEARNING_SYSTEM_IMPLEMENTATION.md`](docs/LEARNING_SYSTEM_IMPLEMENTATION.md) for the mastery, skill-tree, exercise-engine, teacher-dashboard, and content-expansion implementation map.
 
 ## Product model
 - **Free:** limited beginner lessons, starter quizzes/labs, basic dashboard, and mistake notebook.
@@ -157,11 +157,11 @@ CyberPath Academy is not just a landing page, static course list, or UI demo. It
 | Learning system | Lessons, objectives, glossary, examples, checks, quizzes, mistakes, review queue, practice hub |
 | Defensive labs | Fictional datasets, safe prompts, written analysis mode, terminal simulation mode, backend scoring |
 | Terminal simulation | Browser-based shell with `help`, `ls`, `cat`, `hint`, `answer`, `answers`, and `submit` commands |
-| Role workflows | Student, mentor, and admin dashboards |
+| Role workflows | Student, teacher/mentor, and admin dashboards |
 | Analytics | Completion, quiz accuracy, weak topics, time studied, streaks, readiness, mastery, recommendations |
 | Security controls | Student-only public signup, password rules, bcrypt hashing, signed httpOnly cookie, rate limits, origin checks, audit logs |
 | Operations | Health/readiness endpoints, metrics endpoint, backup script, Docker support, CI workflow, deployment manifest |
-| Documentation | README, security policy, contributing guide, issue templates, pull request template, launch checklist |
+| Documentation | README, security policy, contributing guide, issue templates, pull request template, launch checklist, learning-system implementation matrix |
 
 ---
 ## Screenshots

@@ -35,3 +35,10 @@ Correct answers increase mastery. Mastery challenge and review successes have st
 ## Safety rules
 
 Exercises must use fictional scenarios, toy logs, policy review, defensive reasoning, and authorization reminders. They must not teach credential theft, malware, evasion, persistence, phishing creation, live exploitation, bypassing systems, data theft, or unauthorized access.
+
+## Backend routes
+
+- `GET /api/learning/practice/session` returns a safe exercise set for a skill and mode.
+- `POST /api/learning/practice/submit` scores an exercise, stores a practice attempt, updates review debt, and returns mastery feedback.
+- `POST /api/learning/review/submit` uses the same scoring path with review-mode defaults.
+

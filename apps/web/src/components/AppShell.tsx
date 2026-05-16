@@ -36,9 +36,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   const roleLinks = safeRole === 'mentor'
-    ? [...studentLinks, { to: '/mentor', key: 'mentor', icon: Users }]
+    ? [...studentLinks, { to: '/teacher', key: 'teacher', icon: Users }]
     : safeRole === 'admin'
-      ? [...studentLinks, { to: '/admin', key: 'admin', icon: Settings }, { to: '/mentor', key: 'mentor', icon: Users }]
+      ? [...studentLinks, { to: '/admin', key: 'admin', icon: Settings }, { to: '/teacher', key: 'teacher', icon: Users }]
       : studentLinks;
 
   return (

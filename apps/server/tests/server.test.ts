@@ -481,3 +481,56 @@ test('school pilot lead flow validates, stores, and restricts admin review', asy
   assert.equal(updateJson.pilotLead.notes, 'Scheduled discovery call.');
   await server.close();
 });
+
+test('student can load skill tree and submit adaptive exercise', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  assert.equal(login.status, 200);
+  const cookie = cookieHeaderFrom(login);
+
+  const tree = await fetch(`${server.baseUrl}/api/learning/skill-tree`, { headers: { cookie } });
+  assert.equal(tree.status, 200);
+  const treeJson = await tree.json();
+  assert.ok(Array.isArray(treeJson.categories));
+  assert.ok(treeJson.categories.length >= 1);
+  assert.ok(treeJson.recommendedNextSkill);
+
+  const session = await fetch(`${server.baseUrl}/api/learning/practice/session?skillId=cyber-what-is-cybersecurity&mode=practice`, { headers: { cookie } });
+  assert.equal(session.status, 200);
+  const sessionJson = await session.json();
+  assert.equal(sessionJson.session.skillId, 'cyber-what-is-cybersecurity');
+  assert.ok(sessionJson.session.exercises.length >= 1);
+
+  const exercise = sessionJson.session.exercises[0];
+  const submit = await fetch(`${server.baseUrl}/api/learning/practice/submit`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ sessionId: sessionJson.session.id, exerciseId: exercise.id, answer: exercise.correctAnswer, mode: 'practice' })
+  });
+  assert.equal(submit.status, 200);
+  const submitJson = await submit.json();
+  assert.equal(submitJson.feedback.isCorrect, true);
+  assert.ok(submitJson.feedback.updatedMastery.score >= sessionJson.session.masteryBefore.score);
+  await server.close();
+});
+
+test('teacher dashboard alias exposes mentor cohort dashboard', async () => {
+  const server = await startServer();
+  const mentorLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  });
+  assert.equal(mentorLogin.status, 200);
+  const cookie = cookieHeaderFrom(mentorLogin);
+  const response = await fetch(`${server.baseUrl}/api/teacher/cohort-dashboard`, { headers: { cookie } });
+  assert.equal(response.status, 200);
+  const json = await response.json();
+  assert.ok(json.metrics.totalStudents >= 1);
+  assert.ok(Array.isArray(json.students));
+  await server.close();
+});

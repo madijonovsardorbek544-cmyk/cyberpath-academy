@@ -38,6 +38,7 @@ import {
   reviewItemOutcome,
   upsertReviewItem
 } from '../utils/learningIntelligence.js';
+import { buildSkillTree, getMasterySummary, getPracticeSession, getSkillReviewSets, submitPracticeAnswer, type PracticeMode } from '../utils/skillEngine.js';
 
 const router = Router();
 
@@ -88,6 +89,14 @@ const learnerProjectPatchSchema = z.object({
 });
 const assignmentStudentPatchSchema = z.object({ status: z.enum(['open', 'in_progress', 'done']) });
 
+const practiceModeSchema = z.enum(['learn', 'practice', 'review', 'mastery_challenge', 'lab_prep']);
+const practiceSubmitSchema = z.object({
+  sessionId: z.string().optional(),
+  exerciseId: z.string().min(2),
+  answer: z.unknown(),
+  mode: practiceModeSchema.optional()
+});
+
 router.use(requireAuth);
 
 function isAnswerCorrect(expectedValue: unknown, actualValue: unknown, type: string) {
@@ -115,6 +124,46 @@ function isAnswerCorrect(expectedValue: unknown, actualValue: unknown, type: str
 function getLessonProgress(userId: string, lessonId: string) {
   return one<Record<string, unknown> | null>('SELECT * FROM lesson_progress WHERE user_id = ? AND lesson_id = ?', userId, lessonId);
 }
+
+router.get('/skill-tree', (req: AuthenticatedRequest, res) => {
+  return res.json(buildSkillTree(req.user!.userId));
+});
+
+router.get('/mastery-summary', (req: AuthenticatedRequest, res) => {
+  return res.json({ masterySummary: getMasterySummary(req.user!.userId) });
+});
+
+router.get('/practice/session', (req: AuthenticatedRequest, res) => {
+  const mode = typeof req.query.mode === 'string' ? req.query.mode : 'practice';
+  const parsedMode = practiceModeSchema.safeParse(mode);
+  if (!parsedMode.success) return res.status(400).json({ message: 'Invalid practice mode.' });
+  const session = getPracticeSession(req.user!.userId, {
+    mode: parsedMode.data,
+    skillId: typeof req.query.skillId === 'string' ? req.query.skillId : null
+  });
+  if (!session) return res.status(404).json({ message: 'No practice session is available yet.' });
+  return res.json({ session });
+});
+
+router.get('/review', (req: AuthenticatedRequest, res) => {
+  return res.json({ review: getSkillReviewSets(req.user!.userId) });
+});
+
+router.post('/practice/submit', (req: AuthenticatedRequest, res) => {
+  const parsed = practiceSubmitSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid practice submission.' });
+  const feedback = submitPracticeAnswer(req.user!.userId, parsed.data as { exerciseId: string; answer: unknown; mode?: PracticeMode });
+  if (!feedback) return res.status(404).json({ message: 'Exercise not found.' });
+  return res.json({ feedback });
+});
+
+router.post('/review/submit', (req: AuthenticatedRequest, res) => {
+  const parsed = practiceSubmitSchema.safeParse({ ...req.body, mode: req.body?.mode ?? 'review' });
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid review submission.' });
+  const feedback = submitPracticeAnswer(req.user!.userId, parsed.data as { exerciseId: string; answer: unknown; mode?: PracticeMode });
+  if (!feedback) return res.status(404).json({ message: 'Exercise not found.' });
+  return res.json({ feedback });
+});
 
 router.get('/dashboard', async (req: AuthenticatedRequest, res) => {
   const userId = req.user!.userId;
@@ -165,6 +214,7 @@ router.get('/dashboard', async (req: AuthenticatedRequest, res) => {
     mentorFeedback: feedbackRows.map((row) => ({ id: String(row.id), message: String(row.message), createdAt: String(row.created_at) })),
     capstones,
     mastery,
+    masterySummary: getMasterySummary(userId),
     recommendations,
     certificates,
     portfolio,

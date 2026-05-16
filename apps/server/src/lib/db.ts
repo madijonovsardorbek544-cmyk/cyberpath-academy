@@ -448,6 +448,20 @@ export function initDb() {
       FOREIGN KEY (cohort_id) REFERENCES cohorts(id) ON DELETE SET NULL
     );
 
+    CREATE TABLE IF NOT EXISTS skill_exercise_attempts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      skill_id TEXT NOT NULL,
+      exercise_id TEXT NOT NULL,
+      mode TEXT NOT NULL,
+      is_correct INTEGER NOT NULL DEFAULT 0,
+      score_delta INTEGER NOT NULL DEFAULT 0,
+      score_after INTEGER NOT NULL DEFAULT 0,
+      answer_json TEXT NOT NULL DEFAULT 'null',
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS review_queue (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -544,6 +558,7 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_certificate_user ON certificate_awards(user_id);
     CREATE INDEX IF NOT EXISTS idx_cohort_members_user ON cohort_members(user_id);
     CREATE INDEX IF NOT EXISTS idx_mentor_alerts_student ON mentor_alerts(student_id);
+    CREATE INDEX IF NOT EXISTS idx_skill_exercise_attempts_user_skill ON skill_exercise_attempts(user_id, skill_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_review_queue_user_due ON review_queue(user_id, due_at);
     CREATE INDEX IF NOT EXISTS idx_lesson_revisions_lesson ON lesson_revisions(lesson_id, version);
     CREATE INDEX IF NOT EXISTS idx_mentor_assignments_student ON mentor_assignments(student_id, status);

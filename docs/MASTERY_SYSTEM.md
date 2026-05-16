@@ -31,7 +31,7 @@ The current implementation supports the full data shape for:
 - portfolio artifact quality
 - mastery history
 
-Mock mode currently calculates and updates exercise/review mastery directly and seeds realistic records for the demo cohort. Server persistence should use the same fields when the backend model is expanded.
+Mock mode and the Express API both calculate skill-tree mastery. The backend now stores adaptive practice attempts in `skill_exercise_attempts`, derives current skill mastery from mapped lessons/quizzes/labs/exercises, and uses the review queue plus mistake notebook for recovery evidence.
 
 ## Exercise effects
 

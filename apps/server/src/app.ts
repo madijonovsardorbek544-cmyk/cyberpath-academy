@@ -69,6 +69,7 @@ app.get('/api/ready', (_req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/learning', learningRoutes);
 app.use('/api/mentor', mentorRoutes);
+app.use('/api/teacher', mentorRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/platform', platformRoutes);
