@@ -29,7 +29,7 @@ const pricing = [
 export function LandingPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
-  const { locale, setLocale, t } = useLocale();
+  const { locale, setLocale, t, localeNotice } = useLocale();
   const [waitlist, setWaitlist] = useState({ name: '', email: '', role: 'teacher', organization: '', countryCity: '', studentCount: '', interestLevel: 'interested', message: '' });
   const [waitlistMessage, setWaitlistMessage] = useState('');
   const [demoLoading, setDemoLoading] = useState<string | null>(null);
@@ -74,7 +74,8 @@ export function LandingPage() {
             <div><p className="font-semibold text-white">CyberPath Academy</p><p className="text-xs text-slate-400">Safe defensive cyber learning for schools and beginners</p></div>
           </div>
           <div className="flex flex-wrap items-center gap-3">
-            <select aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}><option value="en">EN</option><option value="uz">UZ</option><option value="ru">RU</option></select>
+            <select aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}><option value="en">EN</option><option value="uz" disabled>UZ (review)</option><option value="ru" disabled>RU (review)</option></select>
+            <span className="hidden text-xs text-slate-500 lg:inline" title={localeNotice}>English beta</span>
             <Link className="text-sm text-slate-300" to="/pricing">{t('pricing')}</Link>
             <Link className="text-sm text-sky-300" to="/school-pilot">Request school pilot</Link>
             <Link className="text-sm text-slate-300" to="/login">{t('login')}</Link>

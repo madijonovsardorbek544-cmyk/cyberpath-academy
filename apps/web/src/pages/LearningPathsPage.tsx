@@ -158,35 +158,44 @@ export function LearningPathsPage() {
                 <div className="mt-4 grid gap-4 md:grid-cols-3 text-sm">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Best entry points</p>
-                    <ul className="mt-2 space-y-2 text-slate-300">{(track.entryPoints || []).map((item) => <li key={item}>• {item}</li>)}</ul>
+                    {(track.entryPoints || []).length ? <ul className="mt-2 space-y-2 text-slate-300">{(track.entryPoints || []).map((item) => <li key={item}>• {item}</li>)}</ul> : <p className="mt-2 text-slate-500">Start with the recommended lesson below.</p>}
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Prerequisites</p>
-                    <ul className="mt-2 space-y-2 text-slate-300">{(track.prerequisites || []).map((item) => <li key={item}>• {item}</li>)}</ul>
+                    {(track.prerequisites || []).length ? <ul className="mt-2 space-y-2 text-slate-300">{(track.prerequisites || []).map((item) => <li key={item}>• {item}</li>)}</ul> : <p className="mt-2 text-slate-500">No prerequisites beyond safe, authorized practice.</p>}
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Recommended for</p>
-                    <ul className="mt-2 space-y-2 text-slate-300">{(track.recommendedFor || track.targetRoles).map((item) => <li key={item}>• {item}</li>)}</ul>
+                    {(track.recommendedFor || track.targetRoles).length ? <ul className="mt-2 space-y-2 text-slate-300">{(track.recommendedFor || track.targetRoles).map((item) => <li key={item}>• {item}</li>)}</ul> : <p className="mt-2 text-slate-500">Best for learners who need a structured defensive route.</p>}
                   </div>
                 </div>
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Milestones</p>
                     <ul className="mt-2 space-y-2 text-sm text-slate-300">
-                      {track.milestones.map((milestone) => <li key={milestone}>• {milestone}</li>)}
+                      {track.milestones.length ? track.milestones.map((milestone) => <li key={milestone}>• {milestone}</li>) : <li className="text-slate-500">Milestones are being reviewed for this beta path.</li>}
                     </ul>
                   </div>
                   <div>
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Outcomes</p>
                     <ul className="mt-2 space-y-2 text-sm text-slate-300">
-                      {(track.outcomes || []).map((outcome) => <li key={outcome}>• {outcome}</li>)}
+                      {(track.outcomes || []).length ? (track.outcomes || []).map((outcome) => <li key={outcome}>• {outcome}</li>) : <li className="text-slate-500">Outcome statements are being reviewed before this path opens.</li>}
                     </ul>
                   </div>
                 </div>
                 <div className="mt-5 flex flex-wrap gap-2">
                   {(track.skills || []).map((skill) => <Badge key={skill}>{skill}</Badge>)}
                 </div>
-                <p className="mt-4 text-xs text-slate-500">Mapped lessons: {track.lessonLinks?.length || track.lessonCount || 0}</p>
+                {track.recommendedLessonSlug || track.lessonLinks?.[0] ? (
+                  <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4">
+                    <p className="text-xs uppercase tracking-[0.24em] text-sky-200">Recommended next lesson</p>
+                    <p className="mt-2 text-sm font-medium text-white">{track.recommendedLessonTitle || track.lessonLinks?.[0]?.lessonTitle || 'Open the first mapped lesson'}</p>
+                  </div>
+                ) : <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-400/10 p-4 text-sm text-amber-100">This path is intentionally held for curriculum mapping review.</div>}
+                <div className="mt-5 flex flex-wrap items-center gap-3">
+                  {(track.recommendedLessonSlug || track.lessonLinks?.[0]?.lessonSlug) ? <Link to={`/lessons/${track.recommendedLessonSlug || track.lessonLinks?.[0]?.lessonSlug}`} className="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950">Start this path</Link> : null}
+                  {(track.lessonLinks?.length || track.lessonCount || 0) > 0 ? <p className="text-xs text-slate-500">Mapped lessons: {track.lessonLinks?.length || track.lessonCount}</p> : null}
+                </div>
               </div>
             )) : <EmptyState title="No career tracks available" description="The curriculum map loaded, but there are no role tracks attached yet." />}
           </div>
@@ -210,7 +219,10 @@ export function LearningPathsPage() {
                   </div>
                   <p className="mt-3 text-sm text-slate-300">{track.hero || track.description}</p>
                   <div className="mt-4 flex flex-wrap gap-2">{(track.skills || []).map((skill) => <Badge key={skill}>{skill}</Badge>)}</div>
-                  <p className="mt-4 text-sm text-slate-400">Best for: {(track.recommendedFor || track.targetRoles).join(', ')}</p>
+                  <p className="mt-4 text-sm text-slate-400">Best for: {(track.recommendedFor || track.targetRoles).join(', ') || 'targeted remediation'}</p>
+                  {(track.outcomes || []).length ? <div className="mt-4 text-sm text-slate-300"><p className="text-xs uppercase tracking-[0.24em] text-slate-500">Outcomes</p><ul className="mt-2 space-y-1">{(track.outcomes || []).map((outcome) => <li key={outcome}>• {outcome}</li>)}</ul></div> : null}
+                  <div className="mt-5 rounded-2xl border border-sky-400/20 bg-sky-400/10 p-4"><p className="text-xs uppercase tracking-[0.24em] text-sky-200">Recommended next lesson</p><p className="mt-2 text-sm font-medium text-white">{track.recommendedLessonTitle || track.lessonLinks?.[0]?.lessonTitle || 'Curriculum mapping in review'}</p></div>
+                  <div className="mt-5 flex flex-wrap items-center gap-3">{(track.recommendedLessonSlug || track.lessonLinks?.[0]?.lessonSlug) ? <Link to={`/lessons/${track.recommendedLessonSlug || track.lessonLinks?.[0]?.lessonSlug}`} className="rounded-2xl bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950">Start this path</Link> : null}{(track.lessonLinks?.length || track.lessonCount || 0) > 0 ? <p className="text-xs text-slate-500">Mapped lessons: {track.lessonLinks?.length || track.lessonCount}</p> : null}</div>
                 </div>
               )) : <EmptyState title="No skill sprints yet" description="Add focused short-form tracks for learners who need targeted remediation." />}
             </div>

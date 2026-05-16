@@ -42,8 +42,11 @@ export type Track = {
   prerequisites?: string[];
   recommendedFor?: string[];
   lessonCount?: number;
+  recommendedLessonId?: string;
+  recommendedLessonSlug?: string;
+  recommendedLessonTitle?: string;
   competencies?: { lessonId: string; competency: string; weight: number }[];
-  lessonLinks?: { lessonId: string; competency: string; weight: number }[];
+  lessonLinks?: { lessonId: string; lessonSlug?: string; lessonTitle?: string; competency: string; weight: number }[];
 };
 
 export type Lesson = {

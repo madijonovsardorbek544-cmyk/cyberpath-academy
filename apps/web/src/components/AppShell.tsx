@@ -20,7 +20,7 @@ const studentLinks = [
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { dark, toggleTheme } = useTheme();
   const { user, logout, loading } = useAuth();
-  const { locale, setLocale, t } = useLocale();
+  const { locale, setLocale, t, localeNotice } = useLocale();
   const navigate = useNavigate();
 
   const safeName = user?.name || 'New learner';
@@ -77,12 +77,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-sm font-medium text-white">{safeName} · {safeRole}</p>
               </div>
               <div className="flex items-center gap-3">
+                <Link to="/support" className="hidden rounded-2xl border border-rose-400/30 px-3 py-2 text-xs font-medium text-rose-100 hover:bg-rose-400/10 sm:inline-flex">Report bug</Link>
+                <Link to="/school-pilot" className="hidden rounded-2xl border border-sky-400/30 px-3 py-2 text-xs font-medium text-sky-100 hover:bg-sky-400/10 md:inline-flex">Request school pilot</Link>
                 <label className="sr-only" htmlFor="locale-switcher">{t('locale')}</label>
                 <select id="locale-switcher" aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}>
                   <option value="en">EN</option>
-                  <option value="uz">UZ</option>
-                  <option value="ru">RU</option>
+                  <option value="uz" disabled>UZ (review)</option>
+                  <option value="ru" disabled>RU (review)</option>
                 </select>
+                <span className="hidden max-w-[220px] text-xs text-slate-500 xl:inline" title={localeNotice}>English beta</span>
                 <button className="rounded-2xl border border-slate-700 p-3" onClick={toggleTheme} aria-label="Toggle theme">
                   {dark ? <Sun size={18} /> : <Moon size={18} />}
                 </button>

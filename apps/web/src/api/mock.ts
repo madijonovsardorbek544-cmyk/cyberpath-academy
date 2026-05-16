@@ -212,6 +212,7 @@ const tracks: Track[] = [
     description: 'A safe beginner route through security vocabulary, risk, identity, phishing, and device hygiene.', frameworkRef: 'NICE: Cyber Defense Foundations',
     hero: 'Start here if you need structure, confidence, and defensive habits before specialization.', targetRoles: ['Student', 'Cyber club member', 'Junior analyst candidate'],
     skills: ['Security vocabulary', 'Risk thinking', 'Identity basics', 'Phishing defense'], milestones: ['Finish core lessons', 'Pass foundation quizzes', 'Publish first artifact'],
+    outcomes: ['Explain core cybersecurity concepts in plain language', 'Recognize common personal and school security risks', 'Create a first defensive learning artifact'],
     entryPoints: ['What Is Cybersecurity?', 'The CIA Triad'], prerequisites: ['Curiosity and basic computer use'], recommendedFor: ['school', 'curiosity', 'cyber club']
   },
   {
@@ -219,6 +220,7 @@ const tracks: Track[] = [
     description: 'Practice alert triage, log reading, incident notes, and clear escalation decisions.', frameworkRef: 'NICE: Cyber Defense Analyst',
     hero: 'Build a practical blue-team foundation without touching real targets.', targetRoles: ['SOC analyst intern', 'Blue-team student'],
     skills: ['Log analysis', 'Alert triage', 'Incident communication', 'SIEM concepts'], milestones: ['Triage a phishing case', 'Write an incident summary', 'Clear review queue'],
+    outcomes: ['Separate alert evidence from assumptions', 'Write a concise incident escalation note', 'Use safe SOC vocabulary in fictional triage cases'],
     entryPoints: ['Logging, SIEM, EDR, and Incident Response'], prerequisites: ['Cyber Foundations recommended'], recommendedFor: ['job', 'university', 'cyber club']
   },
   {
@@ -226,6 +228,7 @@ const tracks: Track[] = [
     description: 'Learn how web apps fail safely using toy examples, access-control reviews, and secure coding notes.', frameworkRef: 'OWASP Top 10 learning alignment',
     hero: 'Turn web security into careful review, not exploit chasing.', targetRoles: ['AppSec learner', 'Secure coding student'],
     skills: ['HTTP basics', 'Session thinking', 'Access control', 'Secure remediation'], milestones: ['Review a toy role matrix', 'Write a secure-code note', 'Explain risk to a non-engineer'],
+    outcomes: ['Map a simple web request and session flow', 'Identify access-control risk in toy scenarios', 'Recommend safe developer-facing remediation'],
     entryPoints: ['How Web Apps Work'], prerequisites: ['Browser and web basics'], recommendedFor: ['university', 'job']
   },
   {
@@ -233,6 +236,7 @@ const tracks: Track[] = [
     description: 'Practice least privilege, secrets hygiene, and cloud misconfiguration review in fictional datasets.', frameworkRef: 'CSA / NICE cloud security concepts',
     hero: 'Understand cloud security as defensive configuration and evidence-based review.', targetRoles: ['Cloud learner', 'Security engineer candidate'],
     skills: ['IAM review', 'Least privilege', 'Secrets handling', 'Misconfiguration triage'], milestones: ['Complete IAM lab', 'Produce an access-review artifact'],
+    outcomes: ['Explain least privilege and blast radius', 'Spot secrets and IAM issues in fictional datasets', 'Draft a safe cloud access-review memo'],
     entryPoints: ['Cloud Basics, IAM, Secrets, and Containers'], prerequisites: ['IAM basics'], recommendedFor: ['job', 'university']
   },
   {
@@ -240,6 +244,7 @@ const tracks: Track[] = [
     description: 'Learn risk registers, privacy basics, continuity, and business communication for school cohorts.', frameworkRef: 'NIST CSF / risk management basics',
     hero: 'Make cybersecurity understandable to decision-makers.', targetRoles: ['GRC learner', 'School cohort student'],
     skills: ['Risk assessment', 'Control mapping', 'Executive summaries', 'Continuity thinking'], milestones: ['Write a risk register', 'Explain control tradeoffs'],
+    outcomes: ['Build a clear beginner risk register', 'Explain privacy and continuity trade-offs', 'Write school-safe executive summaries without jargon'],
     entryPoints: ['Risk, Privacy, Business Continuity, and Disaster Recovery'], prerequisites: ['Cyber Foundations recommended'], recommendedFor: ['school', 'university']
   },
   {
@@ -247,9 +252,46 @@ const tracks: Track[] = [
     description: 'Understand safe AI use, data handling, prompt boundaries, and defensive review habits.', frameworkRef: 'AI safety and secure-use awareness',
     hero: 'Use AI tools carefully without leaking data or automating unsafe behavior.', targetRoles: ['Students using AI tools', 'Teachers'],
     skills: ['Data minimization', 'Prompt safety', 'Model limitation awareness', 'Policy communication'], milestones: ['Write safe AI-use guidance', 'Spot unsafe data sharing'],
+    outcomes: ['Recognize unsafe AI data sharing', 'Write a simple classroom AI-use rule', 'Keep AI assistance inside authorized defensive learning'],
     entryPoints: ['Ethics, Law, and Safe Learning Rules'], prerequisites: ['None'], recommendedFor: ['school', 'curiosity']
   }
 ];
+
+
+const trackLessonSlugs: Record<string, string[]> = {
+  'cyber-foundations': ['what-is-cybersecurity', 'cia-triad', 'risk-assets-threats', 'identity-access-basics', 'passwords-mfa-and-phishing', 'device-hygiene'],
+  'soc-analyst': ['logging-siem-edr-ir', 'passwords-mfa-and-phishing', 'networking-fundamentals', 'operating-systems-and-files', 'python-bash-and-apis', 'capstones-and-interview-prep'],
+  appsec: ['browser-and-web-basics', 'how-web-apps-work', 'sessions-cookies-and-auth-flows', 'owasp-style-risks', 'reporting-and-ethics'],
+  'cloud-security': ['identity-access-basics', 'iam-encryption-and-keys', 'cloud-iam-and-containers', 'least-privilege-and-defense-in-depth', 'risk-privacy-bcdr'],
+  grc: ['risk-assets-threats', 'identity-access-basics', 'risk-privacy-bcdr', 'reporting-and-ethics', 'capstones-and-interview-prep'],
+  'ai-security-awareness': ['reporting-and-ethics', 'specialization-tracks', 'risk-privacy-bcdr', 'capstones-and-interview-prep']
+};
+
+function getEnrichedTracks(lessons: Lesson[]): Track[] {
+  const bySlug = new Map(lessons.map((lesson) => [lesson.slug, lesson]));
+  return tracks.map((track) => {
+    const mappedLessons = (trackLessonSlugs[track.slug] || [])
+      .map((slug, index) => ({ lesson: bySlug.get(slug), index }))
+      .filter((item): item is { lesson: Lesson; index: number } => Boolean(item.lesson));
+    const lessonLinks = mappedLessons.map(({ lesson, index }) => ({
+      lessonId: lesson.id,
+      lessonSlug: lesson.slug,
+      lessonTitle: lesson.title,
+      competency: track.skills[Math.min(index, Math.max(0, track.skills.length - 1))] || 'Defensive learning',
+      weight: Math.max(1, 5 - index)
+    }));
+    const recommended = mappedLessons[0]?.lesson;
+    return {
+      ...track,
+      lessonCount: lessonLinks.length,
+      competencies: lessonLinks,
+      lessonLinks,
+      recommendedLessonId: recommended?.id,
+      recommendedLessonSlug: recommended?.slug,
+      recommendedLessonTitle: recommended?.title
+    };
+  });
+}
 
 const guidedProjects: GuidedProject[] = [
   { id: 'project-incident-report', slug: 'incident-report-pack', title: 'Fictional Incident Report Pack', specialization: 'SOC analyst', difficulty: 'Beginner', summary: 'Turn a toy alert into a timeline, severity call, and safe escalation note.', estimatedHours: 3, checkpoints: ['Classify alert', 'Build timeline', 'Write executive summary'], rubric: ['Evidence quality', 'Safe containment logic', 'Clear communication'], starterLessonSlug: 'logging-siem-edr-ir' },
@@ -951,7 +993,7 @@ function handleGet<T>(path: string): T {
       dueReviews: getDueReviews(db, authUser.id),
       guidedProjects: db.guidedProjects,
       learnerProjects: db.learnerProjects.filter((item) => item.userId === authUser.id),
-      tracks,
+      tracks: getEnrichedTracks(db.lessons),
       practiceHub: getPracticeHub(db, authUser.id)
     } as T;
   }
@@ -967,7 +1009,7 @@ function handleGet<T>(path: string): T {
       title: db.lessons.find((lesson) => lesson.phase === phase)?.phaseTitle || `Phase ${phase}`,
       lessons: db.lessons.filter((lesson) => lesson.phase === phase).sort((a, b) => a.orderIndex - b.orderIndex)
     }));
-    return { phases, capstones: db.capstones, glossary: db.glossary.slice(0, 30).map((item, index) => ({ id: `glossary-${index}`, ...item })), labs: db.labs, tracks, guidedProjects: db.guidedProjects } as T;
+    return { phases, capstones: db.capstones, glossary: db.glossary.slice(0, 30).map((item, index) => ({ id: `glossary-${index}`, ...item })), labs: db.labs, tracks: getEnrichedTracks(db.lessons), guidedProjects: db.guidedProjects } as T;
   }
 
   if (path === "/learning/mistakes") {
