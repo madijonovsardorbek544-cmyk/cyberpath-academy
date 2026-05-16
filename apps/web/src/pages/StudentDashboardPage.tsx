@@ -24,7 +24,11 @@ const defaultAnalytics: Analytics = {
   streakDays: 0,
   milestones: [],
   readiness: { specialization: 0, capstone: 0 },
-  skillRadar: []
+  skillRadar: [
+    { skill: 'Foundations', value: 0 },
+    { skill: 'Technical Core', value: 0 },
+    { skill: 'Practice', value: 0 }
+  ]
 };
 
 const defaultPracticeHub: PracticeHub = {
@@ -38,6 +42,47 @@ const defaultPracticeHub: PracticeHub = {
   activeProject: null,
   paths: []
 };
+
+function normalizeDashboard(data: DashboardResponse): DashboardResponse {
+  const analytics = {
+    ...defaultAnalytics,
+    ...(data.analytics ?? {}),
+    weakTopics: Array.isArray(data.analytics?.weakTopics) ? data.analytics.weakTopics : [],
+    topicAccuracy: Array.isArray(data.analytics?.topicAccuracy) ? data.analytics.topicAccuracy : [],
+    milestones: Array.isArray(data.analytics?.milestones) ? data.analytics.milestones : [],
+    readiness: data.analytics?.readiness ?? defaultAnalytics.readiness,
+    skillRadar: Array.isArray(data.analytics?.skillRadar) && data.analytics.skillRadar.length ? data.analytics.skillRadar : defaultAnalytics.skillRadar
+  };
+
+  const practiceHub = {
+    ...defaultPracticeHub,
+    ...(data.practiceHub ?? {}),
+    streak: data.practiceHub?.streak ?? defaultPracticeHub.streak,
+    dailyQuest: data.practiceHub?.dailyQuest ?? defaultPracticeHub.dailyQuest,
+    focusAreas: Array.isArray(data.practiceHub?.focusAreas) ? data.practiceHub.focusAreas : [],
+    reviewQueue: Array.isArray(data.practiceHub?.reviewQueue) ? data.practiceHub.reviewQueue : [],
+    assignments: Array.isArray(data.practiceHub?.assignments) ? data.practiceHub.assignments : [],
+    paths: Array.isArray(data.practiceHub?.paths) ? data.practiceHub.paths : []
+  };
+
+  return {
+    ...data,
+    analytics,
+    nextLessons: Array.isArray(data.nextLessons) ? data.nextLessons : [],
+    mentorFeedback: Array.isArray(data.mentorFeedback) ? data.mentorFeedback : [],
+    capstones: Array.isArray(data.capstones) ? data.capstones : [],
+    mastery: Array.isArray(data.mastery) ? data.mastery : [],
+    recommendations: Array.isArray(data.recommendations) ? data.recommendations : [],
+    certificates: Array.isArray(data.certificates) ? data.certificates : [],
+    portfolio: Array.isArray(data.portfolio) ? data.portfolio : [],
+    assignments: Array.isArray(data.assignments) ? data.assignments : [],
+    dueReviews: Array.isArray(data.dueReviews) ? data.dueReviews : [],
+    guidedProjects: Array.isArray(data.guidedProjects) ? data.guidedProjects : [],
+    learnerProjects: Array.isArray(data.learnerProjects) ? data.learnerProjects : [],
+    tracks: Array.isArray(data.tracks) ? data.tracks : [],
+    practiceHub
+  };
+}
 
 export function StudentDashboardPage() {
   const [data, setData] = useState<DashboardResponse | null>(null);
@@ -71,23 +116,7 @@ export function StudentDashboardPage() {
     };
   }, [refreshKey]);
 
-  const dashboard = useMemo(() => data ? {
-    ...data,
-    analytics: data.analytics ?? defaultAnalytics,
-    nextLessons: data.nextLessons ?? [],
-    mentorFeedback: data.mentorFeedback ?? [],
-    capstones: data.capstones ?? [],
-    mastery: data.mastery ?? [],
-    recommendations: data.recommendations ?? [],
-    certificates: data.certificates ?? [],
-    portfolio: data.portfolio ?? [],
-    assignments: data.assignments ?? [],
-    dueReviews: data.dueReviews ?? [],
-    guidedProjects: data.guidedProjects ?? [],
-    learnerProjects: data.learnerProjects ?? [],
-    tracks: data.tracks ?? [],
-    practiceHub: data.practiceHub ?? defaultPracticeHub
-  } : null, [data]);
+  const dashboard = useMemo(() => data ? normalizeDashboard(data) : null, [data]);
 
   const nextLesson = useMemo(() => {
     if (!dashboard) return null;
@@ -220,7 +249,7 @@ export function StudentDashboardPage() {
                 </div>
                 <p className="mt-2 text-sm text-amber-100/85">{dashboard.practiceHub.recoveryPlan.summary}</p>
                 <ul className="mt-4 space-y-2 text-sm text-amber-50/90">
-                  {dashboard.practiceHub.recoveryPlan.actions.map((item) => <li key={item}>• {item}</li>)}
+                  {(dashboard.practiceHub.recoveryPlan.actions ?? []).map((item) => <li key={item}>• {item}</li>)}
                 </ul>
               </div>
             ) : null}
@@ -374,7 +403,7 @@ export function StudentDashboardPage() {
                     <Badge>{dashboard.learnerProjects[0].status}</Badge>
                   </div>
                   <p className="mt-2 text-sm text-slate-400">{dashboard.learnerProjects[0].project.summary}</p>
-                  <div className="mt-3 flex flex-wrap gap-2">{dashboard.learnerProjects[0].checkpointProgress.map((item) => <Badge key={item}>{item}</Badge>)}</div>
+                  <div className="mt-3 flex flex-wrap gap-2">{(dashboard.learnerProjects[0].checkpointProgress ?? []).map((item) => <Badge key={item}>{item}</Badge>)}</div>
                 </div>
               ) : null}
               {dashboard.portfolio.length ? dashboard.portfolio.map((artifact) => (
@@ -385,7 +414,7 @@ export function StudentDashboardPage() {
                   </div>
                   <p className="mt-2 text-sm text-slate-400">{artifact.summary}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {artifact.deliverables.map((item) => <Badge key={item}>{item}</Badge>)}
+                    {(artifact.deliverables ?? []).map((item) => <Badge key={item}>{item}</Badge>)}
                   </div>
                   {artifact.mentorFeedback ? <p className="mt-3 text-sm text-amber-200">Mentor note: {artifact.mentorFeedback}</p> : null}
                 </div>
@@ -405,7 +434,7 @@ export function StudentDashboardPage() {
                 <div key={certificate.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <p className="font-medium text-white">{certificate.title}</p>
                   <p className="mt-1 text-sm text-slate-400">Issued: {certificate.issuedAt ? new Date(certificate.issuedAt).toLocaleDateString() : 'Pending issuance'}</p>
-                  <p className="mt-2 text-xs text-slate-500">Criteria: {certificate.criteria.score}% mastery · {certificate.criteria.completionRate}% completion · {certificate.criteria.quizAverage}% quiz average</p>
+                  <p className="mt-2 text-xs text-slate-500">Criteria: {certificate.criteria?.score ?? 0}% mastery · {certificate.criteria?.completionRate ?? 0}% completion · {certificate.criteria?.quizAverage ?? 0}% quiz average</p>
                 </div>
               )) : <EmptyState title="No certificates yet" description="That is normal. Earn them through completed work, cleaner quiz performance, and stronger mastery." />}
               <div className="space-y-3 pt-2">

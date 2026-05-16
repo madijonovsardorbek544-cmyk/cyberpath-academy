@@ -42,9 +42,10 @@ function DemoBanner() {
 function DashboardRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  if (user.role === 'mentor') return <Navigate to="/mentor" replace />;
-  if (user.role === 'admin') return <Navigate to="/admin" replace />;
-  if (user.role === 'student' && !user.roadmapJson) return <Navigate to="/onboarding" replace />;
+  const role = user.role ?? 'student';
+  if (role === 'mentor') return <Navigate to="/mentor" replace />;
+  if (role === 'admin') return <Navigate to="/admin" replace />;
+  if (role === 'student' && !user.roadmapJson) return <Navigate to="/onboarding" replace />;
   return <StudentDashboardPage />;
 }
 

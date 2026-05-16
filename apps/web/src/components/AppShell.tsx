@@ -3,7 +3,7 @@ import { Moon, Shield, Sun, LayoutDashboard, GraduationCap, FlaskConical, Notebo
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
-import { Button } from './ui';
+import { Button, Loader } from './ui';
 
 const studentLinks = [
   { to: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
@@ -19,13 +19,24 @@ const studentLinks = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const { dark, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const { locale, setLocale, t } = useLocale();
   const navigate = useNavigate();
 
-  const roleLinks = user?.role === 'mentor'
+  const safeName = user?.name || 'New learner';
+  const safeRole = user?.role || 'student';
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-slate-950 bg-glow text-slate-100">
+        <Loader text="Restoring your session..." />
+      </div>
+    );
+  }
+
+  const roleLinks = safeRole === 'mentor'
     ? [...studentLinks, { to: '/mentor', key: 'mentor', icon: Users }]
-    : user?.role === 'admin'
+    : safeRole === 'admin'
       ? [...studentLinks, { to: '/admin', key: 'admin', icon: Settings }, { to: '/mentor', key: 'mentor', icon: Users }]
       : studentLinks;
 
@@ -63,7 +74,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
               <div>
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{t('signedInAs')}</p>
-                <p className="text-sm font-medium text-white">{user?.name} · {user?.role}</p>
+                <p className="text-sm font-medium text-white">{safeName} · {safeRole}</p>
               </div>
               <div className="flex items-center gap-3">
                 <label className="sr-only" htmlFor="locale-switcher">{t('locale')}</label>

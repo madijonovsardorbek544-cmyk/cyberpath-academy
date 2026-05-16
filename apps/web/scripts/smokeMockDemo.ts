@@ -20,6 +20,55 @@ async function login(email: string, password: string) {
   return response.user;
 }
 
+
+resetMockDemoData(false);
+const signup = await mockApi.post<{ user: { email: string; role: string; roadmapJson: unknown; streakDays?: number; goal?: string | null; experienceLevel?: string | null; placementScore?: number | null } }>('/auth/signup', {
+  name: 'New Student',
+  email: 'new-student@example.com',
+  password: 'StrongPass1!'
+});
+assert.equal(signup.user.email, 'new-student@example.com');
+assert.equal(signup.user.role, 'student');
+assert.equal(signup.user.roadmapJson, null);
+assert.equal(signup.user.streakDays, 0);
+assert.equal(signup.user.goal, null);
+assert.equal(signup.user.experienceLevel, null);
+assert.equal(signup.user.placementScore, null);
+
+const newMeBefore = await mockApi.get<{ user: { email: string; roadmapJson: unknown } }>('/auth/me');
+assert.equal(newMeBefore.user.email, 'new-student@example.com');
+assert.equal(newMeBefore.user.roadmapJson, null);
+
+const newDashboardBefore = await mockApi.get<any>('/learning/dashboard');
+assert.ok(newDashboardBefore.analytics, 'new user dashboard before onboarding missing analytics');
+assert.deepEqual(newDashboardBefore.dueReviews, [], 'new user should have no due reviews before activity');
+assert.deepEqual(newDashboardBefore.assignments, [], 'new user should have no assignments before activity');
+assert.deepEqual(newDashboardBefore.learnerProjects, [], 'new user should have no learner projects before activity');
+assert.deepEqual(newDashboardBefore.portfolio, [], 'new user should have empty portfolio');
+assert.deepEqual(newDashboardBefore.certificates, [], 'new user should have no certificates');
+
+const onboarding = await mockApi.post<{ user: { roadmapJson: unknown; placementScore?: number | null }; roadmap: unknown }>('/learning/onboarding', { goal: 'SOC', experienceLevel: 'beginner', score: 80 });
+assert.ok(onboarding.user.roadmapJson, 'onboarding response user should include roadmapJson');
+assert.ok(onboarding.roadmap, 'onboarding response should include roadmap');
+assert.equal(onboarding.user.placementScore, 80);
+
+const newMeAfter = await mockApi.get<{ user: { roadmapJson: unknown } }>('/auth/me');
+assert.ok(newMeAfter.user.roadmapJson, 'auth/me should include roadmapJson after onboarding');
+
+const newDashboardAfter = await mockApi.get<any>('/learning/dashboard');
+for (const key of ['analytics', 'nextLessons', 'practiceHub', 'dueReviews', 'assignments', 'learnerProjects', 'portfolio', 'certificates', 'mastery', 'recommendations']) {
+  assert.ok(key in newDashboardAfter, `new user dashboard missing ${key}`);
+}
+assert.equal(newDashboardAfter.analytics.totalCompleted, 0, 'new user should have 0 completed lessons');
+assert.equal(newDashboardAfter.analytics.totalQuizAccuracy, 0, 'new user should have 0 quiz accuracy');
+assert.equal(newDashboardAfter.analytics.timeStudied, 0, 'new user should have 0 minutes studied');
+assert.ok(Array.isArray(newDashboardAfter.nextLessons), 'new user nextLessons must be an array');
+assert.ok(newDashboardAfter.nextLessons.length >= 1, 'new user should receive a first recommended lesson');
+
+for (const route of ['/auth/me', '/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/portfolio', '/platform/plans']) {
+  await mockApi.get(route);
+}
+
 resetMockDemoData(false);
 
 await login('student@cyberpath.local', 'Student123!');

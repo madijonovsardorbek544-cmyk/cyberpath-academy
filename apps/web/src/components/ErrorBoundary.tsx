@@ -42,6 +42,8 @@ class ErrorBoundary extends React.Component<{ children: React.ReactNode }, { has
               <div className="mt-6 flex flex-wrap justify-center gap-3">
                 <Button className="bg-sky-400 text-slate-950" onClick={() => window.location.reload()}>Reload</Button>
                 {isMockMode ? <Button className="border border-amber-400/40 bg-amber-400/10 text-amber-100" onClick={resetDemoData}>Reset demo data</Button> : null}
+                <Button className="border border-slate-700 bg-slate-900 text-slate-100" onClick={() => (window.location.hash = '#/login')}>Go to login</Button>
+                <Button className="border border-slate-700 bg-slate-900 text-slate-100" onClick={() => (window.location.hash = '#/')}>Go to home</Button>
                 <Button className="border border-slate-700 bg-slate-900 text-slate-100" onClick={() => (window.location.hash = '#/support')}>Go to support</Button>
               </div>
               {isDevMode && this.state.error ? (

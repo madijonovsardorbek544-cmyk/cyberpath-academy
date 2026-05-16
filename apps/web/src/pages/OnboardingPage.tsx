@@ -1,9 +1,9 @@
 import { FormEvent, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../api/client";
+import { api, isMockApiMode } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { AppShell } from "../components/AppShell";
-import { Button, Card, Input, SectionTitle, Select } from "../components/ui";
+import { Button, Card, SectionTitle, Select } from "../components/ui";
 
 const diagnosticQuestions = [
   { id: "q1", prompt: "Which security concept is about proving who a user is?", answer: "authentication", options: ["authorization", "authentication", "availability", "hashing"] },
@@ -15,33 +15,60 @@ const diagnosticQuestions = [
 
 export function OnboardingPage() {
   const navigate = useNavigate();
-  const { refresh } = useAuth();
-  const [goal, setGoal] = useState("SOC");
-  const [experienceLevel, setExperienceLevel] = useState("beginner");
+  const { user, refresh } = useAuth();
+  const [goal, setGoal] = useState(user?.goal || "awareness");
+  const [experienceLevel, setExperienceLevel] = useState(user?.experienceLevel || "beginner");
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
+  const answeredCount = Object.keys(answers).length;
   const score = useMemo(() => {
     const correct = diagnosticQuestions.filter((question) => answers[question.id] === question.answer).length;
     return Math.round((correct / diagnosticQuestions.length) * 100);
   }, [answers]);
 
-  const submit = async (event: FormEvent) => {
-    event.preventDefault();
+  const completeOnboarding = async (scoreOverride = score) => {
     setLoading(true);
+    setError("");
     try {
-      await api.post("/learning/onboarding", { goal, experienceLevel, score });
-      await refresh();
-      navigate("/dashboard");
+      const response = await api.post<{ user?: unknown; roadmap?: unknown }>("/learning/onboarding", { goal: goal || "awareness", experienceLevel: experienceLevel || "beginner", score: scoreOverride });
+      const refreshedUser = await refresh();
+      if (!refreshedUser && !response.user) {
+        throw new Error("Your roadmap was generated, but we could not restore your session. Please sign in again.");
+      }
+      navigate("/dashboard", { replace: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "We could not generate your learning path. Please try again.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const submit = async (event: FormEvent) => {
+    event.preventDefault();
+    if (answeredCount < diagnosticQuestions.length) {
+      setError("Answer every diagnostic question so we can place you safely. You can also skip and start with beginner defaults.");
+      return;
+    }
+    await completeOnboarding(score);
   };
 
   return (
     <AppShell>
       <div className="space-y-8">
         <SectionTitle eyebrow="Onboarding" title="Set your direction before you waste effort." subtitle="Choose your path, estimate your current level honestly, and take a short diagnostic so the app can generate a roadmap." />
+        {isMockApiMode ? (
+          <Card className="border-sky-400/30 bg-sky-400/10 p-4 text-sm text-sky-100">
+            This setup is simulated in the public demo. Your learning path is stored only in this browser and can be reset at any time.
+          </Card>
+        ) : null}
+        {error ? (
+          <Card className="border-rose-400/30 bg-rose-400/10 p-5">
+            <p className="font-semibold text-rose-100">We could not finish onboarding yet.</p>
+            <p className="mt-2 text-sm text-rose-100/85">{error}</p>
+          </Card>
+        ) : null}
         <form className="space-y-6" onSubmit={submit}>
           <div className="grid gap-5 lg:grid-cols-2">
             <Card className="p-6">
@@ -56,6 +83,7 @@ export function OnboardingPage() {
                 <Card className="p-4">
                   <p className="text-sm text-slate-300">Current diagnostic score preview</p>
                   <p className="mt-2 text-3xl font-semibold text-white">{score}%</p>
+                  <p className="mt-1 text-xs text-slate-500">{answeredCount}/{diagnosticQuestions.length} answered</p>
                 </Card>
               </div>
             </Card>
@@ -78,7 +106,10 @@ export function OnboardingPage() {
               </div>
             </Card>
           </div>
-          <Button className="bg-sky-400 text-slate-950" disabled={loading}>{loading ? "Generating roadmap..." : "Generate roadmap"}</Button>
+          <div className="flex flex-wrap gap-3">
+            <Button className="bg-sky-400 text-slate-950" disabled={loading}>{loading ? "Generating learning path..." : "Generate my learning path"}</Button>
+            <Button type="button" className="border border-slate-700 bg-slate-900 text-white" disabled={loading} onClick={() => completeOnboarding(0)}>Skip for now</Button>
+          </div>
         </form>
       </div>
     </AppShell>
