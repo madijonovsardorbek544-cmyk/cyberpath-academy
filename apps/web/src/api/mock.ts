@@ -463,11 +463,11 @@ function seedDb(): DemoDb {
   ];
 
   const portfolio: PortfolioArtifact[] = [
-    { id: uid("artifact"), title: "Phishing triage brief", artifactType: "incident_report", specialization: "SOC analyst", summary: "A concise report explaining indicators, likely user impact, and a safe reporting path for a fictional phishing message.", deliverables: ["indicator table", "user-safe response", "mentor-ready summary"], status: "published", evidenceUrl: null, mentorFeedback: "Good proof of defensive reasoning. Add one sentence on business impact next time.", scenario: "Fictional payroll phishing email", evidenceUsed: ["sender mismatch", "urgent payroll language"], riskExplanation: "Credential capture risk if a learner follows the fake link.", defensiveRecommendations: "Report through approved channel, do not click, preserve headers if policy allows.", reflection: "I learned to separate suspicious signals from assumptions.", publicShareId: "demo-phishing-brief", publishedAt: daysAgo(2), createdAt: daysAgo(5), updatedAt: daysAgo(2) }
+    { id: uid("artifact"), userId: studentId, title: "Phishing triage brief", artifactType: "incident_report", specialization: "SOC analyst", summary: "A concise report explaining indicators, likely user impact, and a safe reporting path for a fictional phishing message.", deliverables: ["indicator table", "user-safe response", "mentor-ready summary"], status: "published", evidenceUrl: null, mentorFeedback: "Good proof of defensive reasoning. Add one sentence on business impact next time.", scenario: "Fictional payroll phishing email", evidenceUsed: ["sender mismatch", "urgent payroll language"], riskExplanation: "Credential capture risk if a learner follows the fake link.", defensiveRecommendations: "Report through approved channel, do not click, preserve headers if policy allows.", reflection: "I learned to separate suspicious signals from assumptions.", publicShareId: "demo-phishing-brief", publishedAt: daysAgo(2), createdAt: daysAgo(5), updatedAt: daysAgo(2) }
   ];
 
   const certificates: Certificate[] = [
-    { id: uid("cert"), trackSlug: "cyber-foundations", title: "Cyber Foundations Demo Certificate", status: "issued", issuedAt: daysAgo(1), criteria: { score: 82, completionRate: 33, quizAverage: 78, portfolioCount: 1, labsPassed: 2, assessedSkills: ["risk", "identity", "phishing defense"] } }
+    { id: uid("cert"), userId: studentId, trackSlug: "cyber-foundations", title: "Cyber Foundations Demo Certificate", status: "issued", issuedAt: daysAgo(1), criteria: { score: 82, completionRate: 33, quizAverage: 78, portfolioCount: 1, labsPassed: 2, assessedSkills: ["risk", "identity", "phishing defense"] } }
   ];
 
   const mentorAssignments: MentorAssignment[] = [
@@ -602,7 +602,16 @@ function readDb(): DemoDb {
 
   try {
     const parsed = JSON.parse(raw) as Partial<DemoDb>;
-    if (isValidDemoDb(parsed)) return parsed;
+    if (isValidDemoDb(parsed)) {
+      parsed.users = parsed.users.map((user) => normalizeDemoUser(user));
+      const firstStudentId = parsed.users.find((user) => user.role === 'student')?.id;
+      if (firstStudentId) {
+        parsed.portfolio = parsed.portfolio.map((artifact) => ({ ...artifact, userId: artifact.userId ?? firstStudentId }));
+        parsed.certificates = parsed.certificates.map((certificate) => ({ ...certificate, userId: certificate.userId ?? firstStudentId }));
+      }
+      writeDb(parsed);
+      return parsed;
+    }
   } catch {
     // Corrupt localStorage should never break the public demo.
   }
@@ -619,17 +628,37 @@ function getSessionUser(db: DemoDb): DemoUser | null {
   return db.users.find((user) => user.id === db.sessionUserId) || null;
 }
 
-function sanitizeUser(user: DemoUser): User {
+function normalizeDemoUser(user: DemoUser): DemoUser {
+  const timestamp = now();
   return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    role: user.role,
-    goal: user.goal,
-    experienceLevel: user.experienceLevel,
-    placementScore: user.placementScore,
-    roadmapJson: user.roadmapJson,
-    streakDays: user.streakDays
+    ...user,
+    name: user.name || "New learner",
+    email: String(user.email || "").toLowerCase(),
+    role: user.role || "student",
+    goal: user.goal ?? null,
+    experienceLevel: user.experienceLevel ?? null,
+    placementScore: user.placementScore ?? null,
+    roadmapJson: user.roadmapJson ?? null,
+    streakDays: user.streakDays ?? 0,
+    createdAt: user.createdAt ?? timestamp,
+    updatedAt: user.updatedAt ?? user.createdAt ?? timestamp
+  };
+}
+
+function sanitizeUser(user: DemoUser): User {
+  const safeUser = normalizeDemoUser(user);
+  return {
+    id: safeUser.id,
+    name: safeUser.name,
+    email: safeUser.email,
+    role: safeUser.role,
+    goal: safeUser.goal,
+    experienceLevel: safeUser.experienceLevel,
+    placementScore: safeUser.placementScore,
+    roadmapJson: safeUser.roadmapJson,
+    streakDays: safeUser.streakDays,
+    createdAt: safeUser.createdAt,
+    updatedAt: safeUser.updatedAt
   };
 }
 
@@ -776,14 +805,14 @@ function getMastery(db: DemoDb, userId: string) {
       completionRate,
       status: score >= 70 ? 'Ready' : score >= 45 ? 'Developing' : 'Foundational',
       band,
-      evidence: db.portfolio.filter((artifact) => artifact.specialization.toLowerCase().includes(track.slug.split('-')[0])).map((artifact) => artifact.title),
+      evidence: db.portfolio.filter((artifact) => artifact.userId === userId && String(artifact.specialization || '').toLowerCase().includes(track.slug.split('-')[0])).map((artifact) => artifact.title),
       nextMilestone: track.milestones[0] ?? 'Complete the next lesson and create evidence.',
       milestones: track.milestones,
       skills: track.skills,
       reviewDueCount: dueForTrack,
       reviewHealth: Math.max(0, 100 - dueForTrack * 15),
       confidence: Math.min(100, score + 5),
-      evidenceCount: db.portfolio.length,
+      evidenceCount: db.portfolio.filter((artifact) => artifact.userId === userId).length,
       lessonCount: relatedLessons.length,
       entryPoints: track.entryPoints,
       prerequisites: track.prerequisites,
@@ -845,7 +874,7 @@ function getPracticeHub(db: DemoDb, userId: string) {
   const questSteps = [
     { id: 'review', label: dueReviews.length ? `Clear ${Math.min(2, dueReviews.length)} due review item(s)` : 'Run one review set', href: '/practice', done: dueReviews.length === 0 },
     { id: 'lesson', label: continueLesson ? `Complete ${continueLesson.title}` : 'Choose one lesson', href: continueLesson ? `/lessons/${continueLesson.slug}` : '/paths', done: false },
-    { id: 'artifact', label: activeProject ? `Advance ${activeProject.project.title}` : 'Start one proof-of-work artifact', href: '/portfolio', done: db.portfolio.some((artifact) => artifact.status === 'published') }
+    { id: 'artifact', label: activeProject ? `Advance ${activeProject.project.title}` : 'Start one proof-of-work artifact', href: '/portfolio', done: db.portfolio.some((artifact) => artifact.userId === userId && artifact.status === 'published') }
   ];
 
   return {
@@ -915,8 +944,8 @@ function handleGet<T>(path: string): T {
       capstones: db.capstones,
       mastery: getMastery(db, authUser.id),
       recommendations: getRecommendations(db, authUser.id),
-      certificates: db.certificates.filter((item) => item.trackSlug && item.id && item.title),
-      portfolio: db.portfolio.filter((item) => item.id && item.title),
+      certificates: db.certificates.filter((item) => item.userId === authUser.id && item.trackSlug && item.id && item.title),
+      portfolio: db.portfolio.filter((item) => item.userId === authUser.id && item.id && item.title),
       cohort: db.cohorts.find((cohort) => cohort.members?.some((member) => member.id === authUser.id)) ?? null,
       assignments: db.mentorAssignments.filter((item) => item.studentId === authUser.id),
       dueReviews: getDueReviews(db, authUser.id),
@@ -990,7 +1019,7 @@ function handleGet<T>(path: string): T {
 
   if (path === "/learning/portfolio") {
     const authUser = requireUser(db);
-    return { portfolio: db.portfolio.filter((item) => item.id && item.title) } as T;
+    return { portfolio: db.portfolio.filter((item) => item.userId === authUser.id && item.id && item.title) } as T;
   }
 
   if (path === "/learning/projects") {
@@ -1032,7 +1061,7 @@ function handleGet<T>(path: string): T {
     const links = authUser.role === "admin" ? db.users.filter((item) => item.role === "student").map((item) => ({ studentId: item.id })) : db.mentorLinks.filter((link) => link.mentorId === authUser.id);
     const students = links.map((link) => {
       const student = db.users.find((item) => item.id === link.studentId)!;
-      return { ...sanitizeUser(student), analytics: computeAnalytics(db, student.id), mastery: getMastery(db, student.id), portfolioCount: db.portfolio.length, assignmentCount: db.mentorAssignments.filter((item) => item.studentId === student.id && item.status !== "done").length, cohort: db.cohorts.find((cohort) => cohort.members?.some((member) => member.id === student.id)) ?? null };
+      return { ...sanitizeUser(student), analytics: computeAnalytics(db, student.id), mastery: getMastery(db, student.id), portfolioCount: db.portfolio.filter((artifact) => artifact.userId === student.id).length, assignmentCount: db.mentorAssignments.filter((item) => item.studentId === student.id && item.status !== "done").length, cohort: db.cohorts.find((cohort) => cohort.members?.some((member) => member.id === student.id)) ?? null };
     });
     return { students } as T;
   }
@@ -1045,7 +1074,7 @@ function handleGet<T>(path: string): T {
       const student = db.users.find((item) => item.id === link.studentId)!;
       const analytics = computeAnalytics(db, student.id);
       const labsCompleted = db.labSubmissions.filter((item) => item.userId === student.id).length;
-      const portfolioArtifacts = student.email === "student@cyberpath.local" ? db.portfolio.length : 0;
+      const portfolioArtifacts = db.portfolio.filter((artifact) => artifact.userId === student.id).length;
       const lastActiveAt = [...db.labSubmissions.filter((item) => item.userId === student.id).map((item) => item.createdAt), ...db.progress.filter((item) => item.userId === student.id && item.completedAt).map((item) => item.completedAt!)].sort().pop() ?? daysAgo(12);
       const riskStatus = Date.now() - new Date(lastActiveAt).getTime() > 10 * 24 * 60 * 60 * 1000 ? "inactive" : analytics.totalQuizAccuracy < 60 ? "struggling" : analytics.totalQuizAccuracy < 75 || analytics.completionRate < 25 ? "needs attention" : "on track";
       return {
@@ -1201,8 +1230,22 @@ function handlePost<T>(path: string, body: unknown): T {
 
   if (path === "/auth/signup") {
     const data = body as { name: string; email: string; password: string };
+    const timestamp = now();
     if (db.users.some((item) => item.email.toLowerCase() === data.email.toLowerCase())) throw new Error("An account with that email already exists.");
-    const user: DemoUser = { id: uid("user"), name: data.name, email: data.email.toLowerCase(), password: data.password, role: "student" };
+    const user: DemoUser = normalizeDemoUser({
+      id: uid("user"),
+      name: data.name?.trim() || "New learner",
+      email: data.email.toLowerCase(),
+      password: data.password,
+      role: "student",
+      goal: null,
+      experienceLevel: null,
+      placementScore: null,
+      roadmapJson: null,
+      streakDays: 0,
+      createdAt: timestamp,
+      updatedAt: timestamp
+    });
     db.users.push(user);
     db.sessionUserId = user.id;
     writeDb(db);
@@ -1238,11 +1281,16 @@ function handlePost<T>(path: string, body: unknown): T {
 
   if (path === "/learning/onboarding") {
     const authUser = requireUser(db);
-    const data = body as { goal: string; experienceLevel: string; score: number };
-    authUser.goal = data.goal;
-    authUser.experienceLevel = data.experienceLevel;
-    authUser.placementScore = data.score;
-    authUser.roadmapJson = buildRoadmap(data.goal, data.experienceLevel, data.score);
+    const data = body as { goal?: string; experienceLevel?: string; score?: number };
+    const goal = data.goal || "awareness";
+    const experienceLevel = data.experienceLevel || "beginner";
+    const score = Number.isFinite(data.score) ? Math.max(0, Math.min(100, Math.round(Number(data.score)))) : 0;
+    authUser.goal = goal;
+    authUser.experienceLevel = experienceLevel;
+    authUser.placementScore = score;
+    authUser.roadmapJson = buildRoadmap(goal, experienceLevel, score);
+    authUser.streakDays = authUser.streakDays ?? 0;
+    authUser.updatedAt = now();
     writeDb(db);
     return { user: sanitizeUser(authUser), roadmap: authUser.roadmapJson } as T;
   }
@@ -1339,12 +1387,13 @@ function handlePost<T>(path: string, body: unknown): T {
 
   if (path === "/learning/certificates/claim") {
     const authUser = requireUser(db);
-    const existing = db.certificates.filter((item) => item.id && item.trackSlug);
+    const existing = db.certificates.filter((item) => item.userId === authUser.id && item.id && item.trackSlug);
     if (!existing.length) {
-      db.certificates.push({ id: uid("cert"), trackSlug: "cyber-foundations", title: "Cyber Foundations Demo Certificate", status: "issued", issuedAt: now(), criteria: { score: 80, completionRate: computeAnalytics(db, authUser.id).completionRate, quizAverage: computeAnalytics(db, authUser.id).totalQuizAccuracy, portfolioCount: db.portfolio.length, labsPassed: db.labSubmissions.length } });
+      const analytics = computeAnalytics(db, authUser.id);
+      db.certificates.push({ id: uid("cert"), userId: authUser.id, trackSlug: "cyber-foundations", title: "Cyber Foundations Demo Certificate", status: "issued", issuedAt: now(), criteria: { score: 80, completionRate: analytics.completionRate, quizAverage: analytics.totalQuizAccuracy, portfolioCount: db.portfolio.filter((artifact) => artifact.userId === authUser.id).length, labsPassed: db.labSubmissions.filter((submission) => submission.userId === authUser.id).length } });
       writeDb(db);
     }
-    return { certificates: db.certificates } as T;
+    return { certificates: db.certificates.filter((item) => item.userId === authUser.id && item.id) } as T;
   }
 
   if (path === "/learning/portfolio") {
@@ -1352,6 +1401,7 @@ function handlePost<T>(path: string, body: unknown): T {
     const data = body as Partial<PortfolioArtifact>;
     const artifact: PortfolioArtifact = {
       id: uid("artifact"),
+      userId: authUser.id,
       title: data.title || "Demo portfolio artifact",
       artifactType: data.artifactType || "incident_report",
       specialization: data.specialization || "SOC analyst",
@@ -1372,7 +1422,7 @@ function handlePost<T>(path: string, body: unknown): T {
     };
     db.portfolio.unshift(artifact);
     writeDb(db);
-    return { artifact, portfolio: db.portfolio.filter((item) => item.id) } as T;
+    return { artifact, portfolio: db.portfolio.filter((item) => item.userId === authUser.id && item.id) } as T;
   }
 
   if (path === "/learning/projects") {
@@ -1614,7 +1664,7 @@ function handlePatch<T>(path: string, body: unknown): T {
       artifact.publishedAt = now();
     }
     writeDb(db);
-    return { artifact, portfolio: db.portfolio } as T;
+    return { artifact, portfolio: db.portfolio.filter((item) => item.userId === authUser.id && item.id) } as T;
   }
 
   if (path.startsWith("/platform/pilot-leads/")) {

@@ -8,7 +8,7 @@ type AuthContextValue = {
   login: (email: string, password: string) => Promise<void>;
   signup: (data: { name: string; email: string; password: string }) => Promise<void>;
   logout: () => Promise<void>;
-  refresh: () => Promise<void>;
+  refresh: () => Promise<User | null>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -21,8 +21,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const data = await api.get<{ user: User }>("/auth/me");
       setUser(data.user);
+      return data.user;
     } catch {
       setUser(null);
+      return null;
     } finally {
       setLoading(false);
     }

@@ -10,6 +10,8 @@ export type User = {
   placementScore?: number | null;
   roadmapJson?: Roadmap | null;
   streakDays?: number;
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 export type Roadmap = {
@@ -303,6 +305,7 @@ export type LearnerProject = {
 
 export type PortfolioArtifact = {
   id: string;
+  userId?: string;
   title: string;
   artifactType: string;
   specialization: string;
@@ -324,6 +327,7 @@ export type PortfolioArtifact = {
 
 export type Certificate = {
   id: string;
+  userId?: string;
   trackSlug: string;
   title: string;
   status?: string;
