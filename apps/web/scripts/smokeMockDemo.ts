@@ -81,11 +81,22 @@ for (const key of ['analytics', 'nextLessons', 'practiceHub', 'dueReviews', 'ass
 assert.equal(newDashboardAfter.analytics.totalCompleted, 0, 'new user should have 0 completed lessons');
 assert.equal(newDashboardAfter.analytics.totalQuizAccuracy, 0, 'new user should have 0 quiz accuracy');
 assert.equal(newDashboardAfter.analytics.timeStudied, 0, 'new user should have 0 minutes studied');
+assert.ok(newDashboardAfter.masterySummary, 'new user dashboard should expose skill mastery summary');
+assert.ok(newDashboardAfter.masterySummary.records.every((record: any) => record.score <= 19), 'new user starts with empty/low skill mastery');
 assert.ok(Array.isArray(newDashboardAfter.nextLessons), 'new user nextLessons must be an array');
 assert.ok(newDashboardAfter.nextLessons.length >= 1, 'new user should receive a first recommended lesson');
 assertPathQuality(await mockApi.get('/learning/paths'));
+const newSkillTree = await mockApi.get<any>('/learning/skill-tree');
+assert.ok(newSkillTree.categories.length >= 9, 'skill tree should expose nine categories');
+for (const node of newSkillTree.categories.flatMap((category: any) => category.nodes)) {
+  assert.ok(node.id && node.title && node.categoryId, 'every visible skill needs id, title, category');
+  assert.ok(node.lessons.length >= 1 || node.exercises.length >= 1, `${node.title} is empty`);
+}
+assert.equal(newSkillTree.recommendedNextSkill.id, 'cyber-what-is-cybersecurity', 'new user should start at cybersecurity foundations');
+const beginnerSession = await mockApi.get<any>('/learning/practice/session?mode=learn');
+assert.ok(beginnerSession.session.exercises.length >= 1, 'beginner practice session should load');
 
-await assertRoutes(['/auth/me', '/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/portfolio', '/learning/mistakes', '/learning/projects', '/learning/assignments', '/platform/plans', '/platform/subscription', '/platform/my-feedback']);
+await assertRoutes(['/auth/me', '/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/skills', '/learning/skill-tree', '/learning/practice/session', '/learning/review', '/learning/mastery', '/learning/portfolio', '/learning/mistakes', '/learning/projects', '/learning/assignments', '/platform/plans', '/platform/subscription', '/platform/my-feedback']);
 
 resetMockDemoData(false);
 const resetPaths = await mockApi.get<any>('/learning/paths');
@@ -107,6 +118,21 @@ assert.ok(dashboard.nextLessons.length >= 4, 'dashboard should include at least 
 
 await assertRoutes(['/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/portfolio', '/learning/mistakes', '/learning/projects', '/learning/assignments', '/platform/plans', '/platform/subscription', '/platform/my-feedback']);
 
+const skillTree = await mockApi.get<any>('/learning/skill-tree');
+assert.ok(skillTree.recommendedNextSkill, 'experienced user should receive next recommended skill');
+const practiceSession = await mockApi.get<any>(`/learning/practice/session?skillId=${skillTree.recommendedNextSkill.id}&mode=practice`);
+assert.ok(practiceSession.session.exercises.length >= 1, 'practice session loads');
+const firstExercise = practiceSession.session.exercises[0];
+const correctPractice = await mockApi.post<any>('/learning/practice/submit', { sessionId: practiceSession.session.id, exerciseId: firstExercise.id, answer: firstExercise.correctAnswer, mode: 'practice' });
+assert.equal(correctPractice.feedback.isCorrect, true, 'correct answer submission works');
+assert.ok(correctPractice.feedback.updatedMastery.score >= practiceSession.session.masteryBefore.score, 'correct answer increases mastery');
+const wrongPractice = await mockApi.post<any>('/learning/practice/submit', { sessionId: practiceSession.session.id, exerciseId: firstExercise.id, answer: '__wrong__', mode: 'practice' });
+assert.equal(wrongPractice.feedback.isCorrect, false, 'wrong answer returns feedback');
+assert.ok(wrongPractice.feedback.wrongAnswerReason, 'wrong answer explains missed concept');
+const reviewBefore = await mockApi.get<any>('/learning/review');
+assert.ok(Array.isArray(reviewBefore.review), 'review session loads');
+const masteryChallenge = await mockApi.post<any>('/learning/practice/submit', { sessionId: practiceSession.session.id, exerciseId: firstExercise.id, answer: firstExercise.correctAnswer, mode: 'mastery_challenge' });
+assert.ok(masteryChallenge.feedback.scoreDelta >= 8, 'mastery challenge has higher mastery impact');
 const labs = await mockApi.get<any>('/learning/labs');
 assert.ok(labs.labs.length >= 12, 'mock demo should expose at least 12 safe labs');
 const labDetail = await mockApi.get<any>(`/learning/labs/${labs.labs[0].slug}`);
@@ -121,6 +147,9 @@ const mentorDashboard = await mockApi.get<any>('/mentor/cohort-dashboard');
 assert.ok(mentorDashboard.metrics.totalStudents >= 2, 'mentor dashboard missing cohort metrics');
 assert.ok(Array.isArray(mentorDashboard.students), 'mentor dashboard missing student progress table');
 assert.ok(Array.isArray(mentorDashboard.weakTopicHeatmap), 'mentor dashboard missing weak-topic heatmap');
+assert.ok(Array.isArray(mentorDashboard.masteryHeatmap), 'mentor dashboard missing cohort mastery heatmap');
+assert.ok(Array.isArray(mentorDashboard.studentsNeedingReview), 'mentor dashboard missing students needing review');
+assert.ok(Array.isArray(mentorDashboard.studentsReadyForLab), 'mentor dashboard missing lab readiness list');
 assert.ok(Array.isArray(mentorDashboard.labSubmissions), 'mentor dashboard missing lab submission review queue');
 assert.ok(Array.isArray(mentorDashboard.artifactReviews), 'mentor dashboard missing artifact review queue');
 await assertRoutes(['/mentor/students', '/mentor/feedback', '/mentor/alerts', '/mentor/cohorts', '/mentor/assignments', '/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/portfolio']);

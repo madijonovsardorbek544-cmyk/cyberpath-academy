@@ -427,6 +427,7 @@ export type DashboardResponse = {
   mentorFeedback: { id: string; message: string; createdAt: string }[];
   capstones: Capstone[];
   mastery: Mastery[];
+  masterySummary?: MasterySummary;
   recommendations: Recommendation[];
   certificates: Certificate[];
   portfolio: PortfolioArtifact[];
@@ -437,4 +438,107 @@ export type DashboardResponse = {
   learnerProjects: LearnerProject[];
   tracks: Track[];
   practiceHub: PracticeHub;
+};
+
+export type MasteryState = 'not_started' | 'introduced' | 'practiced' | 'proficient' | 'mastered' | 'needs_review';
+
+export type SkillCategory = {
+  id: string;
+  title: string;
+  description: string;
+  order: number;
+};
+
+export type Skill = {
+  id: string;
+  title: string;
+  categoryId: string;
+  categoryTitle: string;
+  description: string;
+  prerequisites: string[];
+  lessonSlugs: string[];
+  exerciseIds: string[];
+  labSlugs: string[];
+  portfolioArtifact?: string;
+  trackSlug?: string;
+  reviewCadenceDays: number;
+};
+
+export type SkillMasteryRecord = {
+  skillId: string;
+  score: number;
+  state: MasteryState;
+  confidence: number;
+  lessonCompletion: number;
+  quizAccuracy: number;
+  exercisePerformance: number;
+  labScore: number;
+  reviewSuccessStreak: number;
+  portfolioQuality: number;
+  lastPracticedAt?: string | null;
+  nextReviewAt?: string | null;
+  history: { at: string; score: number; state: MasteryState; reason: string }[];
+};
+
+export type SkillTreeNode = Skill & {
+  mastery: SkillMasteryRecord;
+  locked: boolean;
+  lockedReason?: string | null;
+  recommended: boolean;
+  lessons: { id: string; slug: string; title: string; completed?: boolean }[];
+  exercises: Exercise[];
+  labs: { id: string; slug: string; title: string }[];
+};
+
+export type SkillTreeCategory = SkillCategory & { nodes: SkillTreeNode[] };
+
+export type ExerciseType = 'multiple_choice' | 'multi_select' | 'true_false' | 'matching' | 'short_answer' | 'scenario_classification' | 'evidence_selection' | 'risk_ranking' | 'log_interpretation' | 'policy_review' | 'report_writing';
+export type PracticeMode = 'learn' | 'practice' | 'review' | 'mastery_challenge' | 'lab_prep';
+
+export type Exercise = {
+  id: string;
+  skillId: string;
+  type: ExerciseType;
+  difficulty: number;
+  mode: PracticeMode;
+  prompt: string;
+  scenario: string;
+  options?: any;
+  correctAnswer?: any;
+  rubric?: string[];
+  explanation: string;
+  hints: string[];
+  commonWrongAnswerExplanation: string;
+  relatedLessonSlug: string;
+  relatedLabSlug?: string;
+};
+
+export type PracticeSession = {
+  id: string;
+  mode: PracticeMode;
+  skillId: string;
+  skillTitle: string;
+  exercises: Exercise[];
+  masteryBefore: SkillMasteryRecord;
+};
+
+export type PracticeFeedback = {
+  isCorrect: boolean;
+  scoreDelta: number;
+  updatedMastery: SkillMasteryRecord;
+  explanation: string;
+  wrongAnswerReason?: string;
+  missedConcept?: string;
+  reviewRecommendation: string;
+  retryExercise?: Exercise;
+  relatedLessonSlug: string;
+};
+
+export type MasterySummary = {
+  records: SkillMasteryRecord[];
+  weakestSkills: SkillTreeNode[];
+  strongestSkills: SkillTreeNode[];
+  needsReview: SkillTreeNode[];
+  recommendedNextSkill: SkillTreeNode | null;
+  pathProgress: { trackSlug: string; completed: number; total: number; percent: number }[];
 };

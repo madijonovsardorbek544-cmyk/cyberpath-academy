@@ -1,4 +1,5 @@
-import type { Analytics, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User } from "../types";
+import type { Analytics, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User, SkillMasteryRecord, MasteryState, PracticeMode, Exercise } from "../types";
+import { exerciseCatalog, isExerciseCorrect, skillCatalog, skillCategories } from "../learningContent";
 
 type Role = User["role"];
 
@@ -73,6 +74,8 @@ type LabSubmission = {
   createdAt: string;
 };
 
+type SkillExerciseAttempt = { id: string; userId: string; skillId: string; exerciseId: string; mode: PracticeMode; isCorrect: boolean; scoreDelta: number; createdAt: string };
+
 type WaitlistSubmission = {
   id: string;
   name: string;
@@ -101,6 +104,8 @@ type DemoDb = {
   mentorFeedback: MentorFeedback[];
   mentorLinks: MentorLink[];
   labSubmissions: LabSubmission[];
+  skillMastery: SkillMasteryRecord[];
+  skillExerciseAttempts: SkillExerciseAttempt[];
   portfolio: PortfolioArtifact[];
   certificates: Certificate[];
   guidedProjects: GuidedProject[];
@@ -116,9 +121,9 @@ type DemoDb = {
   sessionUserId?: string;
 };
 
-const DB_VERSION = 5;
+const DB_VERSION = 6;
 export const DB_KEY = `cyberpath-demo-db-v${DB_VERSION}`;
-const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2", "cyberpath-demo-db-v3", "cyberpath-demo-db-v4"];
+const LEGACY_DB_KEYS = ["cyberpath-demo-db-v1", "cyberpath-demo-db-v2", "cyberpath-demo-db-v3", "cyberpath-demo-db-v4", "cyberpath-demo-db-v5"];
 
 const now = () => new Date().toISOString();
 const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
@@ -569,6 +574,8 @@ function seedDb(): DemoDb {
       { mentorId, studentId: student2Id }
     ],
     labSubmissions,
+    skillMastery: seedSkillMastery(studentId, student2Id),
+    skillExerciseAttempts: [],
     portfolio,
     certificates,
     guidedProjects,
@@ -599,6 +606,8 @@ function isValidDemoDb(value: Partial<DemoDb> | null): value is DemoDb {
     Array.isArray(value.mentorFeedback) &&
     Array.isArray(value.mentorLinks) &&
     Array.isArray(value.labSubmissions) &&
+    Array.isArray((value as any).skillMastery) &&
+    Array.isArray((value as any).skillExerciseAttempts) &&
     Array.isArray(value.portfolio) &&
     Array.isArray(value.certificates) &&
     Array.isArray(value.guidedProjects) &&
@@ -863,6 +872,149 @@ function getMastery(db: DemoDb, userId: string) {
   });
 }
 
+
+function scoreToState(score: number, lastPracticedAt?: string | null, cadenceDays = 14): MasteryState {
+  if (lastPracticedAt && Date.now() - new Date(lastPracticedAt).getTime() > cadenceDays * 24 * 60 * 60 * 1000) return 'needs_review';
+  if (score >= 80) return 'mastered';
+  if (score >= 60) return 'proficient';
+  if (score >= 40) return 'practiced';
+  if (score >= 20) return 'introduced';
+  return 'not_started';
+}
+
+function baseRecord(userId: string, skillId: string, score = 0, lastPracticedAt: string | null = null): SkillMasteryRecord & { userId?: string } {
+  const skill = skillCatalog.find((item) => item.id === skillId);
+  const state = scoreToState(score, lastPracticedAt, skill?.reviewCadenceDays ?? 14);
+  return {
+    userId,
+    skillId,
+    score,
+    state,
+    confidence: Math.max(0, Math.min(100, score - (state === 'needs_review' ? 20 : 0))),
+    lessonCompletion: score ? Math.min(100, score + 8) : 0,
+    quizAccuracy: score ? Math.max(0, score - 4) : 0,
+    exercisePerformance: score ? score : 0,
+    labScore: score >= 50 ? Math.max(0, score - 10) : 0,
+    reviewSuccessStreak: score >= 80 ? 3 : score >= 60 ? 2 : score >= 35 ? 1 : 0,
+    portfolioQuality: score >= 70 ? 70 : 0,
+    lastPracticedAt,
+    nextReviewAt: lastPracticedAt ? new Date(new Date(lastPracticedAt).getTime() + (skill?.reviewCadenceDays ?? 14) * 24 * 60 * 60 * 1000).toISOString() : null,
+    history: score ? [{ at: lastPracticedAt ?? now(), score, state, reason: 'Seeded demo mastery signal' }] : []
+  };
+}
+
+function seedSkillMastery(studentId: string, student2Id: string): SkillMasteryRecord[] {
+  return [
+    baseRecord(studentId, 'cyber-what-is-cybersecurity', 86, daysAgo(1)),
+    baseRecord(studentId, 'cyber-cia-triad', 74, daysAgo(2)),
+    baseRecord(studentId, 'cyber-risk-basics', 52, daysAgo(16)),
+    baseRecord(studentId, 'cyber-ethics-authorization', 80, daysAgo(20)),
+    baseRecord(studentId, 'iam-authentication', 45, daysAgo(4)),
+    baseRecord(studentId, 'iam-authorization', 38, daysAgo(5)),
+    baseRecord(studentId, 'net-ip-dns-http', 42, daysAgo(3)),
+    baseRecord(studentId, 'net-logs-flows', 30, daysAgo(1)),
+    baseRecord(studentId, 'soc-alert-triage', 25, daysAgo(2)),
+    baseRecord(student2Id, 'cyber-what-is-cybersecurity', 72, daysAgo(3)),
+    baseRecord(student2Id, 'cyber-cia-triad', 64, daysAgo(12)),
+    baseRecord(student2Id, 'cyber-risk-basics', 41, daysAgo(4)),
+    baseRecord(student2Id, 'iam-authentication', 58, daysAgo(6)),
+    baseRecord(student2Id, 'iam-authorization', 28, daysAgo(19)),
+    baseRecord(student2Id, 'linux-files-permissions', 48, daysAgo(5))
+  ].map(({ userId, ...record }) => ({ ...(record as SkillMasteryRecord), userId } as any));
+}
+
+function getUserSkillRecord(db: DemoDb, userId: string, skillId: string): SkillMasteryRecord {
+  const existing = (db.skillMastery as any[]).find((item) => item.userId === userId && item.skillId === skillId) as (SkillMasteryRecord & { userId?: string }) | undefined;
+  const skill = skillCatalog.find((item) => item.id === skillId);
+  if (!existing) return baseRecord(userId, skillId, 0, null);
+  const decayedState = scoreToState(existing.score, existing.lastPracticedAt, skill?.reviewCadenceDays ?? 14);
+  return { ...existing, state: decayedState, confidence: Math.max(0, Math.min(100, existing.score - (decayedState === 'needs_review' ? 20 : 0))) };
+}
+
+function upsertSkillRecord(db: DemoDb, userId: string, record: SkillMasteryRecord) {
+  const records = db.skillMastery as any[];
+  const index = records.findIndex((item) => item.userId === userId && item.skillId === record.skillId);
+  const stored = { ...record, userId };
+  if (index >= 0) records[index] = stored;
+  else records.push(stored);
+}
+
+function buildSkillTree(db: DemoDb, userId: string) {
+  const nodes = skillCatalog.map((skill) => {
+    const mastery = getUserSkillRecord(db, userId, skill.id);
+    const lockedPrereq = skill.prerequisites.find((prereq) => {
+      const prereqRecord = getUserSkillRecord(db, userId, prereq);
+      return !['practiced', 'proficient', 'mastered'].includes(prereqRecord.state);
+    });
+    const lessons = skill.lessonSlugs.map((slug) => {
+      const lesson = db.lessons.find((item) => item.slug === slug);
+      if (!lesson) return null;
+      const progress = db.progress.find((entry) => entry.userId === userId && entry.lessonId === lesson.id);
+      return { id: lesson.id, slug: lesson.slug, title: lesson.title, completed: progress?.completed || false };
+    }).filter(Boolean);
+    const labs = skill.labSlugs.map((slug) => {
+      const lab = db.labs.find((item) => item.slug === slug);
+      return lab ? { id: lab.id, slug: lab.slug, title: lab.title } : null;
+    }).filter(Boolean);
+    const exercises = exerciseCatalog.filter((exercise) => skill.exerciseIds.includes(exercise.id));
+    return {
+      ...skill,
+      mastery,
+      locked: Boolean(lockedPrereq),
+      lockedReason: lockedPrereq ? `Practice prerequisite: ${skillCatalog.find((item) => item.id === lockedPrereq)?.title ?? lockedPrereq}` : null,
+      recommended: false,
+      lessons,
+      exercises,
+      labs
+    };
+  }).filter((node) => node.lessons.length || node.exercises.length);
+  const recommended = nodes.find((node) => !node.locked && !['mastered', 'needs_review'].includes(node.mastery.state)) ?? nodes.find((node) => node.mastery.state === 'needs_review') ?? nodes[0];
+  nodes.forEach((node) => { node.recommended = node.id === recommended?.id; });
+  return skillCategories.map((category) => ({ ...category, nodes: nodes.filter((node) => node.categoryId === category.id) })).filter((category) => category.nodes.length);
+}
+
+function getMasterySummary(db: DemoDb, userId: string) {
+  const categories = buildSkillTree(db, userId);
+  const nodes = categories.flatMap((category) => category.nodes);
+  const ranked = nodes.slice().sort((a, b) => a.mastery.score - b.mastery.score);
+  const pathGroups = new Map<string, { completed: number; total: number }>();
+  nodes.forEach((node) => {
+    const key = node.trackSlug || 'cyber-foundations';
+    const value = pathGroups.get(key) || { completed: 0, total: 0 };
+    value.total += 1;
+    if (['proficient', 'mastered'].includes(node.mastery.state)) value.completed += 1;
+    pathGroups.set(key, value);
+  });
+  return {
+    records: nodes.map((node) => node.mastery),
+    weakestSkills: ranked.filter((node) => node.mastery.state !== 'not_started').slice(0, 5),
+    strongestSkills: ranked.slice().reverse().filter((node) => node.mastery.score > 0).slice(0, 5),
+    needsReview: nodes.filter((node) => node.mastery.state === 'needs_review'),
+    recommendedNextSkill: nodes.find((node) => node.recommended) ?? null,
+    pathProgress: Array.from(pathGroups.entries()).map(([trackSlug, value]) => ({ trackSlug, ...value, percent: value.total ? Math.round((value.completed / value.total) * 100) : 0 }))
+  };
+}
+
+function applySkillDelta(db: DemoDb, userId: string, skillId: string, delta: number, reason: string) {
+  const current = getUserSkillRecord(db, userId, skillId);
+  const nextScore = Math.max(0, Math.min(100, current.score + delta));
+  const skill = skillCatalog.find((item) => item.id === skillId);
+  const state = scoreToState(nextScore, now(), skill?.reviewCadenceDays ?? 14);
+  const record: SkillMasteryRecord = {
+    ...current,
+    score: nextScore,
+    state,
+    confidence: nextScore,
+    exercisePerformance: Math.max(0, Math.min(100, current.exercisePerformance + delta)),
+    reviewSuccessStreak: delta > 0 ? current.reviewSuccessStreak + 1 : 0,
+    lastPracticedAt: now(),
+    nextReviewAt: new Date(Date.now() + (skill?.reviewCadenceDays ?? 14) * 24 * 60 * 60 * 1000).toISOString(),
+    history: [...(current.history ?? []), { at: now(), score: nextScore, state, reason }].slice(-12)
+  };
+  upsertSkillRecord(db, userId, record);
+  return record;
+}
+
 function getRecommendations(db: DemoDb, userId: string): Recommendation[] {
   const mastery = getMastery(db, userId);
   const weakest = mastery.slice().sort((a, b) => a.score - b.score)[0];
@@ -985,6 +1137,7 @@ function handleGet<T>(path: string): T {
       mentorFeedback,
       capstones: db.capstones,
       mastery: getMastery(db, authUser.id),
+      masterySummary: getMasterySummary(db, authUser.id),
       recommendations: getRecommendations(db, authUser.id),
       certificates: db.certificates.filter((item) => item.userId === authUser.id && item.trackSlug && item.id && item.title),
       portfolio: db.portfolio.filter((item) => item.userId === authUser.id && item.id && item.title),
@@ -1010,6 +1163,43 @@ function handleGet<T>(path: string): T {
       lessons: db.lessons.filter((lesson) => lesson.phase === phase).sort((a, b) => a.orderIndex - b.orderIndex)
     }));
     return { phases, capstones: db.capstones, glossary: db.glossary.slice(0, 30).map((item, index) => ({ id: `glossary-${index}`, ...item })), labs: db.labs, tracks: getEnrichedTracks(db.lessons), guidedProjects: db.guidedProjects } as T;
+  }
+
+  if (path === "/learning/skills") {
+    const authUser = requireUser(db);
+    return { skills: skillCatalog, categories: skillCategories, mastery: getMasterySummary(db, authUser.id).records } as T;
+  }
+
+  if (path === "/learning/skill-tree") {
+    const authUser = requireUser(db);
+    const categories = buildSkillTree(db, authUser.id);
+    return { categories, recommendedNextSkill: getMasterySummary(db, authUser.id).recommendedNextSkill } as T;
+  }
+
+  if (path.startsWith("/learning/practice/session")) {
+    const authUser = requireUser(db);
+    const query = path.includes("?") ? new URLSearchParams(path.split("?")[1]) : new URLSearchParams();
+    const mode = (query.get("mode") as PracticeMode) || "practice";
+    const requestedSkillId = query.get("skillId");
+    const summary = getMasterySummary(db, authUser.id);
+    const skillNode = requestedSkillId
+      ? buildSkillTree(db, authUser.id).flatMap((category) => category.nodes).find((node) => node.id === requestedSkillId)
+      : summary.recommendedNextSkill;
+    if (!skillNode) throw new Error("No available skill for practice.");
+    const exercises = exerciseCatalog.filter((exercise) => exercise.skillId === skillNode.id && (mode === "practice" || exercise.mode === mode || exercise.mode === "practice")).slice(0, 4);
+    return { session: { id: uid("practice_session"), mode, skillId: skillNode.id, skillTitle: skillNode.title, exercises: exercises.length ? exercises : skillNode.exercises, masteryBefore: skillNode.mastery } } as T;
+  }
+
+  if (path === "/learning/review") {
+    const authUser = requireUser(db);
+    const summary = getMasterySummary(db, authUser.id);
+    const reviewSkills = summary.needsReview.length ? summary.needsReview : summary.weakestSkills.slice(0, 3);
+    return { review: reviewSkills.map((skill) => ({ skill, exercises: exerciseCatalog.filter((exercise) => exercise.skillId === skill.id).slice(0, 2) })) } as T;
+  }
+
+  if (path === "/learning/mastery") {
+    const authUser = requireUser(db);
+    return { mastery: getMasterySummary(db, authUser.id) } as T;
   }
 
   if (path === "/learning/mistakes") {
@@ -1133,6 +1323,10 @@ function handleGet<T>(path: string): T {
         recommendedNextAction: riskStatus === "on track" ? "Create proof-of-work artifact from next lab." : "Assign targeted review sprint and check in this week."
       };
     });
+    const masteryNodes = (studentId: string) => buildSkillTree(db, studentId).flatMap((category) => category.nodes).slice(0, 8);
+    const masteryHeatmap = students.map((student) => ({ studentId: student.id, studentName: student.name, skills: masteryNodes(student.id).map((node) => ({ skillId: node.id, title: node.title, category: node.categoryTitle, score: node.mastery.score, state: node.mastery.state })) }));
+    const studentsReadyForLab = students.filter((student) => masteryNodes(student.id).some((node) => ["proficient", "mastered"].includes(node.mastery.state) && node.labs.length));
+    const studentsNeedingReview = students.filter((student) => masteryNodes(student.id).some((node) => node.mastery.state === "needs_review"));
     const weakCounts = new Map<string, number>();
     students.forEach((student) => computeAnalytics(db, student.id).weakTopics.forEach((topic) => weakCounts.set(topic.topic, (weakCounts.get(topic.topic) ?? 0) + 1)));
     const weakTopicHeatmap = Array.from(weakCounts.entries()).map(([topic, affectedStudents]) => ({ topic, affectedStudents, intensity: Math.round((affectedStudents / Math.max(1, students.length)) * 100) }));
@@ -1158,6 +1352,9 @@ function handleGet<T>(path: string): T {
         studentsNeedingHelp: students.filter((student) => student.riskStatus !== "on track").length
       },
       students,
+      masteryHeatmap,
+      studentsReadyForLab,
+      studentsNeedingReview,
       weakTopicHeatmap,
       inactiveAlerts: students.filter((student) => student.riskStatus === "inactive"),
       labSubmissions,
@@ -1425,6 +1622,23 @@ function handlePost<T>(path: string, body: unknown): T {
     db.labSubmissions.push(submission);
     writeDb(db);
     return { submission } as T;
+  }
+
+  if (path === "/learning/practice/submit" || path === "/learning/review/submit") {
+    const authUser = requireUser(db);
+    const data = body as { sessionId?: string; exerciseId: string; answer: unknown; mode?: PracticeMode };
+    const exercise = exerciseCatalog.find((item) => item.id === data.exerciseId);
+    if (!exercise) throw new Error("Exercise not found.");
+    const isCorrect = isExerciseCorrect(exercise, data.answer);
+    const mode = data.mode || (path.includes("review") ? "review" : "practice");
+    const scoreDelta = isCorrect ? (mode === "mastery_challenge" ? 12 : mode === "review" ? 8 : 6) : (mode === "mastery_challenge" ? -5 : -2);
+    const updatedMastery = applySkillDelta(db, authUser.id, exercise.skillId, scoreDelta, `${mode} ${isCorrect ? "success" : "miss"}`);
+    db.skillExerciseAttempts.push({ id: uid("skill_attempt"), userId: authUser.id, skillId: exercise.skillId, exerciseId: exercise.id, mode, isCorrect, scoreDelta, createdAt: now() });
+    if (!isCorrect) {
+      db.mistakes.push({ id: uid("mistake"), userId: authUser.id, questionId: exercise.id, topic: skillCatalog.find((item) => item.id === exercise.skillId)?.title ?? exercise.skillId, subtopic: exercise.type, prompt: exercise.prompt, explanation: exercise.explanation, userAnswer: data.answer, correctAnswer: exercise.correctAnswer ?? exercise.rubric, repeatCount: 1, createdAt: now(), lastSeenAt: now(), notes: "Created by adaptive practice engine." });
+    }
+    writeDb(db);
+    return { feedback: { isCorrect, scoreDelta, updatedMastery, explanation: exercise.explanation, wrongAnswerReason: isCorrect ? undefined : exercise.commonWrongAnswerExplanation, missedConcept: isCorrect ? undefined : skillCatalog.find((item) => item.id === exercise.skillId)?.title, reviewRecommendation: isCorrect ? "Keep going or try the mastery challenge." : "Review the related lesson, then retry a similar safe scenario.", retryExercise: isCorrect ? undefined : exerciseCatalog.find((item) => item.skillId === exercise.skillId && item.id !== exercise.id), relatedLessonSlug: exercise.relatedLessonSlug } } as T;
   }
 
   if (path === "/learning/certificates/claim") {
