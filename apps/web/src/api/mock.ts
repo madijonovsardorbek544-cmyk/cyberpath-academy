@@ -1037,6 +1037,63 @@ function handleGet<T>(path: string): T {
     return { students } as T;
   }
 
+  if (path === "/mentor/cohort-dashboard") {
+    const authUser = requireUser(db);
+    ensureRole(authUser, ["mentor", "admin"]);
+    const links = authUser.role === "admin" ? db.users.filter((item) => item.role === "student").map((item) => ({ studentId: item.id })) : db.mentorLinks.filter((link) => link.mentorId === authUser.id);
+    const students = links.map((link) => {
+      const student = db.users.find((item) => item.id === link.studentId)!;
+      const analytics = computeAnalytics(db, student.id);
+      const labsCompleted = db.labSubmissions.filter((item) => item.userId === student.id).length;
+      const portfolioArtifacts = student.email === "student@cyberpath.local" ? db.portfolio.length : 0;
+      const lastActiveAt = [...db.labSubmissions.filter((item) => item.userId === student.id).map((item) => item.createdAt), ...db.progress.filter((item) => item.userId === student.id && item.completedAt).map((item) => item.completedAt!)].sort().pop() ?? daysAgo(12);
+      const riskStatus = Date.now() - new Date(lastActiveAt).getTime() > 10 * 24 * 60 * 60 * 1000 ? "inactive" : analytics.totalQuizAccuracy < 60 ? "struggling" : analytics.totalQuizAccuracy < 75 || analytics.completionRate < 25 ? "needs attention" : "on track";
+      return {
+        id: student.id,
+        name: student.name,
+        email: student.email,
+        goalPath: student.goal ?? "Cyber Foundations",
+        lessonsCompleted: db.progress.filter((item) => item.userId === student.id && item.completed).length,
+        quizAccuracy: analytics.totalQuizAccuracy,
+        labsCompleted,
+        portfolioArtifacts,
+        lastActiveAt,
+        riskStatus,
+        recommendedNextAction: riskStatus === "on track" ? "Create proof-of-work artifact from next lab." : "Assign targeted review sprint and check in this week."
+      };
+    });
+    const weakCounts = new Map<string, number>();
+    students.forEach((student) => computeAnalytics(db, student.id).weakTopics.forEach((topic) => weakCounts.set(topic.topic, (weakCounts.get(topic.topic) ?? 0) + 1)));
+    const weakTopicHeatmap = Array.from(weakCounts.entries()).map(([topic, affectedStudents]) => ({ topic, affectedStudents, intensity: Math.round((affectedStudents / Math.max(1, students.length)) * 100) }));
+    const labSubmissions = db.labSubmissions.map((submission) => ({
+      ...submission,
+      studentName: db.users.find((item) => item.id === submission.userId)?.name ?? "Demo learner",
+      labTitle: db.labs.find((item) => item.id === submission.labId)?.title ?? "Demo lab",
+      labSlug: db.labs.find((item) => item.id === submission.labId)?.slug ?? "demo-lab",
+      rubricResult: { categoryScores: { evidence: 18, risk: 16, defensiveNextStep: 20, clarity: 12, safetyAuthorization: 15 } }
+    }));
+    const artifactReviews = db.portfolio.map((artifact) => ({ ...artifact, studentName: db.users.find((item) => item.role === "student")?.name ?? "Demo learner" }));
+    return {
+      metrics: {
+        totalStudents: students.length,
+        activeThisWeek: students.filter((student) => Date.now() - new Date(student.lastActiveAt).getTime() <= 7 * 24 * 60 * 60 * 1000).length,
+        inactiveStudents: students.filter((student) => student.riskStatus === "inactive").length,
+        lessonsCompleted: students.reduce((sum, student) => sum + student.lessonsCompleted, 0),
+        quizAverage: students.length ? Math.round(students.reduce((sum, student) => sum + student.quizAccuracy, 0) / students.length) : 0,
+        labsSubmitted: labSubmissions.length,
+        portfolioArtifactsCreated: db.portfolio.length,
+        weakTopics: weakTopicHeatmap.map((item) => item.topic).slice(0, 5),
+        assignmentsDue: db.mentorAssignments.filter((item) => item.status !== "done").length,
+        studentsNeedingHelp: students.filter((student) => student.riskStatus !== "on track").length
+      },
+      students,
+      weakTopicHeatmap,
+      inactiveAlerts: students.filter((student) => student.riskStatus === "inactive"),
+      labSubmissions,
+      artifactReviews
+    } as T;
+  }
+
   if (path === "/mentor/feedback") {
     const authUser = requireUser(db);
     ensureRole(authUser, ["mentor", "admin"]);

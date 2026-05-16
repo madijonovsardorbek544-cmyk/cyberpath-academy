@@ -92,16 +92,22 @@ export function LandingPage() {
             <div className="grid gap-3 sm:grid-cols-3">
               <Button className="bg-sky-400 text-slate-950" disabled={!!demoLoading} onClick={() => enterDemo('student')}>{demoLoading === 'student' ? 'Opening...' : 'Try Student Demo'}</Button>
               <Button className="border border-emerald-400/40 bg-emerald-400/10 text-emerald-100" disabled={!!demoLoading} onClick={() => enterDemo('mentor')}>{demoLoading === 'mentor' ? 'Opening...' : 'Try Mentor Demo'}</Button>
-              <Button className="border border-violet-400/40 bg-violet-400/10 text-violet-100" disabled={!!demoLoading} onClick={() => enterDemo('admin')}>{demoLoading === 'admin' ? 'Opening...' : 'Try Admin Demo'}</Button>
+              <Link to="/school-pilot"><Button className="w-full border border-violet-400/40 bg-violet-400/10 text-violet-100">Request School Pilot</Button></Link>
             </div>
             <div className="grid gap-3 text-sm text-slate-400 sm:grid-cols-3"><span className="flex items-center gap-2"><Lock size={16} /> Fictional data only</span><span className="flex items-center gap-2"><BadgeCheck size={16} /> Authorized practice</span><span className="flex items-center gap-2"><Shield size={16} /> No real-target hacking</span></div>
-            <Link to="/school-pilot"><Button className="bg-emerald-400 text-slate-950">Request school pilot</Button></Link>
+            <Link to="/school-pilot"><Button className="bg-emerald-400 text-slate-950">Run CyberPath with your class</Button></Link>
           </div>
           <Card className="p-6">
             <div className="grid gap-4">
               {[{ label: 'Student', value: 'Clear next action, weak topics, daily quest, next lab, portfolio suggestion.' }, { label: 'Mentor', value: 'Cohort overview, at-risk students, assignments, reports, portfolio evidence review.' }, { label: 'Admin', value: 'Beta operations, content quality, feedback, subscriptions, waitlist, platform health.' }].map((item) => <div key={item.label} className="rounded-3xl border border-slate-800 bg-slate-950/50 p-5"><p className="text-sm font-semibold text-white">{item.label} demo</p><p className="mt-2 text-sm text-slate-400">{item.value}</p></div>)}
             </div>
           </Card>
+        </section>
+
+        <section className="grid gap-5 py-10 lg:grid-cols-3">
+          <Card className="p-6"><SectionTitle eyebrow="Student learning loop" title="Learn, practice, submit, reflect." subtitle="Students move from beginner lessons to fictional lab evidence, mentor feedback, and portfolio proof without touching real targets." /></Card>
+          <Card className="p-6"><SectionTitle eyebrow="Beta honesty" title="Built for pilots, not fake scale." subtitle="No fake testimonials. The next proof is real classroom usage, feedback submissions, and serious pilot commitments." /></Card>
+          <Card className="p-6"><SectionTitle eyebrow="Final CTA" title="Run CyberPath with your class." subtitle="Start with the mentor demo, then request a school pilot if the dashboard solves a real reporting problem." /><Link to="/school-pilot"><Button className="mt-4 bg-sky-400 text-slate-950">Request School Pilot</Button></Link></Card>
         </section>
 
         <section className="space-y-8 py-10" id="why-schools-need-this"><SectionTitle eyebrow="Why schools need this" title="Cyber clubs need safe structure, not random hacking tutorials." subtitle="The product is designed around trust, teacher visibility, and portfolio proof instead of unsafe novelty." /><div className="grid gap-4 md:grid-cols-3">{schoolNeeds.map((item) => <Card key={item} className="p-5 text-sm text-slate-300">{item}</Card>)}</div></section>

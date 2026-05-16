@@ -315,6 +315,37 @@ test('portfolio publishing requires premium and public share respects unpublish'
   await server.close();
 });
 
+
+test('student cannot create artifact from another student lab submission', async () => {
+  const server = await startServer();
+  const studentLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  const studentCookie = cookieHeaderFrom(studentLogin);
+  const labsResponse = await fetch(`${server.baseUrl}/api/learning/labs`, { headers: { cookie: studentCookie } });
+  const labsJson = await labsResponse.json();
+  const lab = labsJson.labs.find((item: any) => !item.locked);
+  const submit = await fetch(`${server.baseUrl}/api/learning/labs/${lab.id}/submit`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie: studentCookie },
+    body: JSON.stringify({ answers: { task1: 'document evidence and report safely', task2: 'validate risk and use defensive next steps' } })
+  });
+  assert.equal(submit.status, 200);
+  const submissionId = (await submit.json()).submission.id;
+
+  const otherLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student2@cyberpath.local', password: 'Student123!' })
+  });
+  const otherCookie = cookieHeaderFrom(otherLogin);
+  const create = await fetch(`${server.baseUrl}/api/learning/portfolio`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie: otherCookie },
+    body: JSON.stringify({ title: 'Unauthorized source draft', artifactType: 'incident-report', specialization: 'SOC analyst', summary: 'This should not link to another learner lab submission.', deliverables: ['memo'], sourceLabSubmissionId: submissionId })
+  });
+  assert.equal(create.status, 403);
+  await server.close();
+});
+
 test('content-level feedback is summarized for admins', async () => {
   const server = await startServer();
   const feedback = await fetch(`${server.baseUrl}/api/platform/feedback`, {
@@ -346,6 +377,14 @@ test('school mentor can access cohort dashboard data', async () => {
   const json = await cohorts.json();
   assert.ok(Array.isArray(json.cohorts));
   assert.ok(json.cohorts.length >= 1);
+  const dashboard = await fetch(`${server.baseUrl}/api/mentor/cohort-dashboard`, { headers: { cookie } });
+  assert.equal(dashboard.status, 200);
+  const dashboardJson = await dashboard.json();
+  assert.ok(dashboardJson.metrics.totalStudents >= 2);
+  assert.ok(Array.isArray(dashboardJson.students));
+  assert.ok(Array.isArray(dashboardJson.weakTopicHeatmap));
+  assert.ok(Array.isArray(dashboardJson.labSubmissions));
+  assert.ok(Array.isArray(dashboardJson.artifactReviews));
   await server.close();
 });
 
