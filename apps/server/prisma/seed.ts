@@ -40,6 +40,44 @@ const lessonBlueprints: LessonBlueprint[] = [
   { slug: 'capstones-and-interview-prep', title: 'Capstones, Portfolio Artifacts, and Interview Prep', phase: 5, phaseTitle: 'Professionalization', level: 'Advanced', orderIndex: 4, specialization: 'career', concepts: ['capstones', 'portfolio artifacts', 'interview prep', 'evidence'] }
 ];
 
+const betaExpansionLessonBlueprints: LessonBlueprint[] = [
+  { slug: 'soc-alert-triage', title: 'SOC Alert Triage Without Overclaiming', phase: 3, phaseTitle: 'Security Fundamentals and Blue Team', level: 'Intermediate', orderIndex: 5, specialization: 'SOC', concepts: ['alert severity', 'evidence vs inference', 'triage notes', 'safe escalation'] },
+  { slug: 'phishing-triage-workflow', title: 'Phishing Triage Workflow', phase: 3, phaseTitle: 'Security Fundamentals and Blue Team', level: 'Beginner', orderIndex: 6, specialization: 'SOC', concepts: ['sender review', 'link context', 'user reporting', 'safe verification'] },
+  { slug: 'network-flow-reading', title: 'Reading Network Flow Summaries', phase: 2, phaseTitle: 'Technical Core', level: 'Intermediate', orderIndex: 7, specialization: 'SOC', concepts: ['flow records', 'source destination', 'service patterns', 'baseline comparison'] },
+  { slug: 'dns-and-domain-signals', title: 'DNS and Domain Signals', phase: 2, phaseTitle: 'Technical Core', level: 'Intermediate', orderIndex: 8, specialization: 'SOC', concepts: ['domain naming', 'dns answers', 'reputation context', 'defensive block requests'] },
+  { slug: 'log-timeline-building', title: 'Build a Defensive Event Timeline', phase: 3, phaseTitle: 'Security Fundamentals and Blue Team', level: 'Intermediate', orderIndex: 7, specialization: 'incident responder', concepts: ['event ordering', 'time zones', 'evidence gaps', 'timeline confidence'] },
+  { slug: 'incident-communication-basics', title: 'Incident Communication Basics', phase: 5, phaseTitle: 'Professionalization', level: 'Intermediate', orderIndex: 5, specialization: 'incident responder', concepts: ['audience fit', 'plain language', 'decision log', 'status update'] },
+  { slug: 'access-review-evidence', title: 'Access Review Evidence', phase: 3, phaseTitle: 'Security Fundamentals and Blue Team', level: 'Intermediate', orderIndex: 8, specialization: 'cloud security', concepts: ['role inventory', 'job need', 'approval evidence', 'least privilege decision'] },
+  { slug: 'mfa-rollout-planning', title: 'MFA Rollout Planning', phase: 3, phaseTitle: 'Security Fundamentals and Blue Team', level: 'Beginner', orderIndex: 9, specialization: 'awareness', concepts: ['enrollment plan', 'backup codes', 'support workflow', 'risk-based rollout'] },
+  { slug: 'password-policy-review', title: 'Password Policy Review', phase: 3, phaseTitle: 'Security Fundamentals and Blue Team', level: 'Beginner', orderIndex: 10, specialization: 'awareness', concepts: ['length guidance', 'password managers', 'reset approval', 'usable security'] },
+  { slug: 'linux-permission-reading', title: 'Linux Permission Reading', phase: 2, phaseTitle: 'Technical Core', level: 'Beginner', orderIndex: 9, specialization: 'security engineering', concepts: ['file mode bits', 'owner group other', 'safe command reading', 'permission rationale'] },
+  { slug: 'system-hardening-checklists', title: 'System Hardening Checklists', phase: 3, phaseTitle: 'Security Fundamentals and Blue Team', level: 'Intermediate', orderIndex: 11, specialization: 'security engineering', concepts: ['secure defaults', 'change records', 'rollback plan', 'verification checklist'] },
+  { slug: 'backup-and-recovery-basics', title: 'Backup and Recovery Basics', phase: 5, phaseTitle: 'Professionalization', level: 'Beginner', orderIndex: 6, specialization: 'security engineering', concepts: ['backup scope', 'restore testing', 'recovery priority', 'continuity planning'] },
+  { slug: 'secure-code-review-mindset', title: 'Secure Code Review Mindset', phase: 4, phaseTitle: 'Web, AppSec, and Cloud', level: 'Intermediate', orderIndex: 5, specialization: 'AppSec', concepts: ['trust boundaries', 'input handling', 'authorization checks', 'fix verification'] },
+  { slug: 'web-access-control-review', title: 'Web Access Control Review', phase: 4, phaseTitle: 'Web, AppSec, and Cloud', level: 'Advanced', orderIndex: 6, specialization: 'AppSec', concepts: ['object ownership', 'role checks', 'server enforcement', 'regression test'] },
+  { slug: 'session-risk-review', title: 'Session Risk Review', phase: 4, phaseTitle: 'Web, AppSec, and Cloud', level: 'Intermediate', orderIndex: 7, specialization: 'AppSec', concepts: ['session lifetime', 'cookie flags', 'logout behavior', 'token storage'] },
+  { slug: 'cloud-shared-responsibility', title: 'Cloud Shared Responsibility', phase: 4, phaseTitle: 'Web, AppSec, and Cloud', level: 'Beginner', orderIndex: 8, specialization: 'cloud security', concepts: ['provider responsibility', 'customer responsibility', 'configuration ownership', 'control evidence'] },
+  { slug: 'cloud-iam-policy-reading', title: 'Cloud IAM Policy Reading', phase: 4, phaseTitle: 'Web, AppSec, and Cloud', level: 'Advanced', orderIndex: 9, specialization: 'cloud security', concepts: ['policy statement', 'resource scope', 'condition context', 'review question'] },
+  { slug: 'secrets-handling-basics', title: 'Secrets Handling Basics', phase: 4, phaseTitle: 'Web, AppSec, and Cloud', level: 'Intermediate', orderIndex: 10, specialization: 'cloud security', concepts: ['secret inventory', 'rotation trigger', 'storage boundary', 'incident note'] },
+  { slug: 'risk-registers-and-controls', title: 'Risk Registers and Controls', phase: 5, phaseTitle: 'Professionalization', level: 'Intermediate', orderIndex: 7, specialization: 'GRC', concepts: ['risk owner', 'control mapping', 'treatment status', 'residual risk'] },
+  { slug: 'privacy-and-data-minimization', title: 'Privacy and Data Minimization', phase: 5, phaseTitle: 'Professionalization', level: 'Intermediate', orderIndex: 8, specialization: 'GRC', concepts: ['data purpose', 'minimum collection', 'retention review', 'consent workflow'] },
+  { slug: 'policy-exception-review', title: 'Policy Exception Review', phase: 5, phaseTitle: 'Professionalization', level: 'Intermediate', orderIndex: 9, specialization: 'GRC', concepts: ['exception reason', 'compensating control', 'expiry date', 'approval trail'] },
+  { slug: 'executive-summary-writing', title: 'Executive Summary Writing', phase: 5, phaseTitle: 'Professionalization', level: 'Intermediate', orderIndex: 10, specialization: 'career', concepts: ['audience context', 'risk statement', 'decision needed', 'plain-language evidence'] },
+  { slug: 'ai-data-boundaries', title: 'AI Data Boundaries', phase: 5, phaseTitle: 'Professionalization', level: 'Beginner', orderIndex: 11, specialization: 'AI safety', concepts: ['private data boundary', 'prompt hygiene', 'model limitations', 'approved use'] },
+  { slug: 'ai-output-verification', title: 'AI Output Verification', phase: 5, phaseTitle: 'Professionalization', level: 'Beginner', orderIndex: 12, specialization: 'AI safety', concepts: ['source checking', 'confidence limits', 'human review', 'safe classroom use'] },
+  { slug: 'mentor-feedback-loop', title: 'Mentor Feedback Loop', phase: 5, phaseTitle: 'Professionalization', level: 'Beginner', orderIndex: 13, specialization: 'career', concepts: ['specific feedback', 'revision evidence', 'reflection note', 'next action'] },
+  { slug: 'portfolio-artifact-quality', title: 'Portfolio Artifact Quality', phase: 5, phaseTitle: 'Professionalization', level: 'Intermediate', orderIndex: 14, specialization: 'career', concepts: ['artifact scope', 'evidence quality', 'mentor review', 'publish readiness'] }
+];
+
+lessonBlueprints.push(...betaExpansionLessonBlueprints);
+
+lessonBlueprints.push(
+  { slug: 'web-security-defense', title: 'Web Security Defense Overview', phase: 4, phaseTitle: 'Web, AppSec, and Cloud', level: 'Intermediate', orderIndex: 11, specialization: 'AppSec', concepts: ['defensive web review', 'safe remediation', 'access-control evidence', 'developer communication'] },
+  { slug: 'cloud-iam-basics', title: 'Cloud IAM Basics', phase: 4, phaseTitle: 'Web, AppSec, and Cloud', level: 'Intermediate', orderIndex: 12, specialization: 'cloud security', concepts: ['cloud identities', 'role scope', 'policy review', 'least-privilege evidence'] },
+  { slug: 'ai-security-awareness', title: 'AI Security Awareness', phase: 5, phaseTitle: 'Professionalization', level: 'Beginner', orderIndex: 15, specialization: 'AI safety', concepts: ['AI privacy boundary', 'safe prompt habits', 'output verification', 'mentor escalation'] }
+);
+
+
 const glossaryTerms = [
   ['Asset', 'Anything valuable that an organization relies on, such as data, systems, people, or brand trust.', 'Foundations'],
   ['Threat', 'A possible cause of harm, such as an attacker, a natural event, or an internal mistake.', 'Foundations'],
@@ -73,6 +111,18 @@ const glossaryTerms = [
   ['JSON', 'A structured text format commonly used to exchange data between systems.', 'Technical Core']
 ] as const;
 
+const betaGlossaryTerms = Array.from(new Map([
+  ...lessonBlueprints.flatMap((lesson) => lesson.concepts.map((concept) => [concept, [`${concept.replace(/\b\w/g, (char) => char.toUpperCase())}`, `Defensive meaning of ${concept}, taught with fictional examples and authorized practice boundaries.`, lesson.phaseTitle] as const])),
+  ['review debt', ['Review Debt', 'Practice or review work that is due because a concept is stale or weak.', 'Mastery'] as const],
+  ['next best skill', ['Next Best Skill', 'The skill recommended by prerequisites, review due state, and low mastery.', 'Mastery'] as const],
+  ['rubric evidence', ['Rubric Evidence', 'Specific learner evidence used to score a lab or artifact fairly.', 'Assessment'] as const],
+  ['artifact suggestion', ['Artifact Suggestion', 'A safe proof-of-work idea connected to a lab, lesson, or guided project.', 'Portfolio'] as const],
+  ['fictional dataset', ['Fictional Dataset', 'A made-up dataset used for safe practice without real targets or private data.', 'Safety'] as const]
+]).values()).slice(0, 140);
+
+const allGlossaryTerms = Array.from(new Map([...glossaryTerms, ...betaGlossaryTerms].map((term) => [term[0].toLowerCase(), term])).values());
+
+
 const labs = [
   { slug: 'log-analysis-auth-spikes', title: 'Auth Log Spike Review', category: 'Log analysis', difficulty: 'Beginner', description: 'Review fictional login events and separate suspicious behavior from noisy but explainable events.', dataset: { source: 'fictional-auth.log', events: ['alex failed login 7 times from 203.0.113.10', 'backup-service success from known subnet'] }, tasks: [{ id: 'task1', prompt: 'Which event deserves triage first and why?', expectedKeywords: ['failed', 'repeated', 'unknown', 'triage'] }, { id: 'task2', prompt: 'What safe next step would you take?', expectedKeywords: ['validate', 'investigate', 'confirm', 'contain'] }], safeGuardrails: 'Fictional logs only. No live targets or offensive actions.', solutionOutline: 'Escalate repeated failed logins from unknown sources, validate user activity, and document evidence.' },
   { slug: 'phishing-inbox-identification', title: 'Phishing Inbox Identification', category: 'Phishing identification', difficulty: 'Beginner', description: 'Inspect a toy inbox and identify which message shows classic phishing indicators.', dataset: { emails: ['IT support asks to verify account at a misspelled domain', 'normal team update from internal domain'] }, tasks: [{ id: 'task1', prompt: 'Which message is suspicious?', expectedKeywords: ['misspelled', 'verify', 'urgent', 'domain'] }, { id: 'task2', prompt: 'Name two indicators.', expectedKeywords: ['domain', 'urgent', 'link', 'spoofed'] }], safeGuardrails: 'Educational simulation only. Focus on identification, not creating phishing content.', solutionOutline: 'Flag spoofed domains, urgency cues, and mismatched links.' },
@@ -83,6 +133,55 @@ const labs = [
   { slug: 'misconfiguration-review-demo', title: 'Demo Misconfiguration Review', category: 'Misconfiguration review', difficulty: 'Intermediate', description: 'Review a fake server checklist and identify unsafe defaults.', dataset: { checklist: ['Default admin password unchanged', 'Automatic updates disabled', 'MFA enabled for admins'] }, tasks: [{ id: 'task1', prompt: 'Name two unsafe defaults.', expectedKeywords: ['default password', 'updates disabled'] }, { id: 'task2', prompt: 'What remediation order makes sense?', expectedKeywords: ['password', 'update', 'mfa', 'priority'] }], safeGuardrails: 'The configuration is fictional. The point is safe review and prioritization.', solutionOutline: 'Fix default credentials first, restore updates, and keep strong authentication in place.' },
   { slug: 'demo-access-review', title: 'Demo Access Control Review', category: 'Access control review', difficulty: 'Intermediate', description: 'Inspect a toy app role matrix and spot broken access control.', dataset: { matrix: [{ role: 'student', action: 'view own progress', allowed: true }, { role: 'student', action: 'edit all users', allowed: true }] }, tasks: [{ id: 'task1', prompt: 'Which permission is wrong?', expectedKeywords: ['student', 'edit all users', 'wrong'] }, { id: 'task2', prompt: 'Which principle is violated?', expectedKeywords: ['least privilege', 'authorization', 'access control'] }], safeGuardrails: 'This is a demo app. Focus on safe design review only.', solutionOutline: 'Remove broad admin-like power from student role and enforce proper authorization.' }
 ] as const;
+
+const betaExpansionLabs = [
+  ['access-control-review', 'Access Control Review', 'Access control', 'Intermediate', 'Review a fictional role matrix and recommend least-privilege corrections.'],
+  ['cloud-iam-evidence-review', 'Cloud IAM Evidence Review', 'Cloud IAM', 'Advanced', 'Review fictional cloud roles and reduce broad access safely.'],
+  ['first-soc-alert-triage', 'First SOC Alert Triage', 'SOC triage', 'Intermediate', 'Triage a fictional alert and write a cautious escalation note.'],
+  ['school-pilot-risk-register', 'School Pilot Risk Register', 'GRC/risk', 'Beginner', 'Prioritize fictional school pilot risks and assign owners.'],
+  ['safe-ai-use-policy-review', 'Safe AI Use Policy Review', 'AI safety', 'Beginner', 'Review a fictional classroom AI-use policy for privacy and verification gaps.'],
+  ['linux-permission-audit', 'Linux Permission Audit', 'Systems', 'Beginner', 'Inspect fictional file permission listings and recommend safe corrections.'],
+  ['dns-signal-review', 'DNS Signal Review', 'Networking', 'Intermediate', 'Review fictional DNS records and write a defensive signal summary.'],
+  ['session-cookie-review', 'Session Cookie Review', 'Web security', 'Intermediate', 'Assess fictional cookie settings and recommend safer defaults.'],
+  ['privacy-data-map', 'Privacy Data Map', 'Privacy/GRC', 'Intermediate', 'Map fictional data collection to purpose, retention, and consent evidence.'],
+  ['backup-restore-tabletop', 'Backup Restore Tabletop', 'Continuity', 'Beginner', 'Walk through a fictional restore decision and evidence checklist.'],
+  ['policy-exception-triage', 'Policy Exception Triage', 'GRC/risk', 'Intermediate', 'Review a fictional exception request and define compensating controls.'],
+  ['portfolio-evidence-review', 'Portfolio Evidence Review', 'Portfolio', 'Beginner', 'Score a fictional learner artifact against evidence and safety criteria.'],
+  ['digital-safety-home-audit', 'Digital Safety Home Audit', 'Awareness', 'Beginner', 'Review a fictional home-learning setup and recommend safer habits.'],
+  ['risk-register-review', 'Risk Register Review', 'GRC/risk', 'Intermediate', 'Prioritize a fictional risk register and assign treatment owners.'],
+  ['password-policy-audit', 'Password Policy Audit', 'Policy audit', 'Beginner', 'Review a fictional password policy for MFA, reset, and usability gaps.'],
+  ['network-log-triage', 'Network Log Triage', 'Networking', 'Intermediate', 'Triage fictional network logs and document cautious evidence.'],
+  ['linux-permissions-detective', 'Linux Permissions Detective', 'Systems', 'Beginner', 'Review fictional permission listings for least-privilege issues.'],
+  ['safe-code-review', 'Safe Code Review', 'AppSec', 'Intermediate', 'Review a toy code snippet and recommend defensive fixes.'],
+  ['ai-security-awareness-scenario', 'AI Security Awareness Scenario', 'AI safety', 'Beginner', 'Review fictional AI-use choices for privacy and verification risks.']
+].map(([slug, title, category, difficulty, description], index) => ({
+  slug,
+  title,
+  category,
+  difficulty,
+  description,
+  dataset: {
+    label: `Fictional dataset ${index + 1}`,
+    organization: 'Northstar Learning Club (fictional)',
+    rows: [
+      { id: 'A', evidence: 'baseline approved', risk: 'low', note: 'expected classroom behavior' },
+      { id: 'B', evidence: 'missing approval or unclear owner', risk: 'medium', note: 'needs defensive review' },
+      { id: 'C', evidence: 'broad access or weak documentation', risk: 'high', note: 'requires safe remediation plan' }
+    ]
+  },
+  tasks: [
+    { id: 'task1', prompt: 'Identify the strongest fictional evidence and explain the risk without overclaiming.', expectedKeywords: ['evidence', 'risk', 'fictional', 'review'], hints: ['Separate what the dataset says from what you infer.'], rubric: { evidence: 25, reasoning: 25 } },
+    { id: 'task2', prompt: 'Recommend a safe next step and an artifact a learner could publish after mentor review.', expectedKeywords: ['safe', 'document', 'mentor', 'artifact'], hints: ['Choose a defensive action that does not touch real systems.'], rubric: { nextStep: 25, communication: 25 } }
+  ],
+  safeGuardrails: 'Fictional dataset only. Do not scan, probe, contact, test, or collect information from real systems or people.',
+  solutionOutline: `Use the fictional evidence in ${title}, name uncertainty, prioritize the highest learner-safety or least-privilege concern, document a defensive next step, and turn the work into a mentor-reviewed artifact.`,
+  expectedEvidence: ['fictional dataset reference', 'risk reasoning', 'safe next step', 'artifact suggestion'],
+  hints: ['Quote the fictional row ID.', 'State uncertainty clearly.', 'Recommend documentation, review, or configuration hardening only.'],
+  rubric: { evidenceIdentification: 20, riskReasoning: 20, safeNextStep: 20, clarity: 20, safetyBoundary: 20 }
+}));
+
+const allLabs = [...labs, ...betaExpansionLabs];
+
 
 const capstones = [
   { title: 'SOC Alert Triage Portfolio', specialization: 'SOC analyst', summary: 'Build a mini report pack that classifies fictional alerts, explains severity, and proposes next steps.', deliverables: ['triage worksheet', 'evidence notes', 'final incident summary'], difficulty: 'Intermediate' },
@@ -145,6 +244,18 @@ function buildQuestionsForLesson(lessonId: string, lesson: ReturnType<typeof bui
     },
     {
       id: makeId(), lessonId, prompt: `In a short response, explain why ${lesson.concepts[3]} matters in real work.`, type: 'short-response', difficulty: lesson.level, topic: lesson.phaseTitle, subtopic: lesson.concepts[3], explanation: 'A strong answer mentions safer decisions, clearer communication, or reduced risk.', scenarioContext: null, options: [], answer: 'reduced risk'
+    },
+    {
+      id: makeId(), lessonId, prompt: `Which learner action best shows safe application of ${lesson.concepts[0]}?`, type: 'multiple-choice', difficulty: lesson.level, topic: lesson.phaseTitle, subtopic: lesson.concepts[0], explanation: 'Safe application means using authorized practice data, documenting evidence, and asking for review when uncertain.', scenarioContext: 'A fictional classroom lab asks learners to make one defensive recommendation.',
+      options: [
+        { id: 'a', label: 'Document evidence from the fictional dataset and propose a defensive next step' },
+        { id: 'b', label: 'Use an unrelated live system to see if the idea works' },
+        { id: 'c', label: 'Skip evidence and write the most dramatic conclusion' },
+        { id: 'd', label: 'Copy private data into the lab notes' }
+      ], answer: 'a'
+    },
+    {
+      id: makeId(), lessonId, prompt: `What should a mentor look for when reviewing a mini-check about ${lesson.concepts[1]}?`, type: 'short-response', difficulty: lesson.level, topic: lesson.phaseTitle, subtopic: lesson.concepts[1], explanation: 'Mentors should look for precise vocabulary, evidence-aware reasoning, and a safe recommendation rather than unsupported claims.', scenarioContext: 'A mentor reviews a learner answer from a fictional exercise.', options: [], answer: 'evidence'
     }
   ];
 }
@@ -310,6 +421,29 @@ const guidedProjects = [
   }
 ] as const;
 
+const betaExpansionGuidedProjects = [
+  ['phishing-response-mini-playbook', 'Phishing Response Mini-Playbook', 'SOC analyst', 'Beginner', 'Create a safe reporting and verification playbook from fictional inbox evidence.', 'passwords-mfa-and-phishing'],
+  ['school-risk-register-pack', 'School Risk Register Pack', 'GRC analyst', 'Intermediate', 'Build a risk register, owner map, and treatment summary for a fictional school pilot.', 'risk-registers-and-controls'],
+  ['access-review-brief', 'Access Review Brief', 'cloud security', 'Intermediate', 'Turn a fictional role matrix into least-privilege recommendations and an approval trail.', 'access-review-evidence'],
+  ['web-session-review-note', 'Web Session Review Note', 'AppSec analyst', 'Intermediate', 'Review fictional session settings and write developer-friendly remediation guidance.', 'session-risk-review'],
+  ['backup-tabletop-report', 'Backup Tabletop Report', 'security engineering', 'Beginner', 'Document a restore tabletop with priorities, assumptions, and follow-up evidence.', 'backup-and-recovery-basics'],
+  ['ai-classroom-safety-guide', 'AI Classroom Safety Guide', 'AI safety', 'Beginner', 'Draft student-facing AI-use rules covering privacy, verification, and escalation.', 'ai-data-boundaries'],
+  ['mentor-reviewed-portfolio-pack', 'Mentor Reviewed Portfolio Pack', 'career', 'Intermediate', 'Revise one draft artifact through mentor feedback until it is publish-ready.', 'portfolio-artifact-quality']
+].map(([slug, title, specialization, difficulty, summary, starterLessonSlug]) => ({
+  slug,
+  title,
+  specialization,
+  difficulty,
+  summary,
+  estimatedHours: difficulty === 'Beginner' ? 4 : 6,
+  checkpoints: ['Read the starter lesson', 'Analyze fictional evidence', 'Draft a safe artifact', 'Revise from mentor feedback'],
+  rubric: ['Uses fictional evidence only', 'Explains risk in plain language', 'Recommends safe defensive next step', 'Shows revision quality'],
+  starterLessonSlug
+}));
+
+const allGuidedProjects = [...guidedProjects, ...betaExpansionGuidedProjects];
+
+
 const cohortSeeds = [
   {
     slug: 'spring-foundations-cohort',
@@ -469,14 +603,14 @@ async function main() {
     }
   }
 
-  for (const [term, definition, category] of glossaryTerms) {
+  for (const [term, definition, category] of allGlossaryTerms) {
     run('INSERT INTO glossary_terms (id, term, definition, category) VALUES (?, ?, ?, ?)', makeId(), term, definition, category);
   }
 
-  for (const lab of labs) {
+  for (const lab of allLabs) {
     run(
-      `INSERT INTO labs (id, slug, title, category, difficulty, description, dataset, tasks, safe_guardrails, solution_outline)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO labs (id, slug, title, category, difficulty, description, dataset, tasks, safe_guardrails, solution_outline, rubric_json, expected_evidence, hints)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       makeId(),
       lab.slug,
       lab.title,
@@ -485,8 +619,11 @@ async function main() {
       lab.description,
       toDbJson(lab.dataset),
       toDbJson(lab.tasks),
-      lab.safeGuardrails,
-      lab.solutionOutline
+      `Fictional dataset only. ${lab.safeGuardrails}`,
+      lab.solutionOutline,
+      toDbJson('rubric' in lab ? lab.rubric : { evidenceIdentification: 20, riskReasoning: 20, safeNextStep: 20, clarity: 20, safetyBoundary: 20 }),
+      toDbJson('expectedEvidence' in lab ? lab.expectedEvidence : ['fictional dataset reference', 'risk reasoning', 'safe next step']),
+      toDbJson('hints' in lab ? lab.hints : ['Use only the fictional dataset.', 'Separate evidence from inference.', 'Recommend a defensive next step.'])
     );
   }
 
@@ -544,7 +681,7 @@ async function main() {
   }
 
 
-  for (const project of guidedProjects) {
+  for (const project of allGuidedProjects) {
     run(
       `INSERT INTO guided_projects (id, slug, title, specialization, difficulty, summary, estimated_hours, checkpoints_json, rubric_json, starter_lesson_slug, created_at)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -789,7 +926,7 @@ async function main() {
   console.log('student2@cyberpath.local / Student123!');
   console.log('mentor@cyberpath.local / Mentor123!');
   console.log('admin@cyberpath.local / Admin123!');
-  console.log(`Created ${lessonBlueprints.length} lessons, ${lessonBlueprints.length * 4} quiz questions, ${labs.length} labs.`);
+  console.log(`Created ${lessonBlueprints.length} lessons, ${lessonBlueprints.length * 6} quiz questions, ${allLabs.length} labs, ${allGuidedProjects.length} guided projects, ${allGlossaryTerms.length} glossary terms.`);
 }
 
 main().catch((error) => {

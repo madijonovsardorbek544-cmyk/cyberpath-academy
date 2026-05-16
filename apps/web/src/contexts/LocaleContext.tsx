@@ -20,6 +20,11 @@ export const demoLocaleNotice = 'Uzbek and Russian translations are still in rev
 
 const availableLocales: Locale[] = ['en'];
 const reportedMissingKeys = new Set<string>();
+const missingTranslationKeys: string[] = [];
+
+export function getMissingTranslationKeys() {
+  return [...missingTranslationKeys];
+}
 
 function normalizeLocale(value: unknown): Locale {
   return availableLocales.includes(value as Locale) ? (value as Locale) : 'en';
@@ -46,6 +51,7 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
       const translated = dictionaries[locale][key] ?? dictionaries.en[key];
       if (!translated && !reportedMissingKeys.has(key)) {
         reportedMissingKeys.add(key);
+        missingTranslationKeys.push(`${locale}:${key}`);
         if (import.meta.env.DEV) console.warn(`Missing translation key: ${key}`);
       }
       return translated ?? key;

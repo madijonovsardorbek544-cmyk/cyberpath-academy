@@ -27,6 +27,8 @@ execFileSync('node', ['--import', 'tsx', 'prisma/seed.ts'], { cwd: serverRoot, e
 Object.assign(process.env, baseEnv);
 
 const { app } = await import('../src/app.ts');
+const { db } = await import('../src/lib/db.ts');
+const { skillCatalog, skillCategories, exerciseCatalog } = await import('../src/utils/skillEngine.ts');
 
 function cookieHeaderFrom(res: Response) {
   const raw = res.headers.get('set-cookie');
@@ -564,5 +566,91 @@ test('backend learning contracts expose the same nine-category defensive skill t
   for (const type of ['multiple_choice', 'multi_select', 'true_false', 'matching', 'short_answer', 'scenario_classification', 'evidence_selection', 'risk_ranking', 'log_interpretation', 'policy_review', 'report_writing']) {
     assert.ok(exerciseTypes.has(type), `exercise catalog missing ${type}`);
   }
+  await server.close();
+});
+
+
+test('seed content meets beta minimum quality gates', () => {
+  const count = (table: string) => Number(db.prepare(`SELECT COUNT(*) as value FROM ${table}`).get().value ?? 0);
+  assert.ok(count('lessons') >= 50, 'seed must include at least 50 lessons');
+  assert.ok(count('quiz_questions') + exerciseCatalog.length >= 300, 'seed must include at least 300 exercises/questions');
+  assert.ok(count('labs') >= 20, 'seed must include at least 20 labs');
+  assert.ok(count('guided_projects') >= 10, 'seed must include at least 10 guided projects');
+  assert.ok(count('glossary_terms') >= 120, 'seed must include at least 120 glossary terms');
+
+  const incompleteLessons = db.prepare(`SELECT slug FROM lessons WHERE learning_objectives = '[]' OR examples = '[]' OR knowledge_checks = '[]' OR LENGTH(content) < 120 OR LENGTH(common_mistakes) < 20`).all();
+  assert.deepEqual(incompleteLessons, [], 'published lessons need objectives, examples, checks, explanation, and common mistakes');
+
+  const weakLabs = db.prepare(`SELECT slug FROM labs WHERE LOWER(safe_guardrails) NOT GLOB '*fictional*' AND LOWER(safe_guardrails) NOT GLOB '*toy*' AND LOWER(safe_guardrails) NOT GLOB '*no real*' OR dataset = '{}' OR expected_evidence = '[]' OR hints = '[]' OR rubric_json = '{}' OR LENGTH(solution_outline) < 40`).all();
+  assert.deepEqual(weakLabs, [], 'labs need fictional datasets, guardrails, expected evidence, hints, rubrics, and solution outlines');
+
+  const unsafeRows = db.prepare(`SELECT slug FROM labs WHERE LOWER(safe_guardrails || ' ' || solution_outline || ' ' || description) GLOB '*real target*' AND LOWER(safe_guardrails) NOT LIKE '%no live targets%'`).all();
+  assert.deepEqual(unsafeRows, [], 'unsafe keyword validation should not find unsafe lab instructions');
+});
+
+test('backend skill tree quality gate has valid references and next actions', async () => {
+  const lessonSlugs = new Set((db.prepare('SELECT slug FROM lessons').all() as Array<{ slug: string }>).map((row) => row.slug));
+  const labSlugs = new Set((db.prepare('SELECT slug FROM labs').all() as Array<{ slug: string }>).map((row) => row.slug));
+  const exerciseIds = new Set(exerciseCatalog.map((exercise) => exercise.id));
+  const skillIds = new Set(skillCatalog.map((skill) => skill.id));
+
+  assert.equal(skillCategories.length, 9);
+  for (const category of skillCategories) {
+    assert.ok(skillCatalog.some((skill) => skill.categoryId === category.id), `${category.title} needs skills`);
+  }
+  for (const skill of skillCatalog) {
+    assert.ok(skill.lessonSlugs.length || skill.exerciseIds.length, `${skill.title} needs a lesson or exercise`);
+    assert.ok(skill.portfolioArtifact || skill.labSlugs.length || skill.trackSlug, `${skill.title} needs a next action`);
+    for (const prereq of skill.prerequisites) assert.ok(skillIds.has(prereq), `${skill.title} references missing prerequisite ${prereq}`);
+    for (const slug of skill.lessonSlugs) assert.ok(lessonSlugs.has(slug), `${skill.title} references missing lesson ${slug}`);
+    for (const id of skill.exerciseIds) assert.ok(exerciseIds.has(id), `${skill.title} references missing exercise ${id}`);
+    for (const slug of skill.labSlugs) assert.ok(labSlugs.has(slug), `${skill.title} references missing lab ${slug}`);
+  }
+});
+
+test('teacher dashboard enforces roster scope, heatmap evidence, student reports, and CSV export', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Unassigned CSV Student', email: 'csv-unassigned@example.com', password: 'StrongPass1!' })
+  });
+  assert.equal(signup.status, 201);
+  const signupJson = await signup.json();
+
+  const mentorLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  });
+  const mentorCookie = cookieHeaderFrom(mentorLogin);
+  const mentorDashboardResponse = await fetch(`${server.baseUrl}/api/mentor/cohort-dashboard`, { headers: { cookie: mentorCookie } });
+  assert.equal(mentorDashboardResponse.status, 200);
+  const mentorDashboard = await mentorDashboardResponse.json();
+  assert.ok(!mentorDashboard.students.some((student: any) => student.id === signupJson.user.id), 'mentor must not see unrelated students');
+  assert.ok(mentorDashboard.masteryHeatmap.length >= 1, 'heatmap needs rows');
+  assert.ok(mentorDashboard.masteryHeatmap[0].cells.length >= 1, 'heatmap needs columns');
+  assert.ok(mentorDashboard.students[0].riskStatus);
+  assert.ok(mentorDashboard.students[0].recommendedNextAction);
+  assert.ok(Array.isArray(mentorDashboard.labSubmissions));
+  assert.ok(Array.isArray(mentorDashboard.artifactReviews));
+  assert.ok(Array.isArray(mentorDashboard.assignmentRecommendations));
+
+  const csv = await fetch(`${server.baseUrl}/api/mentor/cohort-dashboard.csv`, { headers: { cookie: mentorCookie } });
+  assert.equal(csv.status, 200);
+  assert.match(csv.headers.get('content-type') ?? '', /text\/csv/);
+  const csvText = await csv.text();
+  assert.match(csvText.split('\n')[0], /student_id,name,email,risk_status/);
+
+  const adminLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
+  });
+  const adminCookie = cookieHeaderFrom(adminLogin);
+  const adminDashboardResponse = await fetch(`${server.baseUrl}/api/mentor/cohort-dashboard`, { headers: { cookie: adminCookie } });
+  assert.equal(adminDashboardResponse.status, 200);
+  const adminDashboard = await adminDashboardResponse.json();
+  assert.ok(adminDashboard.students.some((student: any) => student.id === signupJson.user.id), 'admin should see all student rows');
   await server.close();
 });
