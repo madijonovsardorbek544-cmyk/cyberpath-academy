@@ -19,6 +19,7 @@ const dictionaries: Record<Locale, Dict> = {
 export const demoLocaleNotice = 'Uzbek and Russian translations are still in review, so the public beta demo is locked to English for now.';
 
 const availableLocales: Locale[] = ['en'];
+const reportedMissingKeys = new Set<string>();
 
 function normalizeLocale(value: unknown): Locale {
   return availableLocales.includes(value as Locale) ? (value as Locale) : 'en';
@@ -38,7 +39,20 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     document.documentElement.lang = locale;
   }, [locale]);
 
-  const value = useMemo(() => ({ locale, setLocale, t: (key: string) => dictionaries[locale][key] ?? dictionaries.en[key] ?? key, localeNotice: demoLocaleNotice, availableLocales }), [locale]);
+  const value = useMemo(() => ({
+    locale,
+    setLocale,
+    t: (key: string) => {
+      const translated = dictionaries[locale][key] ?? dictionaries.en[key];
+      if (!translated && !reportedMissingKeys.has(key)) {
+        reportedMissingKeys.add(key);
+        if (import.meta.env.DEV) console.warn(`Missing translation key: ${key}`);
+      }
+      return translated ?? key;
+    },
+    localeNotice: demoLocaleNotice,
+    availableLocales
+  }), [locale]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }

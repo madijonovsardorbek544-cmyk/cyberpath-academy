@@ -33,3 +33,7 @@ The recommendation favors:
 ## Mock demo
 
 The GitHub Pages mock demo uses deterministic skill and exercise catalogs, seeded mastery records, and no live-target cyber content.
+
+## 2026-05-16 implementation note
+
+Mock and backend skill trees now expose the same nine defensive curriculum categories. Visible nodes must have lessons or exercises, prerequisites must explain locked states, and coming-soon nodes should never appear as empty mapped content.

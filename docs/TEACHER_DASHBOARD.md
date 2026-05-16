@@ -31,3 +31,7 @@ Current alert categories include weak area, engagement/momentum, inactivity, and
 
 The product UI now exposes `/teacher` for school users while `/mentor` remains as a backwards-compatible redirect. The API exposes both `/api/teacher/*` and `/api/mentor/*` for the same role-protected cohort workflows.
 
+
+## 2026-05-16 implementation note
+
+The teacher dashboard is demo/pilot credible but not yet a paid-school 10/10 dashboard. It can show cohort metrics, weak topics, mastery heatmap, students needing review, lab readiness, alerts, assignments, lab submissions, and artifact review queues. Remaining work includes polished assignment lifecycle UX, scheduled CSV exports, printable reports ready for parent/school meetings, SIS/LMS integration planning, and real teacher usability testing.

@@ -38,7 +38,7 @@ import {
   reviewItemOutcome,
   upsertReviewItem
 } from '../utils/learningIntelligence.js';
-import { buildSkillTree, getMasterySummary, getPracticeSession, getSkillReviewSets, submitPracticeAnswer, type PracticeMode } from '../utils/skillEngine.js';
+import { buildSkillTree, exerciseCatalog, getMasterySummary, getPracticeSession, getSkillReviewSets, submitPracticeAnswer, type PracticeMode } from '../utils/skillEngine.js';
 
 const router = Router();
 
@@ -127,6 +127,20 @@ function getLessonProgress(userId: string, lessonId: string) {
 
 router.get('/skill-tree', (req: AuthenticatedRequest, res) => {
   return res.json(buildSkillTree(req.user!.userId));
+});
+
+
+router.get('/exercises', (req: AuthenticatedRequest, res) => {
+  const skillId = typeof req.query.skillId === 'string' ? req.query.skillId : null;
+  const mode = typeof req.query.mode === 'string' ? req.query.mode : null;
+  const parsedMode = mode ? practiceModeSchema.safeParse(mode) : null;
+  if (parsedMode && !parsedMode.success) return res.status(400).json({ message: 'Invalid practice mode.' });
+  const exercises = exerciseCatalog.filter((exercise) => {
+    const skillMatches = !skillId || exercise.skillId === skillId;
+    const modeMatches = !parsedMode || exercise.mode === parsedMode.data || exercise.mode === 'practice';
+    return skillMatches && modeMatches;
+  });
+  return res.json({ exercises, count: exercises.length });
 });
 
 router.get('/mastery-summary', (req: AuthenticatedRequest, res) => {

@@ -1,35 +1,24 @@
 # Beta Readiness
 
-## Ready in this increment
+## Current readiness
 
-- Mock-mode skill tree with nine categories.
-- First mapped defensive skill catalog.
-- Adaptive practice session route and UI.
-- Review route and UI.
-- Mastery summary on student dashboard.
-- Cohort mastery heatmap on mentor dashboard.
-- Documentation for mastery, skill tree, exercise engine, teacher dashboard, and content expansion.
+The product can support internal demos and a tightly supervised portfolio-style beta. It is not ready for unsupervised school-wide use.
 
-## Still mock
+## Passed gates
 
-- Skill mastery persistence in the public demo is local-storage mock data.
-- Practice routes are implemented in mock API first.
-- Teacher heatmap uses seeded demo cohort data.
-- Content quality workflow is documented but not fully implemented in admin backend tables.
+- Mock smoke test covers public demo, student, mentor, admin, pilot lead, reset, practice, review, lab, and dashboard flows.
+- Backend tests cover auth, role permissions, feedback, pilot leads, dashboards, labs, tutor safety, skill tree, and exercise contracts.
+- Production builds complete.
 
-## Blocks real public launch
+## Missing gates for 10 real students
 
-- Backend persistence for skill mastery, exercise attempts, review schedules, and mastery history.
-- Full content QA and unsafe-content scanning for all published lessons/labs/exercises.
-- Role/tenant authorization hardening for real schools.
-- Production analytics, privacy review, backups, and monitoring.
-- Expanded Uzbek localization review.
-- Browser e2e coverage for all new pages.
+- Browser E2E suite for the full 30–60 minute learner journey.
+- Mobile viewport QA.
+- Accessibility review.
+- Real monitoring/error tracking.
+- Content expansion and human review.
+- Teacher/mentor support playbook.
 
-## Founder beta actions
+## Recommendation
 
-1. Run a small supervised school pilot with fictional-only labs.
-2. Collect mentor feedback on heatmap usefulness.
-3. Validate whether students understand mastery states.
-4. Prioritize backend persistence before scaling cohorts.
-5. Commission expert review of every published lesson/exercise/lab.
+Run a 3–5 learner moderated beta first. Record where students get confused, then fix onboarding, lesson clarity, practice feedback, and lab instructions before inviting 10 learners.

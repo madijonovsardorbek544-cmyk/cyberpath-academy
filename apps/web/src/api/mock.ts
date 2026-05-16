@@ -1175,6 +1175,19 @@ function handleGet<T>(path: string): T {
     return { skills: skillCatalog, categories: skillCategories, mastery: getMasterySummary(db, authUser.id).records } as T;
   }
 
+  if (path.startsWith("/learning/exercises")) {
+    requireUser(db);
+    const query = path.includes("?") ? new URLSearchParams(path.split("?")[1]) : new URLSearchParams();
+    const skillId = query.get("skillId");
+    const mode = query.get("mode") as PracticeMode | null;
+    const exercises = exerciseCatalog.filter((exercise) => {
+      const skillMatches = !skillId || exercise.skillId === skillId;
+      const modeMatches = !mode || exercise.mode === mode || exercise.mode === "practice";
+      return skillMatches && modeMatches;
+    });
+    return { exercises, count: exercises.length } as T;
+  }
+
   if (path === "/learning/skill-tree") {
     const authUser = requireUser(db);
     const categories = buildSkillTree(db, authUser.id);

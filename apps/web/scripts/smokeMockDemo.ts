@@ -119,6 +119,13 @@ assert.ok(dashboard.nextLessons.length >= 4, 'dashboard should include at least 
 await assertRoutes(['/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/portfolio', '/learning/mistakes', '/learning/projects', '/learning/assignments', '/platform/plans', '/platform/subscription', '/platform/my-feedback']);
 
 const skillTree = await mockApi.get<any>('/learning/skill-tree');
+assert.equal(skillTree.categories.length, 9, 'mock skill tree should expose nine categories');
+const exerciseCatalogResponse = await mockApi.get<any>('/learning/exercises');
+assert.ok(exerciseCatalogResponse.count >= 15, 'mock exercise catalog route should expose seeded exercises');
+const exerciseTypes = new Set(exerciseCatalogResponse.exercises.map((exercise: any) => exercise.type));
+for (const type of ['multiple_choice', 'multi_select', 'true_false', 'matching', 'short_answer', 'scenario_classification', 'evidence_selection', 'risk_ranking', 'log_interpretation', 'policy_review', 'report_writing']) {
+  assert.ok(exerciseTypes.has(type), `mock exercise catalog missing ${type}`);
+}
 assert.ok(skillTree.recommendedNextSkill, 'experienced user should receive next recommended skill');
 const practiceSession = await mockApi.get<any>(`/learning/practice/session?skillId=${skillTree.recommendedNextSkill.id}&mode=practice`);
 assert.ok(practiceSession.session.exercises.length >= 1, 'practice session loads');
