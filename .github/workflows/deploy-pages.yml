@@ -31,7 +31,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Smoke test public mock demo
+      - name: Smoke test public mock demo / E2E fallback
         run: npm run smoke:mock --workspace web
 
       - name: Build frontend demo

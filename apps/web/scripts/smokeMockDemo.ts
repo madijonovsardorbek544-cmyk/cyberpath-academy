@@ -13,6 +13,7 @@ class MemoryStorage {
 globalThis.localStorage = new MemoryStorage() as Storage;
 
 const { mockApi, resetMockDemoData } = await import('../src/api/mock');
+const { demoLocaleNotice } = await import('../src/contexts/LocaleContext');
 
 async function login(email: string, password: string) {
   const response = await mockApi.post<{ user: { email: string; role: string } }>('/auth/login', { email, password });
@@ -82,6 +83,10 @@ assert.equal(newDashboardAfter.analytics.totalCompleted, 0, 'new user should hav
 assert.equal(newDashboardAfter.analytics.totalQuizAccuracy, 0, 'new user should have 0 quiz accuracy');
 assert.equal(newDashboardAfter.analytics.timeStudied, 0, 'new user should have 0 minutes studied');
 assert.ok(newDashboardAfter.masterySummary, 'new user dashboard should expose skill mastery summary');
+assert.ok(newDashboardAfter.practiceHub.continueLesson !== undefined, 'student dashboard exposes continue learning state');
+assert.ok(newDashboardAfter.practiceHub.dailyQuest, 'student dashboard exposes daily practice quest');
+assert.ok(Array.isArray(newDashboardAfter.practiceHub.reviewQueue), 'student dashboard exposes review due queue');
+assert.ok(Array.isArray(newDashboardAfter.recommendations), 'student dashboard exposes next recommended actions');
 assert.ok(newDashboardAfter.masterySummary.records.every((record: any) => record.score <= 19), 'new user starts with empty/low skill mastery');
 assert.ok(Array.isArray(newDashboardAfter.nextLessons), 'new user nextLessons must be an array');
 assert.ok(newDashboardAfter.nextLessons.length >= 1, 'new user should receive a first recommended lesson');
@@ -133,9 +138,13 @@ const firstExercise = practiceSession.session.exercises[0];
 const correctPractice = await mockApi.post<any>('/learning/practice/submit', { sessionId: practiceSession.session.id, exerciseId: firstExercise.id, answer: firstExercise.correctAnswer, mode: 'practice' });
 assert.equal(correctPractice.feedback.isCorrect, true, 'correct answer submission works');
 assert.ok(correctPractice.feedback.updatedMastery.score >= practiceSession.session.masteryBefore.score, 'correct answer increases mastery');
+assert.ok(correctPractice.feedback.explanation, 'practice feedback explains why the answer is correct');
+assert.ok(correctPractice.feedback.reviewRecommendation, 'practice feedback includes next recommended action');
 const wrongPractice = await mockApi.post<any>('/learning/practice/submit', { sessionId: practiceSession.session.id, exerciseId: firstExercise.id, answer: '__wrong__', mode: 'practice' });
 assert.equal(wrongPractice.feedback.isCorrect, false, 'wrong answer returns feedback');
 assert.ok(wrongPractice.feedback.wrongAnswerReason, 'wrong answer explains missed concept');
+assert.ok(wrongPractice.feedback.missedConcept, 'wrong answer identifies concept missed');
+assert.ok(wrongPractice.feedback.reviewRecommendation, 'wrong answer recommends what to review');
 const reviewBefore = await mockApi.get<any>('/learning/review');
 assert.ok(Array.isArray(reviewBefore.review), 'review session loads');
 const masteryChallenge = await mockApi.post<any>('/learning/practice/submit', { sessionId: practiceSession.session.id, exerciseId: firstExercise.id, answer: firstExercise.correctAnswer, mode: 'mastery_challenge' });
@@ -146,6 +155,9 @@ const labDetail = await mockApi.get<any>(`/learning/labs/${labs.labs[0].slug}`);
 assert.ok(labDetail.lab.tasks.length >= 1, 'lab detail should include tasks');
 const labSubmission = await mockApi.post<any>(`/learning/labs/${labDetail.lab.id}/submit`, { answers: Object.fromEntries(labDetail.lab.tasks.map((task: any) => [task.id, 'evidence risk safe authorized defensive next step'])) });
 assert.ok(labSubmission.submission.score >= 0, 'lab submission should return a score');
+assert.ok(labSubmission.submission.rubricResult?.categoryScores, 'lab feedback should include rubric category scores');
+assert.ok(Array.isArray(labSubmission.submission.rubricResult?.missingEvidence), 'lab feedback should include missing evidence list');
+assert.ok(labSubmission.submission.artifactSuggestion?.prompt, 'lab feedback should include artifact suggestion');
 await mockApi.post('/platform/feedback', { name: 'Smoke Visitor', email: 'smoke@example.com', category: 'validation', message: 'Smoke feedback', usefulnessScore: 5, difficulty: 'right_level', willingnessToPay: 'maybe', audienceRole: 'teacher', goal: 'school pilot' });
 await mockApi.post('/platform/pilot-leads', { contactName: 'Smoke Pilot', email: 'pilot@example.edu', phoneOrTelegram: '@smoke', role: 'teacher', organizationName: 'Smoke School', cityCountry: 'Tashkent, Uzbekistan', studentCount: 24, studentAgeRange: '14-17', currentCyberLevel: 'Beginner', needsMost: 'Safe labs and mentor reports', interestLevel: 'ready_for_pilot', wouldPay: 'maybe', message: 'Smoke pilot request' });
 
@@ -159,12 +171,15 @@ assert.ok(Array.isArray(mentorDashboard.studentsNeedingReview), 'mentor dashboar
 assert.ok(Array.isArray(mentorDashboard.studentsReadyForLab), 'mentor dashboard missing lab readiness list');
 assert.ok(Array.isArray(mentorDashboard.labSubmissions), 'mentor dashboard missing lab submission review queue');
 assert.ok(Array.isArray(mentorDashboard.artifactReviews), 'mentor dashboard missing artifact review queue');
+assert.ok(Array.isArray(mentorDashboard.assignmentRecommendations), 'mentor dashboard missing assignment recommendations');
+assert.ok(mentorDashboard.masteryHeatmap.length >= 1 && ((mentorDashboard.masteryHeatmap[0].cells ?? mentorDashboard.masteryHeatmap[0].skills)?.length >= 1), 'mentor heatmap needs rows and columns');
 await assertRoutes(['/mentor/students', '/mentor/feedback', '/mentor/alerts', '/mentor/cohorts', '/mentor/assignments', '/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/portfolio']);
 
 await login('admin@cyberpath.local', 'Admin123!');
 const admin = await mockApi.get<any>('/admin/overview');
 assert.ok(admin.validationMetrics, 'admin overview missing validation metrics');
 assert.ok(admin.pilotLeads.length >= 1, 'admin overview missing pilot lead pipeline');
+assert.match(demoLocaleNotice, /locked to English/i, 'partial locales should be clearly marked as English-only');
 const pilotAdmin = await mockApi.get<any>('/platform/pilot-leads');
 assert.ok(pilotAdmin.pilotLeads.length >= 1, 'admin pilot lead review route missing');
 await assertRoutes(['/admin/overview', '/platform/pilot-leads', '/mentor/cohort-dashboard', '/mentor/students', '/mentor/feedback', '/mentor/alerts', '/mentor/cohorts', '/mentor/assignments', '/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/portfolio']);

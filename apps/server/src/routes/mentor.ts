@@ -47,8 +47,8 @@ type AccessibleStudent = NonNullable<ReturnType<typeof mapUser>> & {
 
 async function getAccessibleStudents(requestUser: AuthenticatedRequest['user']): Promise<AccessibleStudent[]> {
   const linkRows = requestUser!.role === 'mentor'
-    ? many<Record<string, unknown>>('SELECT * FROM mentor_students WHERE mentor_id = ?', requestUser!.userId)
-    : many<Record<string, unknown>>('SELECT * FROM mentor_students');
+    ? many<Record<string, unknown>>('SELECT student_id FROM mentor_students WHERE mentor_id = ?', requestUser!.userId)
+    : many<Record<string, unknown>>("SELECT id as student_id FROM users WHERE role = 'student'");
 
   const seen = new Set<string>();
   const students = await Promise.all(linkRows.map(async (link) => {
@@ -170,6 +170,23 @@ async function buildCohortDashboard(req: AuthenticatedRequest) {
     ...studentIds
   ).map((row) => ({ ...mapPortfolioArtifact(row), studentName: String(row.student_name) })) : [];
 
+  const masterySkills = Array.from(new Set(students.flatMap((student) => student.mastery.slice(0, 6).map((track) => track.title)))).slice(0, 8);
+  const masteryHeatmap = students.map((student) => ({
+    studentId: student.id,
+    studentName: student.name,
+    cells: masterySkills.map((skillTitle) => {
+      const track = student.mastery.find((item) => item.title === skillTitle);
+      return { skillTitle, score: track?.score ?? 0, band: track?.band ?? 'not started', reviewDueCount: track?.reviewDueCount ?? 0 };
+    })
+  }));
+  const studentsNeedingReview = students
+    .filter((student) => student.riskStatus !== 'on track' || student.mastery.some((track) => track.reviewDueCount > 0))
+    .map((student) => ({ studentId: student.id, name: student.name, riskStatus: student.riskStatus, reviewDebt: student.mastery.reduce((sum, track) => sum + (track.reviewDueCount ?? 0), 0), recommendedNextAction: student.recommendedNextAction }));
+  const studentsReadyForLab = students
+    .filter((student) => student.analytics.completionRate >= 20 || student.analytics.totalQuizAccuracy >= 70)
+    .map((student) => ({ studentId: student.id, name: student.name, readiness: Math.max(student.analytics.completionRate, student.analytics.totalQuizAccuracy), recommendedLab: student.labsCompleted ? 'Assign next defensive lab' : 'Assign starter fictional lab' }));
+  const assignmentRecommendations = students.map((student) => ({ studentId: student.id, name: student.name, title: student.recommendedNextAction, reason: student.riskStatus === 'on track' ? 'Maintain momentum with artifact evidence.' : 'Risk or review debt requires mentor intervention.' }));
+
   return {
     metrics: {
       totalStudents: students.length,
@@ -197,10 +214,19 @@ async function buildCohortDashboard(req: AuthenticatedRequest) {
       recommendedNextAction: student.recommendedNextAction
     })),
     weakTopicHeatmap,
+    masteryHeatmap,
+    studentsNeedingReview,
+    studentsReadyForLab,
+    assignmentRecommendations,
     inactiveAlerts: students.filter((student) => student.riskStatus === 'inactive').map((student) => ({ studentId: student.id, name: student.name, lastActiveAt: student.lastActiveAt, recommendedNextAction: student.recommendedNextAction })),
     labSubmissions,
     artifactReviews
   };
+}
+
+function escapeCsv(value: unknown) {
+  const text = String(value ?? '');
+  return /[\",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 router.get('/students', async (req: AuthenticatedRequest, res) => {
@@ -211,6 +237,13 @@ router.get('/students', async (req: AuthenticatedRequest, res) => {
 router.get('/cohort-dashboard', async (req: AuthenticatedRequest, res) => {
   const dashboard = await buildCohortDashboard(req);
   res.json(dashboard);
+});
+
+router.get('/cohort-dashboard.csv', async (req: AuthenticatedRequest, res) => {
+  const dashboard = await buildCohortDashboard(req);
+  const header = ['student_id', 'name', 'email', 'risk_status', 'quiz_accuracy', 'labs_completed', 'portfolio_artifacts', 'recommended_next_action'];
+  const rows = dashboard.students.map((student) => [student.id, student.name, student.email, student.riskStatus, student.quizAccuracy, student.labsCompleted, student.portfolioArtifacts, student.recommendedNextAction]);
+  res.type('text/csv').send([header, ...rows].map((row) => row.map(escapeCsv).join(',')).join('\n'));
 });
 
 router.get('/feedback', (req: AuthenticatedRequest, res) => {

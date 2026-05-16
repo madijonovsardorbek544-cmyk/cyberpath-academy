@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "smoke:mock": "tsx scripts/smokeMockDemo.ts"
+    "smoke:mock": "tsx scripts/smokeMockDemo.ts",
+    "test:e2e": "npm run smoke:mock",
+    "test:e2e:ui": "echo \"Playwright install blocked by registry policy; see docs/E2E_TESTING_PLAN.md\""
   },
   "dependencies": {
     "@xterm/addon-fit": "^0.11.0",

@@ -1373,6 +1373,7 @@ function handleGet<T>(path: string): T {
       masteryHeatmap,
       studentsReadyForLab,
       studentsNeedingReview,
+      assignmentRecommendations: students.map((student) => ({ studentId: student.id, name: student.name, title: student.recommendedNextAction, reason: student.riskStatus === "on track" ? "Maintain momentum with portfolio proof." : "Risk or review debt requires mentor follow-up." })),
       weakTopicHeatmap,
       inactiveAlerts: students.filter((student) => student.riskStatus === "inactive"),
       labSubmissions,
@@ -1659,7 +1660,16 @@ function handlePost<T>(path: string, body: unknown): T {
       if (matched) score += Math.round(100 / lab.tasks.length);
       return `${task.prompt}: ${matched ? "good defensive judgment" : "needs stronger evidence and safer reasoning"}`;
     }).join(" | ");
-    const submission: LabSubmission = { id: uid("labsub"), userId: authUser.id, labId: lab.id, answers: data.answers, score: Math.min(100, score), feedback, createdAt: now() };
+    const rubricResult = {
+      totalScore: Math.min(100, score),
+      categoryScores: { evidence: Math.min(20, score), risk: Math.min(20, score), defensiveNextStep: Math.min(20, score), clarity: Math.min(20, score), safetyAuthorization: 20 },
+      taskFeedback: feedback.split(" | "),
+      missingEvidence: lab.tasks.filter((task) => !String(data.answers[task.id] || "").trim()).map((task) => task.id),
+      recommendedReview: 'Review the related lesson and resubmit with clearer fictional evidence and a safe next step.',
+      solutionOutline: lab.solutionOutline,
+      safetyRedirect: null
+    };
+    const submission: LabSubmission = { id: uid("labsub"), userId: authUser.id, labId: lab.id, answers: data.answers, score: Math.min(100, score), feedback, createdAt: now(), rubricResult, artifactSuggestion: lab.artifactSuggestion ?? { type: "incident-report", title: `${lab.title} artifact`, prompt: "Turn this lab into a mentor-reviewed proof-of-work artifact using fictional evidence only." } } as LabSubmission;
     db.labSubmissions.push(submission);
     writeDb(db);
     return { submission } as T;
