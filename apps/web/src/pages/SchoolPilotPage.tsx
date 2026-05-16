@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Building2, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { Badge, Button, Card, Input, SectionTitle, Select, Textarea } from '../components/ui';
 import { api } from '../api/client';
+import { BetaFeedbackCard, BetaQuickActions } from '../components/BetaMode';
 
 type PilotForm = {
   contactName: string;
@@ -71,6 +72,8 @@ export function SchoolPilotPage() {
           <div className="flex flex-wrap gap-3"><Link to="/pricing" className="text-sm text-slate-300">Pricing</Link><Link to="/safety" className="text-sm text-slate-300">Safety policy</Link></div>
         </header>
 
+        <BetaQuickActions />
+
         <section className="grid gap-6 lg:grid-cols-[0.9fr,1.1fr] lg:items-start">
           <div className="space-y-5">
             <Badge className="border-sky-400/20 bg-sky-400/10 text-sky-200">School Pilot Engine</Badge>
@@ -103,6 +106,7 @@ export function SchoolPilotPage() {
             </form>
           </Card>
         </section>
+        <BetaFeedbackCard context="school_pilot_form" title="School pilot form feedback" />
       </div>
     </div>
   );

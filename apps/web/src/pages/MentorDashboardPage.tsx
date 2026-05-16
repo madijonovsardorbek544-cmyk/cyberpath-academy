@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
+import { BetaFeedbackCard } from '../components/BetaMode';
 import { Badge, Button, Card, Input, Loader, SectionTitle, Select, Textarea } from '../components/ui';
 import type { Cohort, MentorAlert, MentorAssignment } from '../types';
 
@@ -319,6 +320,7 @@ export function MentorDashboardPage() {
             </div>
           </Card>
         </div>
+        <BetaFeedbackCard context="mentor_dashboard" title="Mentor dashboard feedback" />
       </div>
     </AppShell>
   );

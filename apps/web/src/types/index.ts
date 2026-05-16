@@ -236,6 +236,20 @@ export type FeedbackItem = {
   updatedAt?: string;
 };
 
+export type BugReport = {
+  id: string;
+  page: string;
+  happened: string;
+  expected: string;
+  deviceBrowser: string;
+  screenshotNote?: string | null;
+  contact?: string | null;
+  severity: 'low' | 'medium' | 'high' | 'blocking' | string;
+  status: 'new' | 'investigating' | 'fixed' | 'closed' | string;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
 
 export type PilotLead = {
   id: string;

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, isMockApiMode } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 import { AppShell } from "../components/AppShell";
+import { BetaFeedbackCard } from "../components/BetaMode";
 import { Button, Card, SectionTitle, Select } from "../components/ui";
 
 const diagnosticQuestions = [
@@ -111,6 +112,7 @@ export function OnboardingPage() {
             <Button type="button" className="border border-slate-700 bg-slate-900 text-white" disabled={loading} onClick={() => completeOnboarding(0)}>Skip for now</Button>
           </div>
         </form>
+        <BetaFeedbackCard context="onboarding" title="Onboarding feedback" />
       </div>
     </AppShell>
   );

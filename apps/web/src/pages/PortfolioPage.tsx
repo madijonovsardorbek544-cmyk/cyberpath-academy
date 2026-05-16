@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
+import { BetaFeedbackCard } from '../components/BetaMode';
 import { Badge, Button, Card, Input, Loader, SectionTitle, Textarea } from '../components/ui';
 import type { PortfolioArtifact } from '../types';
 
@@ -61,6 +62,7 @@ export function PortfolioPage() {
             ))}
           </div>
         </div>
+        <BetaFeedbackCard context="artifact_creation" title="Artifact feedback" />
       </div>
     </AppShell>
   );

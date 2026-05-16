@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Moon, Shield, Sun, LayoutDashboard, GraduationCap, FlaskConical, NotebookTabs, Brain, Users, Settings, LifeBuoy, CreditCard, Target, FileText, Network } from 'lucide-react';
+import { Moon, Shield, Sun, LayoutDashboard, GraduationCap, FlaskConical, NotebookTabs, Brain, Users, Settings, LifeBuoy, CreditCard, Target, FileText, Network, ClipboardCheck } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
@@ -7,6 +7,7 @@ import { Button, Loader } from './ui';
 
 const studentLinks = [
   { to: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
+  { to: '/beta-checklist', key: 'betaChecklist', icon: ClipboardCheck },
   { to: '/practice', key: 'practice', icon: Target },
   { to: '/skill-tree', key: 'skillTree', icon: Network },
   { to: '/paths', key: 'paths', icon: GraduationCap },
@@ -59,7 +60,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               return (
                 <NavLink key={link.to} to={link.to} className={({ isActive }) => `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${isActive ? 'bg-sky-400/15 text-sky-200' : 'text-slate-300 hover:bg-slate-900'}`}>
                   <Icon size={18} />
-                  {t(link.key)}
+                  {link.key === 'betaChecklist' ? 'Beta checklist' : t(link.key)}
                 </NavLink>
               );
             })}
@@ -78,8 +79,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-sm font-medium text-white">{safeName} · {safeRole}</p>
               </div>
               <div className="flex items-center gap-3">
-                <Link to="/support" className="hidden rounded-2xl border border-rose-400/30 px-3 py-2 text-xs font-medium text-rose-100 hover:bg-rose-400/10 sm:inline-flex">Report bug</Link>
-                <Link to="/school-pilot" className="hidden rounded-2xl border border-sky-400/30 px-3 py-2 text-xs font-medium text-sky-100 hover:bg-sky-400/10 md:inline-flex">Request school pilot</Link>
+                <Link to="/report-bug" className="hidden rounded-2xl border border-rose-400/30 px-3 py-2 text-xs font-medium text-rose-100 hover:bg-rose-400/10 sm:inline-flex">Report bug</Link>
+                <Link to="/support" className="hidden rounded-2xl border border-sky-400/30 px-3 py-2 text-xs font-medium text-sky-100 hover:bg-sky-400/10 md:inline-flex">Give feedback</Link><Link to="/school-pilot" className="hidden rounded-2xl border border-emerald-400/30 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-400/10 lg:inline-flex">Request school pilot</Link>
                 <label className="sr-only" htmlFor="locale-switcher">{t('locale')}</label>
                 <select id="locale-switcher" aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}>
                   <option value="en">EN</option>

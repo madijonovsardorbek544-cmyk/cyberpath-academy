@@ -11,6 +11,9 @@ function SupportContent() {
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [category, setCategory] = useState('support');
+  const [confused, setConfused] = useState('');
+  const [improve, setImprove] = useState('');
+  const [wouldRecommend, setWouldRecommend] = useState('maybe');
   const [message, setMessage] = useState('');
   const [usefulnessScore, setUsefulnessScore] = useState('4');
   const [difficulty, setDifficulty] = useState('right_level');
@@ -31,12 +34,14 @@ function SupportContent() {
     setLoading(true);
     setStatusMessage('');
     try {
-      const payload = { name, email, category, message, usefulnessScore: Number(usefulnessScore), difficulty, willingnessToPay, audienceRole, goal };
+      const payload = { name, email, category, message: `${message} Confused: ${confused || 'none'}. Improve: ${improve || 'none'}. Would recommend: ${wouldRecommend}.`, usefulnessScore: Number(usefulnessScore), usefulnessRating: Number(usefulnessScore), difficulty, difficultyRating: difficulty, willingnessToPay, wouldPay: willingnessToPay, wouldRecommend, audienceRole, goal, contentType: 'onboarding', contentId: goal || 'general', confusionNote: confused, missingExplanation: improve, learnerGoal: 'school' }; 
       const response = user
         ? await api.post<{ message: string }>('/platform/my-feedback', payload)
         : await api.post<{ message: string }>('/platform/feedback', payload);
       setStatusMessage(response.message);
       setMessage('');
+      setConfused('');
+      setImprove('');
       if (user) {
         const refreshed = await api.get<{ feedback: FeedbackItem[] }>('/platform/my-feedback');
         setItems(refreshed.feedback);
@@ -59,7 +64,7 @@ function SupportContent() {
             <Select value={category} onChange={(event) => setCategory(event.target.value)}>
               {['support', 'bug', 'content', 'feature', 'billing'].map((item) => <option key={item} value={item}>{item}</option>)}
             </Select>
-            <div className="grid gap-3 sm:grid-cols-2"><Select value={usefulnessScore} onChange={(event) => setUsefulnessScore(event.target.value)}>{['5', '4', '3', '2', '1'].map((score) => <option key={score} value={score}>Usefulness {score}/5</option>)}</Select><Select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{[['too_easy', 'Too easy'], ['right_level', 'Right level'], ['too_hard', 'Too hard']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div><div className="grid gap-3 sm:grid-cols-2"><Select value={willingnessToPay} onChange={(event) => setWillingnessToPay(event.target.value)}>{['yes', 'maybe', 'no'].map((item) => <option key={item} value={item}>Would pay: {item}</option>)}</Select><Select value={audienceRole} onChange={(event) => setAudienceRole(event.target.value)}>{['student', 'parent', 'teacher', 'mentor', 'school_owner'].map((item) => <option key={item} value={item}>{item}</option>)}</Select></div><Input value={goal} onChange={(event) => setGoal(event.target.value)} placeholder="Your goal: class, club, certificate, SOC, GRC, university, etc." /><Textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Was this useful? What confused you? What should be added? Would you recommend it to a classmate or school?" required />
+            <div className="grid gap-3 sm:grid-cols-2"><Select value={usefulnessScore} onChange={(event) => setUsefulnessScore(event.target.value)}>{['5', '4', '3', '2', '1'].map((score) => <option key={score} value={score}>Usefulness {score}/5</option>)}</Select><Select value={difficulty} onChange={(event) => setDifficulty(event.target.value)}>{[['too_easy', 'Too easy'], ['right_level', 'Right level'], ['too_hard', 'Too hard']].map(([value, label]) => <option key={value} value={value}>{label}</option>)}</Select></div><div className="grid gap-3 sm:grid-cols-3"><Select value={wouldRecommend} onChange={(event) => setWouldRecommend(event.target.value)}>{['yes', 'maybe', 'no'].map((item) => <option key={item} value={item}>Would recommend: {item}</option>)}</Select><Select value={willingnessToPay} onChange={(event) => setWillingnessToPay(event.target.value)}>{['yes', 'maybe', 'no'].map((item) => <option key={item} value={item}>Would pay: {item}</option>)}</Select><Select value={audienceRole} onChange={(event) => setAudienceRole(event.target.value)}>{['student', 'parent', 'teacher', 'mentor', 'school leader'].map((item) => <option key={item} value={item}>{item}</option>)}</Select></div><div className="grid gap-3 sm:grid-cols-2"><Textarea value={confused} onChange={(event) => setConfused(event.target.value)} placeholder="What confused you?" /><Textarea value={improve} onChange={(event) => setImprove(event.target.value)} placeholder="What should improve?" /></div><Input value={goal} onChange={(event) => setGoal(event.target.value)} placeholder="Your goal: class, club, certificate, SOC, GRC, university, etc." /><Textarea value={message} onChange={(event) => setMessage(event.target.value)} placeholder="Was this useful? What confused you? What should be added? Would you recommend it to a classmate or school?" required />
             <Button className="bg-sky-400 text-slate-950" disabled={loading}>{loading ? 'Submitting...' : 'Send feedback'}</Button>
           </form>
         </Card>
