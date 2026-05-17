@@ -11,7 +11,7 @@ CyberPath Academy is now closer to a serious controlled beta: the backend seed m
 - Mock smoke test covers public demo, student signup/onboarding/dashboard/skill tree/practice/review/labs/portfolio, mentor cohort dashboard, admin validation metrics, pilot leads, feedback, and reset behavior.
 - Backend tests cover auth, role permissions, feedback, pilot leads, dashboards, labs, tutor safety, skill tree contracts, exercise contracts, content-count gates, lab guardrails, teacher roster scope, heatmap rows/columns, and CSV export.
 - Backend seed now creates 53 lessons, 318 quiz questions, 27 safe labs, 10 guided projects, 157 glossary terms, and all 9 skill-tree categories.
-- Localization is honest: English is the only enabled public beta locale; Uzbek/Russian remain disabled/review-only until complete.
+- Localization is honest: English is the only enabled public beta locale; Uzbek/Russian remain disabled/review-only until complete, with smoke coverage for safe fallback and missing-key reporting.
 - Production builds complete in mock GitHub Pages mode and full monorepo mode.
 
 ## Still missing for 10 real students

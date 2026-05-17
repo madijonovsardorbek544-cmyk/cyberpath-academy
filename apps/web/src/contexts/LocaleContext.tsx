@@ -18,7 +18,7 @@ const dictionaries: Record<Locale, Dict> = {
 
 export const demoLocaleNotice = 'Uzbek and Russian translations are still in review, so the public beta demo is locked to English for now.';
 
-const availableLocales: Locale[] = ['en'];
+export const availableDemoLocales: Locale[] = ['en'];
 const reportedMissingKeys = new Set<string>();
 const missingTranslationKeys: string[] = [];
 
@@ -26,17 +26,28 @@ export function getMissingTranslationKeys() {
   return [...missingTranslationKeys];
 }
 
-function normalizeLocale(value: unknown): Locale {
-  return availableLocales.includes(value as Locale) ? (value as Locale) : 'en';
+export function resolveDemoLocale(value: unknown): Locale {
+  return availableDemoLocales.includes(value as Locale) ? (value as Locale) : 'en';
+}
+
+export function translateDemoKey(locale: Locale, key: string) {
+  const safeLocale = resolveDemoLocale(locale);
+  const translated = dictionaries[safeLocale][key] ?? dictionaries.en[key];
+  if (!translated && !reportedMissingKeys.has(key)) {
+    reportedMissingKeys.add(key);
+    missingTranslationKeys.push(`${safeLocale}:${key}`);
+    if (import.meta.env?.DEV) console.warn(`Missing translation key: ${key}`);
+  }
+  return translated ?? key;
 }
 
 const LocaleContext = createContext<{ locale: Locale; setLocale: (value: Locale) => void; t: (key: string) => string; localeNotice: string; availableLocales: Locale[]; } | null>(null);
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
-  const [locale, setLocaleState] = useState<Locale>(() => normalizeLocale(localStorage.getItem('cyberpath-locale') || import.meta.env.VITE_DEFAULT_LOCALE));
+  const [locale, setLocaleState] = useState<Locale>(() => resolveDemoLocale(localStorage.getItem('cyberpath-locale') || import.meta.env.VITE_DEFAULT_LOCALE));
 
   const setLocale = (value: Locale) => {
-    setLocaleState(normalizeLocale(value));
+    setLocaleState(resolveDemoLocale(value));
   };
 
   useEffect(() => {
@@ -47,17 +58,9 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo(() => ({
     locale,
     setLocale,
-    t: (key: string) => {
-      const translated = dictionaries[locale][key] ?? dictionaries.en[key];
-      if (!translated && !reportedMissingKeys.has(key)) {
-        reportedMissingKeys.add(key);
-        missingTranslationKeys.push(`${locale}:${key}`);
-        if (import.meta.env.DEV) console.warn(`Missing translation key: ${key}`);
-      }
-      return translated ?? key;
-    },
+    t: (key: string) => translateDemoKey(locale, key),
     localeNotice: demoLocaleNotice,
-    availableLocales
+    availableLocales: availableDemoLocales
   }), [locale]);
 
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;

@@ -12,7 +12,7 @@ _Last updated: 2026-05-16._
 - Fictional labs and portfolio artifacts with rubric-style feedback.
 - Mentor/admin dashboards with roster scope tests, heatmaps, lab/artifact review queues, assignment recommendations, and CSV export.
 - Build, backend tests, and mock smoke tests.
-- Localization honesty: English-only public beta, Uzbek/Russian marked review-only.
+- Localization honesty: English-only public beta, Uzbek/Russian marked review-only, with fallback and missing-key reporting smoke coverage.
 
 ## What still needs 10x more work
 

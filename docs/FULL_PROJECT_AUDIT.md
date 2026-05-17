@@ -30,8 +30,8 @@ Reviewed the requested product surface: `apps/web/src/pages`, `apps/web/src/comp
 ## What is unstable
 
 - The backend seed now reaches the beta minimum counts: 53 lessons, 318 quiz questions, 27 safe labs, 10 guided projects, and 157 glossary terms.
-- Browser E2E is still not installed because the registry blocked `@playwright/test` with HTTP 403; route confidence depends on API tests, TypeScript builds, and an expanded mock smoke fallback.
-- Localization is intentionally English-only in the public beta; Uzbek/Russian remain disabled and marked review-only until complete.
+- Browser E2E is still not installed because the registry blocked `@playwright/test` with HTTP 403 during a 2026-05-16 re-check; route confidence depends on API tests, TypeScript builds, and an expanded mock smoke fallback.
+- Localization is intentionally English-only in the public beta; Uzbek/Russian remain disabled and marked review-only until complete. Locale fallback and missing-key reporting are now covered by the mock smoke check.
 - Some frontend pages are large chunks and need component splitting, accessibility review, and mobile QA.
 - Real school privacy, consent, retention, and incident processes are documented but not implemented as enforceable workflows.
 
