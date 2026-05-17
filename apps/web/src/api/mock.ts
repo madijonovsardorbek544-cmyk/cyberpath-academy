@@ -1454,6 +1454,10 @@ function handleGet<T>(path: string): T {
         practiceSessionsCompleted: db.skillExerciseAttempts.length + db.attempts.length,
         labsSubmitted: db.labSubmissions.length,
         usersStuck: db.users.filter((item) => item.role === "student" && !item.roadmapJson).length,
+        usersStuckBeforeFirstLab: db.users.filter((userItem) => userItem.role === "student" && !db.labSubmissions.some((submission) => submission.userId === userItem.id)).length,
+        usersCreatedArtifact: new Set(db.portfolio.map((item) => item.userId)).size,
+        betaJourneyCompletions: db.analyticsEvents.filter((item) => /beta_task_complete|onboarding_complete|practice_submit|lab_submit|artifact_created/.test(item.eventName)).length,
+        teacherPilotInterest: db.pilotLeads.filter((item) => /teacher|mentor|school/i.test(`${item.role} ${item.needsMost} ${item.message || ""}`)).length,
         mostAbandonedPage: db.users.filter((item) => item.role === "student" && !item.roadmapJson).length ? "/onboarding" : "/practice/session",
         waitlistSubmissions: db.waitlist.length,
         pilotLeads: db.pilotLeads.length,
@@ -1478,7 +1482,12 @@ function handleGet<T>(path: string): T {
         wouldRecommend: { yes: db.feedback.filter((item) => /Would recommend: yes/i.test(item.message)).length, maybe: db.feedback.filter((item) => /Would recommend: maybe/i.test(item.message)).length, no: db.feedback.filter((item) => /Would recommend: no/i.test(item.message)).length },
         bugsReported: db.bugReports.length,
         schoolPilotLeads: db.pilotLeads.length,
-        mostConfusingPages: Array.from(new Set(db.feedback.map((item) => item.goal || item.category))).slice(0, 5),
+        mostConfusingPages: Array.from(new Set(db.feedback.map((item) => String(item.contentId || item.goal || item.category || "unknown")).filter(Boolean))).slice(0, 5),
+        topConfusingPages: Array.from(new Set(db.feedback.filter((item) => item.confusionNote || /Confused:/i.test(item.message)).map((item) => String(item.contentId || item.goal || item.category || "unknown")))).slice(0, 5),
+        betaJourneyCompletions: db.analyticsEvents.filter((item) => /beta_task_complete|onboarding_complete|practice_submit|lab_submit|artifact_created/.test(item.eventName)).length,
+        usersStuckBeforeFirstLab: db.users.filter((userItem) => userItem.role === "student" && !db.labSubmissions.some((submission) => submission.userId === userItem.id)).length,
+        usersWhoCreatedArtifact: new Set(db.portfolio.map((item) => item.userId)).size,
+        teacherPilotInterest: db.pilotLeads.filter((item) => /teacher|mentor|school/i.test(`${item.role} ${item.needsMost} ${item.message || ""}`)).length,
         confusionThemes: ["lab checklist clarity", "IAM terminology", "portfolio quality expectations"],
         mostRequestedTopics: ["SOC Level 1", "Cloud IAM", "Uzbek glossary", "School reports"],
         demoConversionSignals: { landingToDemo: 42, demoToWaitlist: 12, schoolPilotRequests: db.pilotLeads.length },
@@ -1572,6 +1581,7 @@ function handlePost<T>(path: string, body: unknown): T {
     authUser.roadmapJson = buildRoadmap(goal, experienceLevel, score);
     authUser.streakDays = authUser.streakDays ?? 0;
     authUser.updatedAt = now();
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: "onboarding_complete", role: authUser.role, page: "/onboarding", createdAt: now() });
     writeDb(db);
     return { user: sanitizeUser(authUser), roadmap: authUser.roadmapJson } as T;
   }
@@ -1671,6 +1681,7 @@ function handlePost<T>(path: string, body: unknown): T {
     };
     const submission: LabSubmission = { id: uid("labsub"), userId: authUser.id, labId: lab.id, answers: data.answers, score: Math.min(100, score), feedback, createdAt: now(), rubricResult, artifactSuggestion: lab.artifactSuggestion ?? { type: "incident-report", title: `${lab.title} artifact`, prompt: "Turn this lab into a mentor-reviewed proof-of-work artifact using fictional evidence only." } } as LabSubmission;
     db.labSubmissions.push(submission);
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: "lab_submit", role: authUser.role, page: `/labs/${lab.slug}`, createdAt: now() });
     writeDb(db);
     return { submission } as T;
   }
@@ -1685,6 +1696,7 @@ function handlePost<T>(path: string, body: unknown): T {
     const scoreDelta = isCorrect ? (mode === "mastery_challenge" ? 12 : mode === "review" ? 8 : 6) : (mode === "mastery_challenge" ? -5 : -2);
     const updatedMastery = applySkillDelta(db, authUser.id, exercise.skillId, scoreDelta, `${mode} ${isCorrect ? "success" : "miss"}`);
     db.skillExerciseAttempts.push({ id: uid("skill_attempt"), userId: authUser.id, skillId: exercise.skillId, exerciseId: exercise.id, mode, isCorrect, scoreDelta, createdAt: now() });
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: mode === "review" ? "review_submit" : "practice_submit", role: authUser.role, page: `/practice/${exercise.skillId}`, createdAt: now() });
     if (!isCorrect) {
       db.mistakes.push({ id: uid("mistake"), userId: authUser.id, questionId: exercise.id, topic: skillCatalog.find((item) => item.id === exercise.skillId)?.title ?? exercise.skillId, subtopic: exercise.type, prompt: exercise.prompt, explanation: exercise.explanation, userAnswer: data.answer, correctAnswer: exercise.correctAnswer ?? exercise.rubric, repeatCount: 1, createdAt: now(), lastSeenAt: now(), notes: "Created by adaptive practice engine." });
     }
@@ -1728,6 +1740,7 @@ function handlePost<T>(path: string, body: unknown): T {
       updatedAt: now()
     };
     db.portfolio.unshift(artifact);
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: "artifact_created", role: authUser.role, page: "/portfolio", createdAt: now() });
     writeDb(db);
     return { artifact, portfolio: db.portfolio.filter((item) => item.userId === authUser.id && item.id) } as T;
   }
@@ -1825,8 +1838,8 @@ function handlePost<T>(path: string, body: unknown): T {
   }
 
   if (path === "/platform/analytics/event") {
-    const data = body as { eventName?: string; role?: string };
-    db.analyticsEvents.unshift({ id: uid("event"), eventName: data.eventName || "demo_event", role: data.role, createdAt: now() });
+    const data = body as { eventName?: string; role?: string; page?: string };
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: data.eventName || "demo_event", role: data.role, page: data.page, createdAt: now() });
     writeDb(db);
     return { ok: true } as T;
   }
@@ -1847,10 +1860,16 @@ function handlePost<T>(path: string, body: unknown): T {
       willingnessToPay: data.willingnessToPay ?? null,
       audienceRole: data.audienceRole ?? null,
       goal: data.goal ?? null,
+      contentType: data.contentType ?? null,
+      contentId: data.contentId ?? null,
+      confusionNote: data.confusionNote ?? null,
+      missingExplanation: data.missingExplanation ?? null,
+      learnerGoal: data.learnerGoal ?? null,
       createdAt: now(),
       updatedAt: now()
     };
     db.feedback.unshift(item);
+    db.analyticsEvents.unshift({ id: uid("event"), eventName: "feedback_submit", role: item.audienceRole || undefined, page: item.contentId || item.goal || undefined, createdAt: now() });
     writeDb(db);
     return { message: "Thanks — demo feedback was saved locally.", feedback: item } as T;
   }

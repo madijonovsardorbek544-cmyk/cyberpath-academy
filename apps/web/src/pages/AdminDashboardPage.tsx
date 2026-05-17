@@ -84,6 +84,10 @@ export function AdminDashboardPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Labs submitted: {data.stats.labsSubmitted ?? 0}</div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Feedback submitted: {data.stats.feedbackSubmitted ?? data.validationMetrics?.totalFeedback ?? 0}</div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Users stuck: {data.stats.usersStuck ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Stuck before first lab: {data.stats.usersStuckBeforeFirstLab ?? data.validationMetrics?.usersStuckBeforeFirstLab ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Users with artifacts: {data.stats.usersCreatedArtifact ?? data.validationMetrics?.usersWhoCreatedArtifact ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Beta task completions: {data.stats.betaJourneyCompletions ?? data.validationMetrics?.betaJourneyCompletions ?? 0}</div>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Teacher pilot interest: {data.stats.teacherPilotInterest ?? data.validationMetrics?.teacherPilotInterest ?? 0}</div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">Most abandoned page: {data.stats.mostAbandonedPage ?? 'Not enough data'}</div>
             </div>
           </Card>

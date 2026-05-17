@@ -28,3 +28,21 @@ body {
 input, textarea, select, button {
   font: inherit;
 }
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  min-width: 320px;
+}
+
+a, button, input, select, textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 640px) {
+  .shadow-premium {
+    box-shadow: none;
+  }
+}

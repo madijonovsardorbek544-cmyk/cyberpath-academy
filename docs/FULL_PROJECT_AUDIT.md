@@ -1,94 +1,96 @@
 # Full Project Audit — CyberPath Academy
 
-_Last audited: 2026-05-16._
+_Last audited: 2026-05-17._
 
 ## Scope audited
 
-Reviewed the requested product surface: `apps/web/src/pages`, `apps/web/src/components`, `apps/web/src/api/mock.ts`, `apps/web/src/types`, `apps/web/src/app/App.tsx`, `apps/web/scripts/smokeMockDemo.ts`, `apps/server/src/routes`, `apps/server/src/lib/db.ts`, `apps/server/src/utils`, `apps/server/prisma/seed.ts`, `apps/server/tests`, `.github/workflows`, `README.md`, and `docs`.
+Reviewed the requested beta-critical product surface: public landing, pricing, safety, school pilot, support, bug report, public artifact; student signup, onboarding, dashboard, skill tree, skill detail, practice, review, paths, lessons, quiz/practice submit, labs, lab detail, lab submit, portfolio, artifact publish/unpublish, billing, feedback, logout; teacher demo login, dashboard, cohort overview, mastery heatmap, student table, student report, assignment recommendations, lab review, artifact review, CSV export, feedback; admin demo login, founder dashboard, pilot leads, bug reports, feedback analytics, validation metrics, content quality signals, and platform ops.
 
-## What currently works
+Files reviewed included `docs/FULL_PROJECT_AUDIT.md`, `docs/BETA_READINESS.md`, `docs/KHAN_ACADEMY_LEVEL_ROADMAP.md`, `docs/E2E_TESTING_PLAN.md`, `apps/web/src/app/App.tsx`, `apps/web/src/pages`, `apps/web/src/components`, `apps/web/src/api/mock.ts`, `apps/web/scripts/smokeMockDemo.ts`, and `apps/server/tests/server.test.ts`.
 
-- Public mock demo can run without a backend and passes the smoke script.
-- Full-stack server tests pass against a seeded SQLite database.
-- Student flows exist for onboarding, dashboard, learning paths, lessons, labs, portfolio, mistakes, review, skill tree, and practice sessions.
-- Mentor/admin routes exist with cohort dashboard data, alerts, assignments, feedback, content validation metrics, pilot leads, billing metadata, and school-pilot administration.
-- Safety framing exists in public pages, lab guardrails, tutor refusal tests, and curriculum verification.
-- Production-oriented primitives exist: helmet/CORS/rate-limit middleware, health endpoints, seed scripts, backup script, Docker/Render config, and deployment documentation.
+## Real user-flow findings
+
+| Area | What should user do next? | CTA clarity | Empty/error state | Mobile | Founder-help risk |
+|---|---|---|---|---|---|
+| Public pages | Start demo, read safety, request pilot, report/support | Clear enough | Bug/support recoverable | Mostly good | Low |
+| Student onboarding/dashboard | Complete diagnostic, follow next action | Improved by dashboard and beta helper text | Recoverable dashboard error states | Good enough for beta | Medium-low |
+| Skill/practice/review/lesson | Answer one question, read feedback, continue/review | Clear | Practice feedback explains why | Needs real-device pass | Medium |
+| Labs/portfolio | Submit fictional defensive evidence, create artifact | Clear after guardrails | Lab rubric helps recovery | Terminal remains risk | Medium |
+| Teacher dashboard | Find weak students, review heatmap/labs/artifacts, export CSV | Improved with mobile cards | Empty states are present in several queues | Table/heatmap now safer | Medium |
+| Admin dashboard | Inspect feedback, bugs, pilot leads, validation metrics | Clear for founder/admin | Queues display seeded/demo data | Operational, not phone-first | Low for founder |
+
+## UX problems found and fixed
+
+- Users needed an obvious way to report confusion from complex signed-in pages; added page-level beta actions with “Was this confusing?”, “Report bug”, and page-name copy.
+- Login and bug-report forms relied on placeholders; added explicit labels and error messaging.
+- App-shell navigation could crowd mobile screens; made it horizontally scrollable/wrapping for small screens.
+- Teacher dashboard table and heatmap were too desktop-heavy; added mobile summary cards and clear scroll affordances.
+- Admin metrics did not expose enough beta-observation signals; mock admin overview now includes confusing pages, beta completions, stuck-before-first-lab, artifact creators, and teacher pilot interest.
+
+## Accessibility hardening
+
+- Added reusable `FormField`, `ErrorMessage`, `AccessibleCardAction`, `PageHeader`, `EmptyState`, and `LoadingRegion` primitives.
+- Loading states now announce with `role="status"`.
+- Touch targets and focus states were strengthened.
+- Critical forms now use labels instead of placeholder-only UX.
+- Remaining risk: no automated axe run or manual screen-reader pass has been completed yet.
+
+## Mobile hardening
+
+- Mobile nav no longer crushes layout.
+- Header actions wrap.
+- Inputs avoid iOS zoom by using text-base on mobile.
+- Teacher table/heatmap have mobile summaries.
+- Remaining risk: lab terminal and admin JSON editors need real phone testing.
+
+## Content readability review
+
+Seed content is safe and generally beginner-oriented, but still needs human editorial review to remove generic wording, shorten explanations, and add classroom-specific examples. See `docs/CONTENT_EDITORIAL_REVIEW.md`.
 
 ## What is mock-only
 
-- GitHub Pages style demo data is entirely browser-local and can be reset; it is suitable for portfolio demos, not real schools.
-- Mock accounts, mock payment/subscription state, mock artifacts, mock cohort activity, and mock pilot leads do not persist to a production database.
-- Mock mastery and practice are deterministic approximations and should not be represented as learner-validated adaptive learning.
-- Browser-only demo routes intentionally bypass real authentication and school data policies.
+- GitHub Pages style demo data is browser-local and resettable.
+- Demo accounts, payments, cohorts, artifacts, pilot leads, feedback, bugs, and validation metrics in mock mode are not production records.
+- Mastery/practice metrics are directional and not validated learning outcomes.
 
-## What works in full-stack backend mode
+## What blocks beta users now
 
-- Authentication, password reset email queuing, role enforcement, CSRF/origin checks, public feedback, pilot lead storage, learning dashboard, paths, labs, lesson progress, quiz submission, lab submission scoring, portfolio artifacts, skill tree, exercise listing, adaptive practice submission, mentor dashboard, admin overview, and content feedback summary.
-- The backend now exposes the same nine defensive skill-tree categories and exercise type catalog as mock mode.
-
-## What is unstable
-
-- The backend seed now reaches the beta minimum counts: 53 lessons, 318 quiz questions, 27 safe labs, 10 guided projects, and 157 glossary terms.
-- Browser E2E is still not installed because the registry blocked `@playwright/test` with HTTP 403 during a 2026-05-16 re-check; route confidence depends on API tests, TypeScript builds, and an expanded mock smoke fallback.
-- Localization is intentionally English-only in the public beta; Uzbek/Russian remain disabled and marked review-only until complete. Locale fallback and missing-key reporting are now covered by the mock smoke check.
-- Some frontend pages are large chunks and need component splitting, accessibility review, and mobile QA.
-- Real school privacy, consent, retention, and incident processes are documented but not implemented as enforceable workflows.
-
-## What is incomplete
-
-- Content-count target is met in the default backend seed, but the expanded content still needs human editorial review and real learner feedback.
-- Teacher dashboard is useful for demo/pilot discovery but lacks polished assignment lifecycle UX, printable reports with signatures, scheduled exports, and real SIS/LMS integrations.
-- Mastery uses meaningful signals but has not been validated with real learner outcome data.
-- Exercise engine supports the target exercise types in contract/catalog form, but authoring/review tooling remains shallow.
-- Production payments, email delivery, monitoring, backups, restore drills, and school consent are not wired to real providers.
-
-## What is fake-looking or must be positioned carefully
-
-- Any demo numbers, cohort activity, artifacts, and dashboards are seeded examples unless a real school deployment is connected.
-- “AI tutor” is safe and scoped, but without a live provider integration it is primarily guided/static behavior.
-- Billing/pricing should be shown as validation/planning, not live purchase readiness.
-- Public artifacts are demo artifacts unless they come from a real learner submission.
-
-## What blocks beta users
-
-1. No real browser E2E coverage for 30–60 minute student sessions because Playwright installation is blocked by registry policy.
-2. Limited accessibility/mobile validation.
-3. Expanded backend content needs human review and learner validation before sustained cohorts.
-4. No real monitoring/error tracking in deployed environments.
-5. Teacher workflows need field testing with real mentors.
+1. No real browser E2E because Playwright package access remains blocked by registry policy.
+2. No completed real-device mobile QA report.
+3. No completed manual screen-reader pass.
+4. Expanded content needs human editorial review.
+5. No production monitoring/error tracking.
 
 ## What blocks public launch
 
-1. Privacy, parent/school consent, retention, DPA, terms, and production incident processes are not implemented end-to-end.
-2. Payments are not production-ready and should not collect card data.
-3. No production monitoring/alerting/error tracking provider is configured.
-4. Backups exist as a script but restore drills and managed database policy are not proven.
-5. Content review pipeline needs accountable reviewers and versioned publishing gates.
+1. Privacy/consent/retention/DPA/incident workflows are not operationalized.
+2. Payments are validation/demo only.
+3. Production monitoring, backups, and restore drills are not proven.
+4. Content review workflow is not staffed.
+5. Teacher onboarding/support is not mature enough for unsupervised schools.
 
 ## What blocks Khan Academy-level quality
 
-- Content volume and depth must expand by at least 10x.
-- Mastery algorithms need learner outcome validation and longitudinal data.
-- Teacher dashboard needs repeated school pilots and export/reporting polish.
-- Accessibility, localization, mobile reliability, and offline behavior need systematic QA.
-- Exercise authoring, analytics, spaced review, and knowledge graph tooling need dedicated product cycles.
+- 10x+ content depth and breadth.
+- Longitudinal learner outcome validation for mastery.
+- Repeated school pilots and teacher workflow iteration.
+- Fully verified accessibility, mobile, localization, offline/reliability, and analytics.
+- Mature authoring/review tooling and support operations.
 
-## Honest scores after this upgrade
+## Honest scores after this audit
 
 | Category | Score | Evidence | Main blocker |
 |---|---:|---|---|
-| Architecture | 7/10 | Typed frontend contracts, backend route tests, mock smoke tests, shared skill tree parity improved, and teacher CSV/roster checks added. | Shared contracts still live mainly in web types; no generated OpenAPI/Zod contract package. |
-| Demo/product idea | 8/10 | Strong public landing/safety/pilot/pricing/demo surfaces and mock reset flow. | Needs real user proof and browser E2E CTA coverage. |
-| Learning depth | 7/10 | Backend seed now has 53 lessons with objectives, examples, checks, mistakes, and related practice coverage. | Human editorial review and learner evidence are still immature. |
-| Exercise system | 7/10 | 318 backend quiz questions plus 11 exercise types represented in practice/review/mastery/lab-prep routes. | Authoring/review analytics and large calibrated item bank are immature. |
-| Mastery system | 7/10 | Mastery states, weak skills, review debt, next skill, practice deltas, and dashboard next actions exist. | Needs validated weighting and real learner calibration. |
-| Teacher dashboard | 7/10 | Cohort dashboard, heatmap rows/columns, roster scope tests, lab/artifact review, assignment recommendations, and CSV export exist. | Printable reports and field-tested assignment lifecycle need production polish. |
-| Content quality | 7/10 | Seed validates 50+ lessons, 300+ questions, 27 labs, 10 projects, 120+ glossary terms, fictional datasets, and guardrails. | Human review workflow and classroom validation remain insufficient. |
-| Reliability for beta users | 7/10 | Build/test/smoke pass; mock route coverage is broader and backend quality gates are stronger. | Browser E2E blocked by registry policy; no mobile/accessibility matrix. |
-| Production readiness | 6/10 | Security middleware, health, Docker/Render, backup docs, and CI smoke/build/test exist. | Real providers, monitoring, restore drills, consent workflows absent. |
-| Khan Academy-level maturity | 4/10 | Stronger beta vertical slice with minimum content counts. | Needs years of content, data, accessibility, localization, and school validation. |
+| Architecture | 7/10 | Typed frontend, backend tests, mock smoke, role-based flows | Production ops maturity |
+| Student beta UX | 7/10 | Next actions, practice/lab/portfolio flows, feedback hooks | Real-user observation needed |
+| Teacher beta UX | 7/10 | Cohort metrics, heatmap, risk table, review queues, export | Field testing with teachers |
+| Accessibility | 6/10 | Reusable primitives, labels, focus/touch/loading fixes | Manual AT/axe pass missing |
+| Mobile | 6.5/10 | Shell/form/table/heatmap fixes | Real device QA missing |
+| Content | 6/10 | Safe defensive seed volume | Human editorial review needed |
+| Safety | 8/10 | Defensive-only framing and toy labs | Ongoing content review |
+| Paid readiness | 3/10 | Pricing exists but not production billing | Legal/payment/support ops |
+| Controlled beta readiness | 7/10 | Suitable for 10 students + 2 teachers with observation | Must remain moderated |
 
-## Bottom line
+## Final decision
 
-CyberPath Academy is a credible defensive cybersecurity learning platform prototype with a meaningful full-stack vertical slice. It is not yet a Khan Academy-level product, not ready for paid school launch, and not ready to claim production maturity. It is ready to keep iterating toward a controlled beta if the team treats the remaining roadmap as required work rather than marketing copy.
+CyberPath Academy is ready for **controlled beta testing with 10 real students and 2 teachers** if the team follows the manual QA script, collects feedback/bug reports, and does not sell or represent the app as production-ready school software.

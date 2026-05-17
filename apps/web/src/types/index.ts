@@ -232,6 +232,11 @@ export type FeedbackItem = {
   willingnessToPay?: 'yes' | 'maybe' | 'no' | string | null;
   audienceRole?: 'student' | 'parent' | 'teacher' | 'mentor' | 'school_owner' | string | null;
   goal?: string | null;
+  contentType?: string | null;
+  contentId?: string | null;
+  confusionNote?: string | null;
+  missingExplanation?: string | null;
+  learnerGoal?: string | null;
   createdAt: string;
   updatedAt?: string;
 };

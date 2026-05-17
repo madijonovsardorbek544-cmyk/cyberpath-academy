@@ -3,12 +3,13 @@ import { Link, useLocation } from 'react-router-dom';
 import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { useAuth } from '../contexts/AuthContext';
-import { Button, Card, Input, SectionTitle, Select, Textarea } from '../components/ui';
+import { Button, Card, FormField, Input, SectionTitle, Select, Textarea } from '../components/ui';
 
 function BugReportContent() {
   const { user } = useAuth();
   const location = useLocation();
-  const [form, setForm] = useState({ page: location.pathname, happened: '', expected: '', deviceBrowser: navigator.userAgent, screenshotNote: '', contact: user?.email || '', severity: 'medium' });
+  const params = new URLSearchParams(location.search);
+  const [form, setForm] = useState({ page: params.get('page') || location.pathname, happened: '', expected: '', deviceBrowser: navigator.userAgent, screenshotNote: '', contact: user?.email || '', severity: 'medium' });
   const [message, setMessage] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
@@ -33,13 +34,13 @@ function BugReportContent() {
       {message ? <Card className="p-4 text-sm text-emerald-300">{message}</Card> : null}
       <Card className="p-6">
         <form className="space-y-4" onSubmit={submit}>
-          <div className="grid gap-3 sm:grid-cols-2"><Input required value={form.page} onChange={(e) => setForm({ ...form, page: e.target.value })} placeholder="Page or URL" /><Select value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="blocking">Blocking</option></Select></div>
-          <Textarea required value={form.happened} onChange={(e) => setForm({ ...form, happened: e.target.value })} placeholder="What happened?" />
-          <Textarea required value={form.expected} onChange={(e) => setForm({ ...form, expected: e.target.value })} placeholder="What did you expect?" />
-          <Input required value={form.deviceBrowser} onChange={(e) => setForm({ ...form, deviceBrowser: e.target.value })} placeholder="Device/browser" />
-          <Input value={form.screenshotNote} onChange={(e) => setForm({ ...form, screenshotNote: e.target.value })} placeholder="Screenshot placeholder or filename (optional)" />
-          <Input value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder="Optional contact" />
-          <Button disabled={submitting} className="bg-rose-400 text-slate-950">{submitting ? 'Submitting...' : 'Submit bug report'}</Button>
+          <div className="grid gap-3 sm:grid-cols-2"><FormField id="bug-page" label="Page or URL"><Input id="bug-page" required value={form.page} onChange={(e) => setForm({ ...form, page: e.target.value })} placeholder="/labs/demo-access-review" /></FormField><FormField id="bug-severity" label="Severity"><Select id="bug-severity" value={form.severity} onChange={(e) => setForm({ ...form, severity: e.target.value })}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option><option value="blocking">Blocking</option></Select></FormField></div>
+          <FormField id="bug-happened" label="What happened?"><Textarea id="bug-happened" required value={form.happened} onChange={(e) => setForm({ ...form, happened: e.target.value })} placeholder="Describe the broken or confusing behavior." /></FormField>
+          <FormField id="bug-expected" label="What did you expect?"><Textarea id="bug-expected" required value={form.expected} onChange={(e) => setForm({ ...form, expected: e.target.value })} placeholder="Describe the outcome you expected." /></FormField>
+          <FormField id="bug-device" label="Device/browser"><Input id="bug-device" required value={form.deviceBrowser} onChange={(e) => setForm({ ...form, deviceBrowser: e.target.value })} placeholder="iPhone Safari, Chromebook Chrome, etc." /></FormField>
+          <FormField id="bug-screenshot" label="Screenshot note" hint="Optional: filename or what the screenshot shows."><Input id="bug-screenshot" value={form.screenshotNote} onChange={(e) => setForm({ ...form, screenshotNote: e.target.value })} placeholder="screenshot-lab-submit.png" /></FormField>
+          <FormField id="bug-contact" label="Optional contact"><Input id="bug-contact" value={form.contact} onChange={(e) => setForm({ ...form, contact: e.target.value })} placeholder="email@example.com" /></FormField>
+          <Button type="submit" disabled={submitting} className="bg-rose-400 text-slate-950">{submitting ? 'Submitting...' : 'Submit bug report'}</Button>
         </form>
       </Card>
     </div>
