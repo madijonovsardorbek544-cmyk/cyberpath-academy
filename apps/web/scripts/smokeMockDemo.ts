@@ -13,7 +13,7 @@ class MemoryStorage {
 globalThis.localStorage = new MemoryStorage() as Storage;
 
 const { mockApi, resetMockDemoData } = await import('../src/api/mock');
-const { demoLocaleNotice } = await import('../src/contexts/LocaleContext');
+const { demoLocaleNotice, getMissingTranslationKeys, resolveDemoLocale, translateDemoKey } = await import('../src/contexts/LocaleContext');
 
 async function login(email: string, password: string) {
   const response = await mockApi.post<{ user: { email: string; role: string } }>('/auth/login', { email, password });
@@ -180,6 +180,10 @@ const admin = await mockApi.get<any>('/admin/overview');
 assert.ok(admin.validationMetrics, 'admin overview missing validation metrics');
 assert.ok(admin.pilotLeads.length >= 1, 'admin overview missing pilot lead pipeline');
 assert.match(demoLocaleNotice, /locked to English/i, 'partial locales should be clearly marked as English-only');
+assert.equal(resolveDemoLocale('uz'), 'en', 'UZ switch should fall back safely while translations are review-only');
+assert.equal(translateDemoKey('uz', 'dashboard'), 'Dashboard', 'review-only locale should render English core labels instead of crashing');
+assert.equal(translateDemoKey('en', 'smoke.missing.translation'), 'smoke.missing.translation', 'missing translation keys should fall back to the key name');
+assert.ok(getMissingTranslationKeys().includes('en:smoke.missing.translation'), 'missing translation keys should be reported for QA');
 const pilotAdmin = await mockApi.get<any>('/platform/pilot-leads');
 assert.ok(pilotAdmin.pilotLeads.length >= 1, 'admin pilot lead review route missing');
 await assertRoutes(['/admin/overview', '/platform/pilot-leads', '/mentor/cohort-dashboard', '/mentor/students', '/mentor/feedback', '/mentor/alerts', '/mentor/cohorts', '/mentor/assignments', '/learning/dashboard', '/learning/paths', '/learning/labs', '/learning/practice-hub', '/learning/portfolio']);
