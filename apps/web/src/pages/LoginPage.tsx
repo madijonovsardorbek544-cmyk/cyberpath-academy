@@ -1,7 +1,7 @@
 import { FormEvent, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { Button, Card, Input, SectionTitle } from "../components/ui";
+import { Button, Card, ErrorMessage, FormField, Input, SectionTitle } from "../components/ui";
 import { isMockApiMode } from "../api/client";
 
 export function LoginPage() {
@@ -79,15 +79,15 @@ export function LoginPage() {
         </div>
         <Card className="p-6 sm:p-8">
           <div className="mb-6 flex gap-3">
-            <button className={`rounded-2xl px-4 py-2 text-sm ${mode === "login" ? "bg-sky-400 text-slate-950" : "bg-slate-900 text-slate-300"}`} onClick={() => setMode("login")}>Login</button>
-            <button className={`rounded-2xl px-4 py-2 text-sm ${mode === "signup" ? "bg-sky-400 text-slate-950" : "bg-slate-900 text-slate-300"}`} onClick={() => setMode("signup")}>Sign up</button>
+            <button type="button" className={`min-h-11 rounded-2xl px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${mode === "login" ? "bg-sky-400 text-slate-950" : "bg-slate-900 text-slate-300"}`} onClick={() => setMode("login")} aria-pressed={mode === "login"}>Login</button>
+            <button type="button" className={`min-h-11 rounded-2xl px-4 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${mode === "signup" ? "bg-sky-400 text-slate-950" : "bg-slate-900 text-slate-300"}`} onClick={() => setMode("signup")} aria-pressed={mode === "signup"}>Sign up</button>
           </div>
           <form className="space-y-4" onSubmit={submit}>
-            {mode === "signup" ? <Input placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required /> : null}
-            <Input placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <Input placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-            {error ? <p className="text-sm text-rose-300">{error}</p> : null}
-            <Button className="w-full bg-sky-400 text-slate-950" disabled={loading}>{loading ? "Working..." : mode === "login" ? "Login" : "Create account"}</Button>
+            {mode === "signup" ? <FormField id="signup-name" label="Full name"><Input id="signup-name" autoComplete="name" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required /></FormField> : null}
+            <FormField id="auth-email" label="Email"><Input id="auth-email" autoComplete="email" placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></FormField>
+            <FormField id="auth-password" label="Password" hint="Demo passwords are prefilled in mock mode."><Input id="auth-password" autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></FormField>
+            {error ? <ErrorMessage>{error}</ErrorMessage> : null}
+            <Button type="submit" className="w-full bg-sky-400 text-slate-950" disabled={loading}>{loading ? "Working..." : mode === "login" ? "Login" : "Create account"}</Button>
           </form>
           <div className="mt-4 text-sm text-slate-400">
             Need a reset token flow? <Link className="text-sky-300" to="/reset-password">Open password reset</Link>

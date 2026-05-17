@@ -3,6 +3,7 @@ import { Moon, Shield, Sun, LayoutDashboard, GraduationCap, FlaskConical, Notebo
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
+import { PageBetaActions } from './BetaMode';
 import { Button, Loader } from './ui';
 
 const studentLinks = [
@@ -54,11 +55,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               <div className="text-xs text-slate-400">{t('adaptive')}</div>
             </div>
           </Link>
-          <nav className="mt-6 grid gap-2" aria-label="Primary navigation">
+          <nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:grid lg:overflow-visible lg:pb-0" aria-label="Primary navigation">
             {roleLinks.map((link) => {
               const Icon = link.icon;
               return (
-                <NavLink key={link.to} to={link.to} className={({ isActive }) => `flex items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${isActive ? 'bg-sky-400/15 text-sky-200' : 'text-slate-300 hover:bg-slate-900'}`}>
+                <NavLink key={link.to} to={link.to} className={({ isActive }) => `flex min-w-max items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${isActive ? 'bg-sky-400/15 text-sky-200' : 'text-slate-300 hover:bg-slate-900'}`}>
                   <Icon size={18} />
                   {link.key === 'betaChecklist' ? 'Beta checklist' : t(link.key)}
                 </NavLink>
@@ -78,7 +79,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{t('signedInAs')}</p>
                 <p className="text-sm font-medium text-white">{safeName} · {safeRole}</p>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
                 <Link to="/report-bug" className="hidden rounded-2xl border border-rose-400/30 px-3 py-2 text-xs font-medium text-rose-100 hover:bg-rose-400/10 sm:inline-flex">Report bug</Link>
                 <Link to="/support" className="hidden rounded-2xl border border-sky-400/30 px-3 py-2 text-xs font-medium text-sky-100 hover:bg-sky-400/10 md:inline-flex">Give feedback</Link><Link to="/school-pilot" className="hidden rounded-2xl border border-emerald-400/30 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-400/10 lg:inline-flex">Request school pilot</Link>
                 <label className="sr-only" htmlFor="locale-switcher">{t('locale')}</label>
@@ -88,7 +89,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <option value="ru" disabled>RU (review)</option>
                 </select>
                 <span className="hidden max-w-[220px] text-xs text-slate-500 xl:inline" title={localeNotice}>English beta</span>
-                <button className="rounded-2xl border border-slate-700 p-3" onClick={toggleTheme} aria-label="Toggle theme">
+                <button className="min-h-11 rounded-2xl border border-slate-700 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" onClick={toggleTheme} aria-label="Toggle theme">
                   {dark ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
                 <Button className="bg-slate-200 text-slate-950" onClick={async () => { await logout(); navigate('/'); }}>
@@ -97,7 +98,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
           </header>
-          <main id="main-content" className="px-4 py-6 sm:px-6 lg:px-8">{children}</main>
+          <main id="main-content" className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">{children}<PageBetaActions pageName={window.location.hash || window.location.pathname} /></main>
         </div>
       </div>
     </div>
