@@ -1,0 +1,56 @@
+# Production-optimized multi-stage build
+FROM node:22-alpine AS dependencies
+WORKDIR /app
+
+# Install only production dependencies
+COPY package*.json ./
+COPY apps/server/package*.json apps/server/
+COPY apps/web/package*.json apps/web/
+RUN npm ci --only=production --ignore-scripts
+
+FROM node:22-alpine AS builder
+WORKDIR /app
+
+# Install all dependencies for building
+COPY package*.json ./
+COPY apps/server/package*.json apps/server/
+COPY apps/web/package*.json apps/web/
+RUN npm ci --ignore-scripts
+
+# Copy source code
+COPY . .
+
+# Build
+RUN npm run build && npm run db:setup
+
+FROM node:22-alpine AS runtime
+WORKDIR /app
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=256"
+
+# Install dumb-init for proper signal handling
+RUN apk add --no-cache dumb-init
+
+# Copy production dependencies
+COPY --from=dependencies /app/node_modules ./node_modules
+COPY --from=dependencies /app/apps/server/node_modules ./apps/server/node_modules
+
+# Copy built application
+COPY --from=builder /app/apps/server/dist ./apps/server/dist
+COPY --from=builder /app/apps/web/dist ./apps/web/dist
+COPY --from=builder /app/apps/server/data ./apps/server/data
+
+# Create data directory with proper permissions
+RUN mkdir -p /app/data && chmod 755 /app/data
+
+# Copy necessary files
+COPY package.json .
+
+EXPOSE 4000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD wget -qO- http://127.0.0.1:4000/api/health || exit 1
+
+ENTRYPOINT ["dumb-init", "--"]
+CMD ["npm", "start"]
