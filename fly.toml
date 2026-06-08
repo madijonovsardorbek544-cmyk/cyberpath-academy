@@ -1,0 +1,45 @@
+# Fly.io configuration for cyberpath-academy
+app = "cyberpath-academy"
+primary_region = "lhr"
+
+[build]
+  image = "node:22-alpine"
+
+[env]
+  NODE_ENV = "production"
+  LOG_LEVEL = "info"
+
+[mounts]
+  source = "cyberpath_data"
+  destination = "/app/data"
+
+[services]
+  processes = ["app"]
+
+  [[services.ports]]
+    handlers = ["http"]
+    port = 4000
+    force_https = true
+
+  [services.concurrency]
+    type = "requests"
+    hard_limit = 100
+    soft_limit = 80
+
+[[vm]]
+  size = "shared-cpu-1x"
+  processes = ["app"]
+
+[[processes]]
+  name = "app"
+  cmd = "npm start"
+
+[checks]
+  [checks.status]
+    type = "http"
+    interval = "10s"
+    timeout = "5s"
+    grace_period = "20s"
+    method = "GET"
+    path = "/api/health"
+    expected_http_status = 200
