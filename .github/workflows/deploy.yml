@@ -1,21 +1,42 @@
-name: Sync to Hugging Face Spaces
+name: Deploy to Hugging Face Spaces
 
 on:
   push:
-    branches: [ main ]
+    branches: [main, master]
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          lfs: true
+
+      - name: Setup Git Configuration
+        run: |
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+
+      - name: Clean Offending Binary Files
+        run: |
+          # Hugging Face rad etayotgan barcha .db va .png fayllarni Git tarixidan va papkadan vaqtincha o'chirish
+          rm -rf apps/server/data/*.db
+          rm -rf apps/server/apps/server/data/*.db
+          rm -rf apps/server/data/backups/*.db
+          rm -rf docs/assets/*.png
+          
+          # Git keshini tozalash (Hugging Face sezib qolmasligi uchun)
+          git rm --cached apps/server/data/cyberpath.db || true
+          git rm --cached apps/server/apps/server/data/cyberpath.db || true
+          git rm --cached apps/server/data/backups/*.db || true
+          git rm --cached docs/assets/*.png || true
+          
+          git commit -m "chore: remove binary files for huggingface deployment" || true
 
       - name: Push to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
+          # Hugging Face omborini sozlash va majburiy yuklash (force push)
           git push --force https://madijonov111:$HF_TOKEN@huggingface.co/spaces/madijonov111/cyberpath-academy main
