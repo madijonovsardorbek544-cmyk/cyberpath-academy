@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { assignmentStudentPatchSchema, labSubmitSchema, learnerProjectPatchSchema, lessonCompleteSchema, onboardingSchema, portfolioPatchSchema, portfolioSchema, practiceModeSchema, practiceSubmitSchema, quizSubmitSchema, reviewOutcomeSchema, sessionSchema } from '@cyberpath/contracts';
 import { z } from 'zod';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { buildRoadmap } from '../utils/roadmap.js';
@@ -42,60 +43,6 @@ import { buildSkillTree, exerciseCatalog, getMasterySummary, getPracticeSession,
 
 const router = Router();
 
-const onboardingSchema = z.object({
-  goal: z.string().min(2).max(80),
-  experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']),
-  score: z.number().min(0).max(100)
-});
-
-const lessonCompleteSchema = z.object({
-  completed: z.boolean(),
-  timeSpentMinutes: z.number().min(0).max(1000)
-});
-
-const quizSubmitSchema = z.object({
-  lessonId: z.string().min(2),
-  answers: z.record(z.any()),
-  timeSpentMinutes: z.number().min(0).max(1000).default(0)
-});
-
-const labSubmitSchema = z.object({ answers: z.record(z.any()) });
-const sessionSchema = z.object({ minutes: z.number().min(1).max(240), lessonId: z.string().optional() });
-const portfolioSchema = z.object({
-  title: z.string().min(3).max(120),
-  artifactType: z.enum(['incident-report', 'phishing-triage-note', 'access-review-memo', 'password-policy-audit', 'secure-code-review-summary', 'cloud-iam-review', 'risk-register', 'executive-summary', 'capstone-plan', 'secure-code-review', 'iam-review']),
-  specialization: z.string().min(2).max(80),
-  summary: z.string().min(20).max(2000),
-  deliverables: z.array(z.string().min(2)).min(1).max(10),
-  evidenceUrl: z.string().url().optional().or(z.literal('')).nullable(),
-  scenario: z.string().max(2000).optional().default(''),
-  evidenceUsed: z.array(z.string().min(1)).max(20).optional().default([]),
-  riskExplanation: z.string().max(2000).optional().default(''),
-  defensiveRecommendations: z.string().max(2000).optional().default(''),
-  reflection: z.string().max(2000).optional().default(''),
-  sourceLabSubmissionId: z.string().optional().nullable()
-});
-const portfolioPatchSchema = portfolioSchema.partial().extend({
-  status: z.enum(['draft', 'in_review', 'published']).optional(),
-  mentorFeedback: z.string().max(1000).optional().nullable()
-});
-
-const reviewOutcomeSchema = z.object({ success: z.boolean() });
-const learnerProjectPatchSchema = z.object({
-  status: z.enum(['not_started', 'in_progress', 'in_review', 'done']).optional(),
-  checkpointProgress: z.array(z.string().min(1)).optional(),
-  reflection: z.string().max(2000).optional().nullable(),
-  evidenceUrl: z.string().url().optional().or(z.literal('')).nullable()
-});
-const assignmentStudentPatchSchema = z.object({ status: z.enum(['open', 'in_progress', 'done']) });
-
-const practiceModeSchema = z.enum(['learn', 'practice', 'review', 'mastery_challenge', 'lab_prep']);
-const practiceSubmitSchema = z.object({
-  sessionId: z.string().optional(),
-  exerciseId: z.string().min(2),
-  answer: z.unknown(),
-  mode: practiceModeSchema.optional()
-});
 
 router.use(requireAuth);
 

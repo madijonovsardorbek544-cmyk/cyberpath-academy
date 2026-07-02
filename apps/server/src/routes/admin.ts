@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { z } from 'zod';
+import { labInputSchema as labSchema, labPatchSchema, lessonInputSchema as lessonSchema, lessonPatchSchema, userRolePatchSchema } from '@cyberpath/contracts';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../middleware/auth.js';
 import {
   count,
@@ -24,46 +24,6 @@ const router = Router();
 function addDays(days: number) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
-
-const lessonSchema = z.object({
-  slug: z.string().trim().min(3).max(120),
-  title: z.string().trim().min(3).max(160),
-  phase: z.number().int().min(1).max(5),
-  phaseTitle: z.string().trim().min(3).max(120),
-  level: z.string().trim().min(3).max(80),
-  orderIndex: z.number().int().min(1),
-  specialization: z.string().trim().min(2).max(120).optional().nullable(),
-  learningObjectives: z.array(z.string().min(2)).min(1),
-  content: z.string().min(20),
-  glossary: z.array(z.object({ term: z.string().min(1), definition: z.string().min(1) })),
-  examples: z.array(z.string().min(2)).min(1),
-  knowledgeChecks: z.array(z.string().min(2)).min(1),
-  commonMistakes: z.string().min(10),
-  whyItMatters: z.string().min(10),
-  estimatedMinutes: z.number().int().min(5).max(240).optional(),
-  icon: z.string().min(2).max(40).optional()
-});
-
-const lessonPatchSchema = lessonSchema.partial().extend({
-  changeSummary: z.string().min(4).max(280).optional(),
-  reviewDueAt: z.string().datetime().optional().nullable(),
-  lastReviewedAt: z.string().datetime().optional().nullable()
-});
-
-const labSchema = z.object({
-  slug: z.string().trim().min(3).max(120),
-  title: z.string().trim().min(3).max(160),
-  category: z.string().trim().min(3).max(80),
-  difficulty: z.string().trim().min(3).max(80),
-  description: z.string().min(20),
-  dataset: z.any(),
-  tasks: z.array(z.object({ id: z.string().min(2), prompt: z.string().min(2), expectedKeywords: z.array(z.string().min(1)).min(1).optional(), expectedEvidence: z.array(z.string().min(1)).min(1).optional(), hints: z.array(z.string().min(1)).optional() })).min(1),
-  accessTier: z.enum(['free', 'premium', 'school']).optional(),
-  safeGuardrails: z.string().min(10),
-  solutionOutline: z.string().min(10)
-});
-
-const labPatchSchema = labSchema.partial();
 
 router.use(requireAuth, requireRole(['admin']));
 
@@ -353,7 +313,7 @@ router.delete('/labs/:id', (req: AuthenticatedRequest, res) => {
 });
 
 router.patch('/users/:id/role', (req: AuthenticatedRequest, res) => {
-  const parsed = z.object({ role: z.enum(['student', 'mentor', 'admin']) }).safeParse(req.body);
+  const parsed = userRolePatchSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid role.' });
   }
