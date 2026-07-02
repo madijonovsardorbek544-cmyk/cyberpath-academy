@@ -172,6 +172,8 @@ test('student dashboard exposes mastery and recommendations', async () => {
 
 test('practice hub exposes daily quest and path signals', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
@@ -190,6 +192,8 @@ test('practice hub exposes daily quest and path signals', async () => {
 
 test('mentor alerts can be listed and updated', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
@@ -244,6 +248,8 @@ test('free user cannot open or submit premium lab and sees locked metadata', asy
 
 test('premium user can submit premium lab and receives rubric breakdown', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
     body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
@@ -267,6 +273,8 @@ test('premium user can submit premium lab and receives rubric breakdown', async 
 
 test('unsafe lab answer is redirected by rubric scoring', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
     body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
@@ -287,6 +295,8 @@ test('unsafe lab answer is redirected by rubric scoring', async () => {
 
 test('portfolio publishing requires premium and public share respects unpublish', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
     body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
@@ -369,6 +379,8 @@ test('content-level feedback is summarized for admins', async () => {
 
 test('school mentor can access cohort dashboard data', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
     body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
@@ -392,6 +404,8 @@ test('school mentor can access cohort dashboard data', async () => {
 
 test('guided tutor cites internal sources and refuses unsafe requests', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
     body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
@@ -486,6 +500,8 @@ test('school pilot lead flow validates, stores, and restricts admin review', asy
 
 test('student can load skill tree and submit adaptive exercise', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
@@ -540,6 +556,8 @@ test('teacher dashboard alias exposes mentor cohort dashboard', async () => {
 
 test('backend learning contracts expose the same nine-category defensive skill tree and exercise catalog', async () => {
   const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
   const login = await fetch(`${server.baseUrl}/api/auth/login`, {
     method: 'POST',
     headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
@@ -652,5 +670,52 @@ test('teacher dashboard enforces roster scope, heatmap evidence, student reports
   assert.equal(adminDashboardResponse.status, 200);
   const adminDashboard = await adminDashboardResponse.json();
   assert.ok(adminDashboard.students.some((student: any) => student.id === signupJson.user.id), 'admin should see all student rows');
+  await server.close();
+});
+
+test('authenticated unsafe requests require a matching csrf token', async () => {
+  const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  assert.equal(login.status, 200);
+  const sessionCookie = cookieHeaderFrom(login);
+  const csrfCookie = bootCsrf;
+  const blocked = await fetch(`${server.baseUrl}/api/auth/logout`, {
+    method: 'POST',
+    headers: { origin: 'http://localhost:5173', cookie: `${sessionCookie}; cyberpath_csrf=${csrfCookie}` }
+  });
+  assert.equal(blocked.status, 403);
+  const allowed = await fetch(`${server.baseUrl}/api/auth/logout`, {
+    method: 'POST',
+    headers: { origin: 'http://localhost:5173', cookie: `${sessionCookie}; cyberpath_csrf=${csrfCookie}`, 'x-csrf-token': csrfCookie }
+  });
+  assert.equal(allowed.status, 200);
+  await server.close();
+});
+
+test('revoked sessions can no longer access authenticated routes', async () => {
+  const server = await startServer();
+  const boot = await fetch(`${server.baseUrl}/api/health`);
+  const bootCsrf = boot.headers.get('set-cookie')?.match(/cyberpath_csrf=([^;]+)/)?.[1] ?? '';
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  assert.equal(login.status, 200);
+  const sessionCookie = cookieHeaderFrom(login);
+  const csrfCookie = bootCsrf;
+  const revoke = await fetch(`${server.baseUrl}/api/auth/sessions/revoke-all`, {
+    method: 'POST',
+    headers: { origin: 'http://localhost:5173', cookie: `${sessionCookie}; cyberpath_csrf=${csrfCookie}`, 'x-csrf-token': csrfCookie }
+  });
+  assert.equal(revoke.status, 200);
+  const me = await fetch(`${server.baseUrl}/api/auth/me`, { headers: { cookie: sessionCookie } });
+  assert.equal(me.status, 401);
   await server.close();
 });

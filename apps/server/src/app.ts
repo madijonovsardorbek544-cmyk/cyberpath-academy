@@ -13,7 +13,7 @@ import platformRoutes from './routes/platform.js';
 import { errorHandler } from './middleware/error.js';
 import { env } from './config/env.js';
 import { initDb, one } from './lib/db.js';
-import { apiLimiter, enforceOrigin } from './middleware/security.js';
+import { apiLimiter, enforceCsrf, enforceOrigin, ensureCsrfCookie } from './middleware/security.js';
 import { requestContext } from './middleware/requestContext.js';
 
 initDb();
@@ -48,10 +48,12 @@ app.set('trust proxy', 1);
 app.use(requestContext);
 app.use(cors({ origin: env.clientUrl, credentials: true }));
 app.use(helmet(helmetOptions));
-app.use(enforceOrigin);
 app.use(apiLimiter);
 app.use(express.json({ limit: '2mb' }));
 app.use(cookieParser());
+app.use(ensureCsrfCookie);
+app.use(enforceOrigin);
+app.use(enforceCsrf);
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', service: 'cyberpath-api', timestamp: new Date().toISOString() });
