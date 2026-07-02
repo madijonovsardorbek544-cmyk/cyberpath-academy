@@ -52,3 +52,19 @@ The platform must only teach authorized defensive work on fictional data. Labs a
 - `npm test`: backend API contract, authorization, platform, mentor, admin, safety, skill-tree, and exercise catalog tests.
 - `npm run build`: TypeScript and production bundle checks.
 - Future required work: Playwright browser E2E, accessibility tests, mobile viewport tests, and production preflight tests.
+
+## Shared contracts source of truth
+
+CyberPath now uses `packages/contracts` as the shared API contract workspace. The package exports Zod schemas for API validation and TypeScript types generated from those schemas with `z.infer`. The backend imports request schemas from `@cyberpath/contracts`, while the frontend re-exports shared types from the same package through `apps/web/src/types/index.ts`.
+
+Persistence remains owned by the existing runtime SQL layer in `apps/server/src/lib/db.ts` for Phase 1. `apps/server/prisma/schema.prisma` is treated as a legacy/reference artifact until a future migration fully adopts or removes Prisma.
+
+```mermaid
+flowchart LR
+  C[packages/contracts] --> B[Backend route validation]
+  C --> F[Frontend API types]
+  C --> M[Mock API types]
+  B --> D[Runtime SQL database layer]
+  P[Prisma schema] -. legacy/reference .-> D
+```
+

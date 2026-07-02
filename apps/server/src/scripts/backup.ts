@@ -50,7 +50,7 @@ async function createBackup() {
       logger.info('database.backup.deleted', { backupPath: oldBackup });
     }
   } catch (error) {
-    logger.error('database.backup.failed', error instanceof Error ? error : new Error(String(error)));
+    logger.error('database.backup.failed', { error: error instanceof Error ? error.message : String(error) });
     process.exit(1);
   }
 }

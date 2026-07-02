@@ -1,6 +1,6 @@
 import { Router, type Response } from 'express';
 import crypto from 'crypto';
-import { z } from 'zod';
+import { loginSchema, requestResetSchema, resetSchema, signupSchema } from '@cyberpath/contracts';
 import { comparePassword, hashPassword, signSession } from '../utils/auth.js';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { authLimiter } from '../middleware/security.js';
@@ -11,25 +11,6 @@ import { makeId, mapUser, nowIso, one, run } from '../lib/db.js';
 
 const router = Router();
 
-const strongPassword = z.string().min(10).max(128)
-  .regex(/[A-Z]/, 'Use at least one uppercase letter.')
-  .regex(/[a-z]/, 'Use at least one lowercase letter.')
-  .regex(/[0-9]/, 'Use at least one number.')
-  .regex(/[^A-Za-z0-9]/, 'Use at least one symbol.');
-
-const signupSchema = z.object({
-  name: z.string().trim().min(2).max(80),
-  email: z.string().email(),
-  password: strongPassword
-});
-
-const loginSchema = z.object({
-  email: z.string().email(),
-  password: z.string().min(8).max(128)
-});
-
-const requestResetSchema = z.object({ email: z.string().email() });
-const resetSchema = z.object({ token: z.string().min(10), password: strongPassword });
 
 function hashResetToken(token: string) {
   return crypto.createHash('sha256').update(token).digest('hex');

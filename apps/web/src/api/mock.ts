@@ -1,3 +1,4 @@
+import { labSubmitSchema, lessonCompleteSchema, loginSchema, onboardingSchema, requestResetSchema, resetSchema, signupSchema } from "@cyberpath/contracts";
 import type { Analytics, BugReport, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User, SkillMasteryRecord, MasteryState, PracticeMode, Exercise } from "../types";
 import { exerciseCatalog, isExerciseCorrect, skillCatalog, skillCategories } from "../learningContent";
 
@@ -1510,7 +1511,7 @@ function handlePost<T>(path: string, body: unknown): T {
   const db = readDb();
 
   if (path === "/auth/login") {
-    const data = body as { email: string; password: string };
+    const data = loginSchema.parse(body);
     const user = db.users.find((item) => item.email.toLowerCase() === data.email.toLowerCase());
     if (!user || user.password !== data.password) throw new Error("Invalid credentials.");
     db.sessionUserId = user.id;
@@ -1519,7 +1520,7 @@ function handlePost<T>(path: string, body: unknown): T {
   }
 
   if (path === "/auth/signup") {
-    const data = body as { name: string; email: string; password: string };
+    const data = signupSchema.parse(body);
     const timestamp = now();
     if (db.users.some((item) => item.email.toLowerCase() === data.email.toLowerCase())) throw new Error("An account with that email already exists.");
     const user: DemoUser = normalizeDemoUser({
@@ -1549,7 +1550,7 @@ function handlePost<T>(path: string, body: unknown): T {
   }
 
   if (path === "/auth/request-password-reset") {
-    const data = body as { email: string };
+    const data = requestResetSchema.parse(body);
     const user = db.users.find((item) => item.email.toLowerCase() === data.email.toLowerCase());
     if (user) {
       user.resetToken = crypto.randomUUID().replace(/-/g, "");
@@ -1560,7 +1561,7 @@ function handlePost<T>(path: string, body: unknown): T {
   }
 
   if (path === "/auth/reset-password") {
-    const data = body as { token: string; password: string };
+    const data = resetSchema.parse(body);
     const user = db.users.find((item) => item.resetToken === data.token);
     if (!user) throw new Error("Reset token is invalid or expired.");
     user.password = data.password;
@@ -1571,10 +1572,10 @@ function handlePost<T>(path: string, body: unknown): T {
 
   if (path === "/learning/onboarding") {
     const authUser = requireUser(db);
-    const data = body as { goal?: string; experienceLevel?: string; score?: number };
-    const goal = data.goal || "awareness";
-    const experienceLevel = data.experienceLevel || "beginner";
-    const score = Number.isFinite(data.score) ? Math.max(0, Math.min(100, Math.round(Number(data.score)))) : 0;
+    const data = onboardingSchema.parse(body);
+    const goal = data.goal;
+    const experienceLevel = data.experienceLevel;
+    const score = Math.round(data.score);
     authUser.goal = goal;
     authUser.experienceLevel = experienceLevel;
     authUser.placementScore = score;
@@ -1590,7 +1591,7 @@ function handlePost<T>(path: string, body: unknown): T {
     const authUser = requireUser(db);
     const parts = path.split("/");
     const lessonId = parts[3];
-    const data = body as { completed: boolean; timeSpentMinutes: number };
+    const data = lessonCompleteSchema.parse(body);
     const existing = db.progress.find((item) => item.userId === authUser.id && item.lessonId === lessonId);
     if (existing) {
       existing.completed = data.completed;
