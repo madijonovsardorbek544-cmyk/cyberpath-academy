@@ -1,10 +1,12 @@
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { env } from "../config/env.js";
 
 export type SessionPayload = {
   userId: string;
   role: "student" | "mentor" | "admin";
+  sessionId?: string;
 };
 
 export async function hashPassword(password: string) {
@@ -16,7 +18,8 @@ export async function comparePassword(password: string, passwordHash: string) {
 }
 
 export function signSession(payload: SessionPayload) {
-  return jwt.sign(payload, env.jwtSecret, { expiresIn: "7d" });
+  const sessionId = payload.sessionId ?? crypto.randomUUID();
+  return jwt.sign({ ...payload, sessionId }, env.jwtSecret, { expiresIn: "7d", jwtid: sessionId });
 }
 
 export function verifySession(token: string) {

@@ -7,6 +7,10 @@ const API_MODE = import.meta.env.VITE_API_MODE || 'api';
 export const isMockApiMode = API_MODE === 'mock';
 const REQUEST_TIMEOUT_MS = 12000;
 
+function readCookie(name: string) {
+  return document.cookie.split('; ').find((part) => part.startsWith(`${name}=`))?.split('=').slice(1).join('=');
+}
+
 function getFriendlyNetworkMessage(error: unknown) {
   if (error instanceof DOMException && error.name === 'AbortError') {
     return 'The request took too long. Make sure the API server is running and try again.';
@@ -42,6 +46,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        ...(readCookie('cyberpath_csrf') ? { 'X-CSRF-Token': decodeURIComponent(readCookie('cyberpath_csrf') || '') } : {}),
         ...(options.headers || {})
       },
       ...options,

@@ -237,6 +237,28 @@ export function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+
+    CREATE TABLE IF NOT EXISTS user_sessions (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      token_id TEXT NOT NULL UNIQUE,
+      revoked_at TEXT,
+      expires_at TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      last_seen_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS mfa_challenges (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      code_hash TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      used_at TEXT,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS audit_logs (
       id TEXT PRIMARY KEY,
       actor_user_id TEXT,
@@ -548,6 +570,8 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_feedback_student ON mentor_feedback(student_id);
     CREATE INDEX IF NOT EXISTS idx_mentor_links_mentor ON mentor_students(mentor_id);
     CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_user_id);
+    CREATE INDEX IF NOT EXISTS idx_user_sessions_user ON user_sessions(user_id, revoked_at);
+    CREATE INDEX IF NOT EXISTS idx_mfa_challenges_user ON mfa_challenges(user_id, expires_at);
     CREATE INDEX IF NOT EXISTS idx_platform_feedback_status ON platform_feedback(status);
     CREATE INDEX IF NOT EXISTS idx_pilot_leads_status ON pilot_leads(status);
     CREATE INDEX IF NOT EXISTS idx_pilot_leads_created ON pilot_leads(created_at);
@@ -611,6 +635,9 @@ export function initDb() {
   try { db.exec("ALTER TABLE platform_feedback ADD COLUMN would_recommend TEXT;"); } catch {}
   try { db.exec("ALTER TABLE platform_feedback ADD COLUMN would_pay TEXT;"); } catch {}
   try { db.exec("ALTER TABLE platform_feedback ADD COLUMN learner_goal TEXT;"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0;"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0;"); } catch {}
+  try { db.exec("ALTER TABLE users ADD COLUMN locked_until TEXT;"); } catch {}
 }
 
 export function mapUser(row: Record<string, unknown> | null) {
