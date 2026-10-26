@@ -21,6 +21,7 @@ const LabsPage = lazy(() => import('../pages/LabsPage').then((module) => ({ defa
 const LabPage = lazy(() => import('../pages/LabPage').then((module) => ({ default: module.LabPage })));
 const CasesPage = lazy(() => import('../pages/CasesPage').then((module) => ({ default: module.CasesPage })));
 const CasePage = lazy(() => import('../pages/CasePage').then((module) => ({ default: module.CasePage })));
+const EventPage = lazy(() => import('../pages/EventPage').then((module) => ({ default: module.EventPage })));
 const SocPage = lazy(() => import('../pages/SocPage').then((module) => ({ default: module.SocPage })));
 const SocShiftPage = lazy(() => import('../pages/SocShiftPage').then((module) => ({ default: module.SocShiftPage })));
 const ProgressPage = lazy(() => import('../pages/ProgressPage').then((module) => ({ default: module.ProgressPage })));
@@ -90,6 +91,7 @@ export function App() {
             <Route path="/cases/mine" element={<ProtectedRoute><MyCasesPage /></ProtectedRoute>} />
             <Route path="/cases/review" element={<ProtectedRoute roles={['mentor', 'admin']}><CaseReviewPage /></ProtectedRoute>} />
             <Route path="/cases/:slug" element={<ProtectedRoute><CasePage /></ProtectedRoute>} />
+            <Route path="/event" element={<ProtectedRoute><EventPage /></ProtectedRoute>} />
             <Route path="/soc" element={<ProtectedRoute><SocPage /></ProtectedRoute>} />
             <Route path="/soc/:slug" element={<ProtectedRoute><SocShiftPage /></ProtectedRoute>} />
             <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />

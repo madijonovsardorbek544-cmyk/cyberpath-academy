@@ -24,6 +24,10 @@
     "./shell": {
       "types": "./dist/shell.d.ts",
       "import": "./dist/shell.js"
+    },
+    "./event": {
+      "types": "./dist/event.d.ts",
+      "import": "./dist/event.js"
     }
   },
   "scripts": {

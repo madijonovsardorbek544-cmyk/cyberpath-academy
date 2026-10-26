@@ -20,7 +20,9 @@ const baseEnv = {
   COOKIE_SECURE: 'false',
   ENABLE_DEMO_BILLING: 'true',
   AUTH_RATE_LIMIT_MAX: '100',
-  RATE_LIMIT_MAX: '1000'
+  RATE_LIMIT_MAX: '1000',
+  // Event started two days ago, so days 1-3 are unlocked and day 4 onwards are locked.
+  EVENT_START_DATE: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 };
 
 execFileSync('node', ['--import', 'tsx', 'prisma/seed.ts'], { cwd: serverRoot, env: baseEnv, stdio: 'inherit' });
@@ -1028,5 +1030,45 @@ test('community cases go through mentor review before learners can play them', a
   assert.equal(answer.correct, true);
   assert.ok(!JSON.stringify(list).includes('"answers"'));
   assert.equal((await call(author, 'DELETE', `/community-cases/${created.submission.id}`)).status, 409);
+  await server.close();
+});
+
+test('yearly event unlocks one case per day and ranks solvers', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Event Player', email: 'eventplayer@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const call = (method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+
+  const before = await (await call('GET', '/event')).json();
+  assert.equal(before.event.status, 'live');
+  assert.deepEqual(before.days.map((day: any) => day.unlocked).slice(0, 5), [true, true, true, false, false]);
+  assert.equal(before.days[3].title, 'Day 4', 'locked titles stay hidden');
+  assert.equal(before.days[3].summary, null);
+  assert.ok(!JSON.stringify(before).includes('"answers"'));
+  assert.equal(before.me, null);
+
+  assert.equal((await call('GET', '/cases/event-2026-d04')).status, 404, 'locked day is not playable');
+  assert.equal((await call('POST', '/cases/event-2026-d04/answer', { questionId: 'ports', answer: '9' })).status, 404);
+  const listed = await (await call('GET', '/cases')).json();
+  assert.ok(!listed.cases.some((item: any) => item.slug.startsWith('event-')), 'event days stay off the main case list');
+
+  const day1 = await (await call('POST', '/cases/event-2026-d01/answer', { questionId: 'ip', answer: '203.0.113.77' })).json();
+  assert.equal(day1.correct, true);
+  await call('POST', '/cases/event-2026-d01/answer', { questionId: 'account', answer: 'deploy' });
+  await call('POST', '/cases/event-2026-d01/answer', { questionId: 'nadia', answer: 'No, it looks like a normal user with a mistyped password' });
+
+  const after = await (await call('GET', '/event')).json();
+  assert.equal(after.days[0].completed, true);
+  assert.equal(after.days[0].pointsEarned, 25);
+  assert.deepEqual(after.me, { rank: 1, points: 25, solved: 3 });
+  assert.equal(after.leaderboard[0].name, 'Event P.');
+  assert.equal(after.leaderboard[0].isMe, true);
+  assert.ok(!JSON.stringify(after.leaderboard).includes('userId'));
+
+  const progress = await (await call('GET', '/progress/me')).json();
+  assert.ok(progress.xp.total >= 25 + 50, 'event solves earn XP like any case');
   await server.close();
 });

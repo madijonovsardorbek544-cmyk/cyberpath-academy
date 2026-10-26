@@ -38,3 +38,11 @@ export type PublicProfile = Omit<ProfileSettings, 'isPublic'> & {
 };
 
 export type CommunitySubmission = { id: string; slug: string; status: 'draft' | 'submitted' | 'changes_requested' | 'published' | 'rejected'; reviewNote: string | null; authorName?: string; createdAt: string; updatedAt: string; publishedAt: string | null; case: import('@cyberpath/contracts').CaseDraft };
+
+export type EventDay = { day: number; slug: string; unlocksAt: string; unlocked: boolean; title: string; summary: string | null; category: string | null; totalPoints: number; pointsEarned: number; completed: boolean };
+export type EventResponse = {
+  event: { slug: string; title: string; summary: string; startsAt: string; closesAt: string; status: 'upcoming' | 'live' | 'closed' };
+  days: EventDay[];
+  leaderboard: Array<{ rank: number; name: string; points: number; solved: number; isMe: boolean }>;
+  me: { rank: number; points: number; solved: number } | null;
+};

@@ -34,6 +34,14 @@ function loadCaseBank() {
     : Promise.reject(new Error("Case content is served by the API outside the demo."));
 }
 
+function loadEventBank() {
+  return import.meta.env.VITE_API_MODE === "mock"
+    ? import("@cyberpath/contracts/event")
+    : Promise.reject(new Error("Event content is served by the API outside the demo."));
+}
+// Set VITE_EVENT_START_DATE (YYYY-MM-DD) to rehearse the event in the demo before December.
+const eventStartsOn = (fallback: string) => (import.meta.env.VITE_EVENT_START_DATE as string | undefined) || fallback;
+
 type CaseBank = Awaited<ReturnType<typeof loadCaseBank>>;
 type InvestigationCase = CaseBank["investigationCases"][number];
 
@@ -77,7 +85,9 @@ async function handleCases(method: string, path: string, body: unknown, userId: 
   }
 
   const [, , slug, action] = path.split("/");
-  const item = all.find((entry) => entry.slug === slug);
+  const events = await loadEventBank();
+  const eventDay = events.findUnlockedEventDay(events.annualEvent, eventStartsOn(events.annualEvent.startsOn), slug ?? "", new Date());
+  const item = all.find((entry) => entry.slug === slug) ?? eventDay;
   if (!item) throw new Error("Case not found.");
   const rows = (mine[item.slug] ??= {});
 
@@ -98,6 +108,31 @@ async function handleCases(method: string, path: string, body: unknown, userId: 
   }
 
   throw new Error(`No mock handler for ${method} ${path}`);
+}
+
+async function handleEvent(ctx: MockFeatureContext & { userId: string }) {
+  const [bank, events] = await Promise.all([loadCaseBank(), loadEventBank()]);
+  const { annualEvent } = events;
+  const schedule = events.eventSchedule(annualEvent, eventStartsOn(annualEvent.startsOn), new Date());
+  const state = readState();
+  const names = new Map(ctx.students.map((student) => [student.id, student.name]));
+  const standings = Object.entries(state.cases).map(([userId, cases]) => {
+    const rows = annualEvent.days.flatMap((day) => Object.values(cases[day.slug] ?? {})).filter((row) => row.solvedAt && row.solvedAt < schedule.closesAt);
+    return { userId, points: rows.reduce((sum, row) => sum + row.pointsAwarded, 0), solved: rows.length, last: rows.map((row) => row.solvedAt!).sort().at(-1) ?? "" };
+  }).filter((row) => row.solved > 0).sort((a, b) => b.points - a.points || a.last.localeCompare(b.last));
+  const ranked = standings.map((row, index) => ({ rank: index + 1, userId: row.userId, name: leaderboardName(names.get(row.userId) ?? "Learner"), points: row.points, solved: row.solved }));
+  const me = ranked.find((row) => row.userId === ctx.userId);
+  const mine = state.cases[ctx.userId] ?? {};
+  return {
+    event: { slug: annualEvent.slug, title: annualEvent.title, summary: annualEvent.summary, startsAt: schedule.startsAt, closesAt: schedule.closesAt, status: schedule.status },
+    days: schedule.days.map((day, index) => {
+      const item = annualEvent.days[index];
+      const progress = caseView(bank, item, mine[item.slug] ?? {}).progress;
+      return { ...day, title: day.unlocked ? item.title : `Day ${day.day}`, summary: day.unlocked ? item.summary : null, category: day.unlocked ? item.category : null, totalPoints: progress.totalPoints, pointsEarned: progress.pointsEarned, completed: progress.completed };
+    }),
+    leaderboard: ranked.slice(0, 20).map(({ userId, ...row }) => ({ ...row, isMe: userId === ctx.userId })),
+    me: me ? { rank: me.rank, points: me.points, solved: me.solved } : null
+  };
 }
 
 function loadSocBank() {
@@ -152,9 +187,9 @@ async function xpEventsFor(student: MockFeatureContext["students"][number], stat
   const events: XpEvent[] = student.lessons.map((lesson) => ({ key: `lesson:${lesson.id}`, label: `Completed lesson: ${lesson.title}`, xp: XP_RULES.lessonComplete, at: lesson.at }));
   const caseRows = state.cases[student.id] ?? {};
   if (Object.keys(caseRows).length) {
-    const bank = await loadCaseBank();
+    const [bank, eventBank] = await Promise.all([loadCaseBank(), loadEventBank()]);
     for (const [slug, rows] of Object.entries(caseRows)) {
-      const item = bank.findInvestigationCase(slug);
+      const item = bank.findInvestigationCase(slug) ?? eventBank.annualEvent.days.find((day) => day.slug === slug);
       if (!item) continue;
       const solved = Object.entries(rows).filter(([, row]) => row.solvedAt);
       for (const [questionId, row] of solved) events.push({ key: `case:${slug}:${questionId}`, label: `Solved a question in "${item.title}"`, xp: row.pointsAwarded, at: row.solvedAt! });
@@ -313,7 +348,7 @@ async function handleCommunity(method: string, path: string, body: unknown, ctx:
 
 /** Returns a response for feature routes, or null so the main mock handles the path. */
 export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext): Promise<unknown> | null {
-  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/");
+  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event";
   if (!isFeature) return null;
   const route = (): Promise<unknown> | unknown => {
     const ctx = getContext();
@@ -321,6 +356,7 @@ export function handleFeatureRequest(method: string, path: string, body: unknown
     const userId = ctx.userId;
     if (!userId) throw new Error("Authentication required.");
     if (path === "/progress/me" && method === "GET") return handleProgress({ ...ctx, userId });
+    if (path === "/event" && method === "GET") return handleEvent({ ...ctx, userId });
     if (path.startsWith("/community-cases")) return handleCommunity(method, path, body, { ...ctx, userId }, ctx.role ?? "student");
     if (path.startsWith("/soc/")) return handleSoc(method, path, body, userId);
     return handleCases(method, path, body, userId);

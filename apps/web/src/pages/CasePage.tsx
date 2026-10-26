@@ -173,7 +173,7 @@ export function CasePage() {
   return (
     <AppShell>
       <div className="space-y-6">
-        <Link to="/cases" className="text-sm text-sky-300 hover:text-sky-200">← All investigations</Link>
+        {slug?.startsWith("event-") ? <Link to="/event" className="text-sm text-sky-300 hover:text-sky-200">← Event calendar</Link> : <Link to="/cases" className="text-sm text-sky-300 hover:text-sky-200">← All investigations</Link>}
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2"><Badge>{item.category}</Badge><Badge>{item.difficulty}</Badge><Badge>~{item.estimatedMinutes} min</Badge></div>
           <h1 className="text-2xl font-semibold text-white sm:text-3xl">{item.title}</h1>

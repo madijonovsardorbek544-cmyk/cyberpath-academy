@@ -32,6 +32,8 @@ const schema = z.object({
   PAYME_MERCHANT_KEY: z.string().optional(),
   PAYME_CHECKOUT_URL: z.string().url().default('https://checkout.paycom.uz/api'),
   SUPPORT_EMAIL: z.string().email().default('support@cyberpath.local'),
+  // Overrides the yearly event's first day (YYYY-MM-DD), e.g. to rehearse it on staging.
+  EVENT_START_DATE: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   DEFAULT_LOCALE: z.enum(['en', 'uz', 'ru']).default('en'),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info')
 });
@@ -78,6 +80,7 @@ export const env = {
   adminEmail: parsed.data.ADMIN_EMAIL,
   adminPassword: parsed.data.ADMIN_PASSWORD,
   enableDemoBilling: parsed.data.ENABLE_DEMO_BILLING === 'true',
+  eventStartDate: parsed.data.EVENT_START_DATE,
   allFeaturesFree: parsed.data.ALL_FEATURES_FREE === 'true',
   stripePublishableKey: parsed.data.STRIPE_PUBLISHABLE_KEY,
   stripeSecretKey: parsed.data.STRIPE_SECRET_KEY,
