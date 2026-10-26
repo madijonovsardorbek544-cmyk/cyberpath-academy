@@ -1072,3 +1072,36 @@ test('yearly event unlocks one case per day and ranks solvers', async () => {
   assert.ok(progress.xp.total >= 25 + 50, 'event solves earn XP like any case');
   await server.close();
 });
+
+test('lessons are served in Uzbek or Russian when a translation exists', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  const cookie = cookieHeaderFrom(login);
+  const get = (path: string, locale?: string) => fetch(`${server.baseUrl}/api${path}`, { headers: { origin: 'http://localhost:5173', cookie, ...(locale ? { 'x-cyberpath-locale': locale } : {}) } }).then((res) => res.json());
+
+  const { lessonTranslations } = await import('@cyberpath/contracts/lessons');
+  const slugs = (db.prepare('SELECT slug FROM lessons').all() as Array<{ slug: string }>).map((row) => row.slug);
+  for (const locale of ['uz', 'ru'] as const) {
+    for (const slug of Object.keys(lessonTranslations[locale])) assert.ok(slugs.includes(slug), `${locale} translation for unknown lesson ${slug}`);
+  }
+
+  const uz = await get('/learning/lessons/cia-triad', 'uz');
+  assert.equal(uz.lesson.title, 'CIA uchligi');
+  assert.equal(uz.lesson.contentLocale, 'uz');
+  assert.equal(uz.lesson.learningObjectives.length, 4);
+  const ru = await get('/learning/lessons/cia-triad', 'ru');
+  assert.equal(ru.lesson.title, 'Триада CIA');
+  const en = await get('/learning/lessons/cia-triad');
+  assert.equal(en.lesson.title, 'The CIA Triad');
+  assert.equal(en.lesson.contentLocale, 'en');
+  assert.equal((await get('/learning/lessons/cia-triad', 'xx')).lesson.contentLocale, 'en', 'unknown locales fall back to English');
+
+  const list = await get('/learning/lessons', 'ru');
+  assert.equal(list.lessons.find((lesson: any) => lesson.slug === 'what-is-cybersecurity').title, 'Что такое кибербезопасность?');
+  const untranslated = list.lessons.find((lesson: any) => !lessonTranslations.ru[lesson.slug]);
+  assert.equal(untranslated.contentLocale, 'en', 'missing translations fall back to English');
+  await server.close();
+});

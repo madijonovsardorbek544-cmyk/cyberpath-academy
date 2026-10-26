@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { Badge, Card, EmptyState, ErrorState, Loader, SectionTitle } from '../components/ui';
 import type { Capstone, GuidedProject, Lab, Lesson, Track } from '../types';
+import { useLocale } from '../contexts/LocaleContext';
 
 type PathsResponse = {
   phases: { phase: number; title: string; lessons: Lesson[] }[];
@@ -19,6 +20,7 @@ export function LearningPathsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [refreshKey, setRefreshKey] = useState(0);
+  const { locale } = useLocale();
 
   useEffect(() => {
     let active = true;
@@ -43,7 +45,7 @@ export function LearningPathsPage() {
     return () => {
       active = false;
     };
-  }, [refreshKey]);
+  }, [refreshKey, locale]);
 
   const careerTracks = useMemo(() => data?.tracks.filter((track) => track.trackType !== 'skill') ?? [], [data]);
   const skillTracks = useMemo(() => data?.tracks.filter((track) => track.trackType === 'skill') ?? [], [data]);

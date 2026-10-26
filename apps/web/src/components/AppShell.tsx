@@ -90,10 +90,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 <label className="sr-only" htmlFor="locale-switcher">{t('locale')}</label>
                 <select id="locale-switcher" aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}>
                   <option value="en">EN</option>
-                  <option value="uz" disabled>UZ (review)</option>
-                  <option value="ru" disabled>RU (review)</option>
+                  <option value="uz">UZ</option>
+                  <option value="ru">RU</option>
                 </select>
-                <span className="hidden max-w-[220px] text-xs text-slate-500 xl:inline" title={localeNotice}>English beta</span>
+                <span className="hidden max-w-[220px] text-xs text-slate-500 xl:inline" title={localeNotice}>UZ · RU beta</span>
                 <button className="min-h-11 rounded-2xl border border-slate-700 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" onClick={toggleTheme} aria-label="Toggle theme">
                   {dark ? <Sun size={18} /> : <Moon size={18} />}
                 </button>

@@ -2,6 +2,7 @@ import { labSubmitSchema, lessonCompleteSchema, loginSchema, onboardingSchema, r
 import type { Analytics, BugReport, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User, SkillMasteryRecord, MasteryState, PracticeMode, Exercise } from "../types";
 import { exerciseCatalog, isExerciseCorrect, skillCatalog, skillCategories } from "../learningContent";
 import { handleFeatureRequest, type MockFeatureContext } from "./mockFeatures";
+import { localizeLesson, resolveContentLocale } from "@cyberpath/contracts/lessons";
 
 type Role = User["role"];
 
@@ -1133,6 +1134,8 @@ export const mockApi = {
   delete: <T>(path: string) => respond(() => feature<T>("DELETE", path) ?? handleDelete<T>(path))
 };
 
+const mockLocale = () => resolveContentLocale(localStorage.getItem("cyberpath-locale"));
+
 function handleGet<T>(path: string): T {
   const db = readDb();
   const user = getSessionUser(db);
@@ -1182,10 +1185,11 @@ function handleGet<T>(path: string): T {
   }
 
   if (path === "/learning/paths") {
-    const phases = Array.from(new Set(db.lessons.map((lesson) => lesson.phase))).map((phase) => ({
+    const lessons = db.lessons.map((lesson) => localizeLesson(lesson, mockLocale()));
+    const phases = Array.from(new Set(lessons.map((lesson) => lesson.phase))).map((phase) => ({
       phase,
-      title: db.lessons.find((lesson) => lesson.phase === phase)?.phaseTitle || `Phase ${phase}`,
-      lessons: db.lessons.filter((lesson) => lesson.phase === phase).sort((a, b) => a.orderIndex - b.orderIndex)
+      title: lessons.find((lesson) => lesson.phase === phase)?.phaseTitle || `Phase ${phase}`,
+      lessons: lessons.filter((lesson) => lesson.phase === phase).sort((a, b) => a.orderIndex - b.orderIndex)
     }));
     return { phases, capstones: db.capstones, glossary: db.glossary.slice(0, 30).map((item, index) => ({ id: `glossary-${index}`, ...item })), labs: db.labs, tracks: getEnrichedTracks(db.lessons), guidedProjects: db.guidedProjects } as T;
   }
@@ -1267,8 +1271,9 @@ function handleGet<T>(path: string): T {
   if (path.startsWith("/learning/lessons/")) {
     const authUser = requireUser(db);
     const slug = path.split("/").pop()!;
-    const lesson = db.lessons.find((item) => item.slug === slug);
-    if (!lesson) throw new Error("Lesson not found.");
+    const found = db.lessons.find((item) => item.slug === slug);
+    if (!found) throw new Error("Lesson not found.");
+    const lesson = localizeLesson(found, mockLocale());
     const progress = db.progress.find((entry) => entry.userId === authUser.id && entry.lessonId === lesson.id);
     const quizQuestions = db.quizQuestions.filter((question) => question.lessonId === lesson.id);
     return { lesson: { ...lesson, quizQuestions, completed: progress?.completed || false, timeSpentMinutes: progress?.timeSpentMinutes || 0 } } as T;

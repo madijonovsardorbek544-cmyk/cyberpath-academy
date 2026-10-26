@@ -9,6 +9,15 @@ export const isMockApiMode = API_MODE === 'mock';
 export const showPricing = isMockApiMode || import.meta.env.VITE_SHOW_PRICING === 'true';
 const REQUEST_TIMEOUT_MS = 12000;
 
+// Lessons are served in the learner's chosen language when a translation exists.
+function readLocale() {
+  try {
+    return localStorage.getItem('cyberpath-locale') || 'en';
+  } catch {
+    return 'en';
+  }
+}
+
 function readCookie(name: string) {
   return document.cookie.split('; ').find((part) => part.startsWith(`${name}=`))?.split('=').slice(1).join('=');
 }
@@ -48,6 +57,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       credentials: 'include',
       headers: {
         'Content-Type': 'application/json',
+        'X-Cyberpath-Locale': readLocale(),
         ...(readCookie('cyberpath_csrf') ? { 'X-CSRF-Token': decodeURIComponent(readCookie('cyberpath_csrf') || '') } : {}),
         ...(options.headers || {})
       },

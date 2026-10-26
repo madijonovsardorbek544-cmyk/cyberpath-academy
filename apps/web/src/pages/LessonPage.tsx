@@ -6,17 +6,19 @@ import { BetaFeedbackCard } from '../components/BetaMode';
 import { Badge, Button, Card, Loader, SectionTitle } from '../components/ui';
 import type { Lesson, QuizResult } from '../types';
 import { QuizRenderer } from '../components/QuizRenderer';
+import { useLocale } from '../contexts/LocaleContext';
 
 export function LessonPage() {
   const { slug } = useParams();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [marking, setMarking] = useState(false);
   const [startedAt] = useState(Date.now());
+  const { locale, t } = useLocale();
 
   useEffect(() => {
     if (!slug) return;
     api.get<{ lesson: Lesson }>(`/learning/lessons/${slug}`).then((data) => setLesson(data.lesson));
-  }, [slug]);
+  }, [slug, locale]);
 
   const quickChecks = useMemo(() => lesson?.knowledgeChecks || [], [lesson]);
   const cheatSheet = useMemo(() => lesson?.glossary.slice(0, 4) || [], [lesson]);
@@ -43,7 +45,9 @@ export function LessonPage() {
     <AppShell>
       <div className="space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <SectionTitle eyebrow={`Phase ${lesson.phase} · ${lesson.phaseTitle}`} title={lesson.title} subtitle={lesson.content} />
+          <SectionTitle eyebrow={`${t('phase')} ${lesson.phase} · ${lesson.phaseTitle}`} title={lesson.title} subtitle={lesson.content} />
+          {locale !== 'en' && lesson.contentLocale === 'en' ? <p className="w-full rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm text-amber-100" role="status">{locale === 'uz' ? 'Bu dars hali tarjima qilinmagan, shuning uchun ingliz tilida ko‘rsatilmoqda.' : 'Этот урок ещё не переведён, поэтому показан на английском.'}</p> : null}
+          {lesson.contentLocale && lesson.contentLocale !== 'en' ? <p className="w-full text-xs text-slate-400">{lesson.contentLocale === 'uz' ? 'Test savollari hozircha ingliz tilida.' : 'Вопросы теста пока на английском.'}</p> : null}
           <div className="flex flex-wrap gap-2">
             <Badge>{lesson.level}</Badge>
             <Badge>{lesson.estimatedMinutes} min</Badge>
@@ -55,14 +59,14 @@ export function LessonPage() {
 
         <div className="grid gap-5 xl:grid-cols-[1.15fr,0.85fr]">
           <Card className="p-6">
-            <h3 className="text-lg font-semibold text-white">Learning objectives</h3>
+            <h3 className="text-lg font-semibold text-white">{t('lessonObjectives')}</h3>
             <ul className="mt-4 space-y-3 text-sm text-slate-300">
               {lesson.learningObjectives.map((objective) => <li key={objective} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3">{objective}</li>)}
             </ul>
 
             <div className="mt-8 grid gap-5 lg:grid-cols-[1fr,0.9fr]">
               <div>
-                <h3 className="text-lg font-semibold text-white">Examples</h3>
+                <h3 className="text-lg font-semibold text-white">{t('lessonExamples')}</h3>
                 <div className="mt-4 grid gap-3">
                   {lesson.examples.map((example) => <div key={example} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-300">{example}</div>)}
                 </div>
@@ -84,7 +88,7 @@ export function LessonPage() {
               Diagram placeholder: replace with sequence diagrams, trust-boundary visuals, or a small annotated workflow instead of dumping raw text. Top products use visuals to reduce friction. This lesson is ready for that upgrade later.
             </div>
 
-            <h3 className="mt-8 text-lg font-semibold text-white">Quick knowledge checks</h3>
+            <h3 className="mt-8 text-lg font-semibold text-white">{t('lessonChecks')}</h3>
             <div className="mt-4 space-y-3">
               {quickChecks.map((item) => <div key={item} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-300">{item}</div>)}
             </div>
@@ -93,7 +97,7 @@ export function LessonPage() {
           <div className="space-y-5">
             <Card className="p-6">
               <div className="flex items-center justify-between gap-3">
-                <h3 className="text-lg font-semibold text-white">Cheat sheet</h3>
+                <h3 className="text-lg font-semibold text-white">{t('lessonCheatSheet')}</h3>
                 <Badge>Fast recall</Badge>
               </div>
               <div className="mt-4 space-y-3">
@@ -132,11 +136,11 @@ export function LessonPage() {
               </div>
             </Card>
             <Card className="p-6">
-              <h3 className="text-lg font-semibold text-white">Common mistakes</h3>
+              <h3 className="text-lg font-semibold text-white">{t('lessonMistakes')}</h3>
               <p className="mt-3 text-sm text-slate-300">{lesson.commonMistakes}</p>
             </Card>
             <Card className="p-6">
-              <h3 className="text-lg font-semibold text-white">Why this matters in real work</h3>
+              <h3 className="text-lg font-semibold text-white">{t('lessonWhy')}</h3>
               <p className="mt-3 text-sm text-slate-300">{lesson.whyItMatters}</p>
             </Card>
             <Card className="p-6">

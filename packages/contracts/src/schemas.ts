@@ -45,7 +45,8 @@ export const lessonSchema = z.object({
   glossary: z.array(z.object({ term: z.string(), definition: z.string() })), examples: z.array(z.string()), knowledgeChecks: z.array(z.string()),
   commonMistakes: z.string(), whyItMatters: z.string(), icon: z.string().optional(), version: z.number().optional(), lastReviewedAt: z.string().nullable().optional(),
   reviewDueAt: z.string().nullable().optional(), reviewedBy: z.string().nullable().optional(), revisionCount: z.number().optional(),
-  relatedTracks: z.array(trackSchema).optional(), completed: z.boolean().optional(), timeSpentMinutes: z.number().optional(), quizQuestions: z.array(quizQuestionSchema).optional()
+  relatedTracks: z.array(trackSchema).optional(), completed: z.boolean().optional(), timeSpentMinutes: z.number().optional(), quizQuestions: z.array(quizQuestionSchema).optional(),
+  contentLocale: z.enum(['en', 'uz', 'ru']).optional()
 });
 
 export const lessonInputSchema = lessonSchema.omit({ id: true, estimatedMinutes: true }).extend({
