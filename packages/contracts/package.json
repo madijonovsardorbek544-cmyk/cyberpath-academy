@@ -16,6 +16,10 @@
     "./soc": {
       "types": "./dist/socSim.d.ts",
       "import": "./dist/socSim.js"
+    },
+    "./gamification": {
+      "types": "./dist/gamification.d.ts",
+      "import": "./dist/gamification.js"
     }
   },
   "scripts": {

@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Moon, Shield, Sun, LayoutDashboard, GraduationCap, FlaskConical, NotebookTabs, Brain, Users, Settings, LifeBuoy, CreditCard, Target, FileText, Network, ClipboardCheck, SearchCheck, Siren } from 'lucide-react';
+import { Moon, Shield, Sun, LayoutDashboard, GraduationCap, FlaskConical, NotebookTabs, Brain, Users, Settings, LifeBuoy, CreditCard, Target, FileText, Network, ClipboardCheck, SearchCheck, Siren, Flame } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
@@ -10,6 +10,7 @@ import { showPricing } from '../api/client';
 const studentLinks = [
   { to: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
   { to: '/beta-checklist', key: 'betaChecklist', icon: ClipboardCheck },
+  { to: '/progress', key: 'progress', icon: Flame },
   { to: '/practice', key: 'practice', icon: Target },
   { to: '/skill-tree', key: 'skillTree', icon: Network },
   { to: '/paths', key: 'paths', icon: GraduationCap },

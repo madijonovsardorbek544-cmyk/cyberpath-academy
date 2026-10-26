@@ -889,3 +889,47 @@ test('SOC shift requires every alert, grades it, and records the best score', as
   assert.equal(missingSeverity.status, 400);
   await server.close();
 });
+
+test('progress endpoint turns activity into XP, a streak, a league seat and badges', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Xp Earner', email: 'xpearner@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const headers = { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie };
+
+  const empty = await (await fetch(`${server.baseUrl}/api/progress/me`, { headers: { cookie } })).json();
+  assert.equal(empty.xp.total, 0);
+  assert.equal(empty.streak.current, 0);
+  assert.equal(empty.league.tierName, 'Bronze');
+  assert.equal(empty.league.members.filter((member: any) => member.isMe).length, 1);
+  assert.ok(empty.badges.every((badge: any) => badge.earnedAt === null));
+
+  const { findInvestigationCase } = await import('@cyberpath/contracts/cases');
+  const item = findInvestigationCase('public-payroll-bucket')!;
+  for (const question of item.questions) {
+    await fetch(`${server.baseUrl}/api/cases/${item.slug}/answer`, { method: 'POST', headers, body: JSON.stringify({ questionId: question.id, answer: question.answers[0] }) });
+  }
+  const expected = item.questions.reduce((sum, question) => sum + question.points, 0) + 50;
+
+  const after = await (await fetch(`${server.baseUrl}/api/progress/me`, { headers: { cookie } })).json();
+  assert.equal(after.xp.total, expected);
+  assert.equal(after.xp.thisWeek, expected);
+  assert.equal(after.streak.current, 1);
+  assert.equal(after.streak.activeToday, true);
+  assert.ok(after.badges.find((badge: any) => badge.id === 'first-case').earnedAt);
+  assert.equal(after.league.members.find((member: any) => member.isMe).xp, expected);
+  assert.equal(after.league.members.find((member: any) => member.isMe).name, 'Xp E.');
+
+  const again = await (await fetch(`${server.baseUrl}/api/progress/me`, { headers: { cookie } })).json();
+  assert.equal(again.xp.total, expected, 'syncing twice does not double-count');
+
+  const { getLearnerProgress } = await import('../src/utils/gamification.ts');
+  const { weekStartOf, addDays } = await import('@cyberpath/contracts/gamification');
+  const userId = (db.prepare('SELECT id FROM users WHERE email = ?').get('xpearner@example.com') as { id: string }).id;
+  const nextWeek = getLearnerProgress(userId, new Date(`${addDays(weekStartOf(new Date()), 7)}T09:00:00Z`));
+  assert.equal(nextWeek.league!.tierName, 'Silver', 'top of last week\'s group is promoted');
+  assert.equal(nextWeek.xp.thisWeek, 0);
+  await server.close();
+});

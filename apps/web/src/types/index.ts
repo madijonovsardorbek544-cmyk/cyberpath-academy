@@ -13,3 +13,12 @@ export type SocPublicAlert = Omit<import('@cyberpath/contracts/soc').SocAlert, '
 export type SocShiftListItem = Omit<import('@cyberpath/contracts/soc').SocShift, 'alerts' | 'briefing'> & { alertCount: number; maxScore: number; attempts: number; bestScore: number | null };
 export type SocShiftDetailResponse = { shift: Omit<import('@cyberpath/contracts/soc').SocShift, 'alerts'> & { alerts: SocPublicAlert[] }; attempts: number; bestScore: number | null; lastResult: import('@cyberpath/contracts/soc').SocShiftResult | null };
 export type SocSubmitResponse = { result: import('@cyberpath/contracts/soc').SocShiftResult; personalBest: boolean; attempts: number; bestScore: number | null };
+
+export type LeagueMember = { name: string; xp: number; rank: number; isMe: boolean };
+export type LearnerProgress = {
+  xp: { total: number; thisWeek: number; level: number; currentLevelXp: number; nextLevelXp: number };
+  streak: { current: number; activeToday: boolean; freezesUsed: string[]; freezeAvailableThisWeek: boolean };
+  league: { tier: number; tierName: string; weekStart: string; weekEnds: string; rank: number; promoteCount: number; demoteCount: number; members: LeagueMember[] } | null;
+  badges: Array<{ id: string; name: string; description: string; earnedAt: string | null }>;
+  recent: Array<{ label: string; xp: number; at: string }>;
+};

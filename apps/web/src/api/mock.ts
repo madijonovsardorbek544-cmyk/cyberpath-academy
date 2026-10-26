@@ -1,7 +1,7 @@
 import { labSubmitSchema, lessonCompleteSchema, loginSchema, onboardingSchema, requestResetSchema, resetSchema, signupSchema } from "@cyberpath/contracts";
 import type { Analytics, BugReport, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User, SkillMasteryRecord, MasteryState, PracticeMode, Exercise } from "../types";
 import { exerciseCatalog, isExerciseCorrect, skillCatalog, skillCategories } from "../learningContent";
-import { handleFeatureRequest } from "./mockFeatures";
+import { handleFeatureRequest, type MockFeatureContext } from "./mockFeatures";
 
 type Role = User["role"];
 
@@ -1108,7 +1108,22 @@ function getSubscriptionForUser(db: DemoDb, userId: string) {
 
 const unsafePatterns = ["credential theft", "keylogger", "persistence", "deploy malware", "steal password", "evade detection", "ransomware", "exploit live target", "phish real users", "bypass mfa"];
 
-const feature = <T>(method: string, path: string, body?: unknown) => handleFeatureRequest(method, path, body, getSessionUserSafe()?.id ?? null) as Promise<T> | null;
+function featureContext(): MockFeatureContext | null {
+  const user = getSessionUserSafe();
+  if (!user) return null;
+  const db = readDb();
+  const titles = new Map(db.lessons.map((lesson) => [lesson.id, lesson.title]));
+  return {
+    userId: user.id,
+    students: db.users.filter((entry) => entry.role === "student").map((entry) => ({
+      id: entry.id,
+      name: entry.name,
+      lessons: db.progress.filter((item) => item.userId === entry.id && item.completed && item.completedAt).map((item) => ({ id: item.lessonId, title: titles.get(item.lessonId) ?? "a lesson", at: item.completedAt! }))
+    }))
+  };
+}
+
+const feature = <T>(method: string, path: string, body?: unknown) => handleFeatureRequest(method, path, body, featureContext) as Promise<T> | null;
 
 export const mockApi = {
   get: <T>(path: string) => respond(() => feature<T>("GET", path) ?? handleGet<T>(path)),

@@ -639,6 +639,39 @@ export function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_soc_attempts_user ON soc_shift_attempts(user_id, shift_slug);
+
+    CREATE TABLE IF NOT EXISTS xp_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      event_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      xp INTEGER NOT NULL,
+      earned_at TEXT NOT NULL,
+      UNIQUE(user_id, event_key),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_xp_events_user_time ON xp_events(user_id, earned_at);
+
+    CREATE TABLE IF NOT EXISTS league_memberships (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      week_start TEXT NOT NULL,
+      tier INTEGER NOT NULL,
+      group_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(user_id, week_start),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_league_group ON league_memberships(group_id);
+
+    CREATE TABLE IF NOT EXISTS user_badges (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      badge_id TEXT NOT NULL,
+      earned_at TEXT NOT NULL,
+      UNIQUE(user_id, badge_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   addColumn("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';");

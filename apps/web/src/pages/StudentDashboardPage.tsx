@@ -5,6 +5,7 @@ import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { Badge, Button, Card, EmptyState, ErrorState, Loader, SectionTitle, StatCard } from '../components/ui';
 import type { Analytics, DashboardResponse, PracticeHub } from '../types';
+import { ProgressStrip } from '../components/progress/ProgressStrip';
 
 type RecommendationCard = {
   id: string;
@@ -220,6 +221,7 @@ export function StudentDashboardPage() {
           subtitle="Top learning products do not dump features on a page. They tell you exactly what matters now, why it matters, and what to do after that."
         />
 
+        <ProgressStrip />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Lessons completed" value={dashboard.analytics.totalCompleted} hint={`${dashboard.analytics.completionRate}% of the mapped curriculum`} />
           <StatCard label="Quiz accuracy" value={`${dashboard.analytics.totalQuizAccuracy}%`} hint="Average across recorded attempts" />

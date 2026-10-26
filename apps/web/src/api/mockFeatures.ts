@@ -1,6 +1,9 @@
 // Mock-demo handlers for the newer learner features. State lives in its own localStorage key so the
 // older demo database format does not change.
 import { caseAnswerSchema, socSubmitSchema } from "@cyberpath/contracts";
+import { LEAGUE_TIERS, XP_RULES, addDays, badgeCatalog, computeStreak, leaderboardName, levelForXp, weekStartOf, type XpEvent } from "@cyberpath/contracts/gamification";
+
+export type MockFeatureContext = { userId: string; students: Array<{ id: string; name: string; lessons: Array<{ id: string; title: string; at: string }> }> };
 
 const FEATURE_KEY = "cyberpath-demo-features-v1";
 
@@ -141,15 +144,77 @@ async function handleSoc(method: string, path: string, body: unknown, userId: st
   throw new Error(`No mock handler for ${method} ${path}`);
 }
 
+async function xpEventsFor(student: MockFeatureContext["students"][number], state: FeatureState): Promise<XpEvent[]> {
+  const events: XpEvent[] = student.lessons.map((lesson) => ({ key: `lesson:${lesson.id}`, label: `Completed lesson: ${lesson.title}`, xp: XP_RULES.lessonComplete, at: lesson.at }));
+  const caseRows = state.cases[student.id] ?? {};
+  if (Object.keys(caseRows).length) {
+    const bank = await loadCaseBank();
+    for (const [slug, rows] of Object.entries(caseRows)) {
+      const item = bank.findInvestigationCase(slug);
+      if (!item) continue;
+      const solved = Object.entries(rows).filter(([, row]) => row.solvedAt);
+      for (const [questionId, row] of solved) events.push({ key: `case:${slug}:${questionId}`, label: `Solved a question in "${item.title}"`, xp: row.pointsAwarded, at: row.solvedAt! });
+      if (solved.length === item.questions.length) events.push({ key: `case-complete:${slug}`, label: `Closed case "${item.title}"`, xp: XP_RULES.caseComplete, at: solved.map(([, row]) => row.solvedAt!).sort().at(-1)! });
+    }
+  }
+  for (const [slug, attempts] of Object.entries(state.soc[student.id] ?? {})) {
+    let best = 0;
+    attempts.forEach((attempt, index) => {
+      if (attempt.score > best) {
+        events.push({ key: `soc:${slug}:${index}`, label: "New best on a SOC shift", xp: attempt.score - best, at: attempt.createdAt });
+        best = attempt.score;
+      }
+    });
+  }
+  return events;
+}
+
+async function handleProgress(ctx: MockFeatureContext) {
+  const state = readState();
+  const now = new Date();
+  const today = now.toISOString().slice(0, 10);
+  const weekStart = weekStartOf(now);
+  const inWeek = (event: XpEvent) => event.at >= weekStart && event.at < addDays(weekStart, 7);
+  const standings = await Promise.all(ctx.students.map(async (student) => ({ student, events: await xpEventsFor(student, state) })));
+  const mine = standings.find((entry) => entry.student.id === ctx.userId);
+  const events = mine?.events ?? [];
+  const totalXp = events.reduce((sum, event) => sum + event.xp, 0);
+  const streak = computeStreak(events.map((event) => event.at.slice(0, 10)), today);
+  const socAttempts = Object.values(state.soc[ctx.userId] ?? {}).flat();
+  const caseBank = Object.keys(state.cases[ctx.userId] ?? {}).length ? await loadCaseBank() : null;
+  const casesCompleted = caseBank ? caseBank.investigationCases.filter((item) => item.questions.every((question) => state.cases[ctx.userId]?.[item.slug]?.[question.id]?.solvedAt)).length : 0;
+  const stats = {
+    totalXp,
+    lessonsCompleted: mine?.student.lessons.length ?? 0,
+    casesCompleted,
+    totalCases: caseBank?.investigationCases.length ?? 6,
+    socShiftsWorked: socAttempts.length,
+    perfectSocShift: socAttempts.some((attempt) => {
+      const result = attempt.result as { correctVerdicts: number; totalAlerts: number };
+      return result.correctVerdicts === result.totalAlerts;
+    }),
+    streak: streak.current
+  };
+  const members = standings
+    .map((entry) => ({ name: leaderboardName(entry.student.name), xp: entry.events.filter(inWeek).reduce((sum, event) => sum + event.xp, 0), isMe: entry.student.id === ctx.userId }))
+    .sort((a, b) => b.xp - a.xp)
+    .map((entry, index) => ({ ...entry, rank: index + 1 }));
+  return {
+    xp: { total: totalXp, thisWeek: events.filter(inWeek).reduce((sum, event) => sum + event.xp, 0), ...levelForXp(totalXp) },
+    streak,
+    league: mine ? { tier: 0, tierName: LEAGUE_TIERS[0], weekStart, weekEnds: addDays(weekStart, 7), rank: members.find((entry) => entry.isMe)!.rank, promoteCount: 5, demoteCount: 0, members } : null,
+    badges: badgeCatalog.map(({ earned, ...badge }) => ({ ...badge, earnedAt: earned(stats) ? today : null })),
+    recent: [...events].filter((event) => event.xp > 0).sort((a, b) => b.at.localeCompare(a.at)).slice(0, 10).map(({ label, xp, at }) => ({ label, xp, at }))
+  };
+}
+
 /** Returns a response for feature routes, or null so the main mock handles the path. */
-export function handleFeatureRequest(method: string, path: string, body: unknown, userId: string | null): Promise<unknown> | null {
-  if (path === "/cases" || path.startsWith("/cases/")) {
-    if (!userId) return Promise.reject(new Error("Authentication required."));
-    return handleCases(method, path, body, userId);
-  }
-  if (path.startsWith("/soc/")) {
-    if (!userId) return Promise.reject(new Error("Authentication required."));
-    return handleSoc(method, path, body, userId);
-  }
-  return null;
+export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext | null): Promise<unknown> | null {
+  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me";
+  if (!isFeature) return null;
+  const ctx = getContext();
+  if (!ctx) return Promise.reject(new Error("Authentication required."));
+  if (path === "/progress/me" && method === "GET") return handleProgress(ctx);
+  if (path.startsWith("/soc/")) return handleSoc(method, path, body, ctx.userId);
+  return handleCases(method, path, body, ctx.userId);
 }
