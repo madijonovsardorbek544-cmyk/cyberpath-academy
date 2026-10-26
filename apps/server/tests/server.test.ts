@@ -967,3 +967,66 @@ test('public profiles are private by default and expose only earned achievements
   assert.equal((await fetch(`${server.baseUrl}/api/profile/public/blue-team-amina`)).status, 404);
   await server.close();
 });
+
+test('community cases go through mentor review before learners can play them', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Case Author', email: 'caseauthor@example.com', password: 'StrongPass1!' })
+  });
+  const author = cookieHeaderFrom(signup);
+  const mentorLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  });
+  const mentor = cookieHeaderFrom(mentorLogin);
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+
+  const draft = {
+    title: 'Badge reader at midnight', summary: 'A door badge was used at midnight.', story: 'Security asks you to check the badge log.',
+    category: 'Authentication', difficulty: 'beginner', estimatedMinutes: 10, skills: ['Log reading'],
+    evidence: [{ id: 'badge', name: 'badge.log', kind: 'log', description: 'Door badge events.', content: '2026-01-01T00:02:00Z door=server-room badge=4411 src=10.1.1.5 result=granted' }],
+    questions: [
+      { id: 'q1', prompt: 'Which door?', format: 'Door name', hint: 'door=', answers: ['server-room'], explanation: 'The door field says server-room.', points: 10 },
+      { id: 'q2', prompt: 'Which badge?', format: 'Number', hint: 'badge=', answers: ['4411'], explanation: 'Badge 4411.', points: 10 },
+      { id: 'q3', prompt: 'Was it allowed?', format: 'Pick one', hint: 'result=', options: ['Yes', 'No'], answers: ['Yes'], explanation: 'result=granted.', points: 10 }
+    ],
+    debrief: 'Check who holds badge 4411.'
+  };
+
+  const realIp = await call(author, 'POST', '/community-cases', { case: { ...draft, evidence: [{ ...draft.evidence[0], content: 'src=8.8.8.8' }] } });
+  assert.equal(realIp.status, 400);
+  assert.match((await realIp.json()).message, /8\.8\.8\.8/);
+  const badOption = await call(author, 'POST', '/community-cases', { case: { ...draft, questions: [draft.questions[0], draft.questions[1], { ...draft.questions[2], answers: ['Maybe'] }] } });
+  assert.equal(badOption.status, 400);
+
+  const created = await (await call(author, 'POST', '/community-cases', { case: draft, submit: true })).json();
+  assert.equal(created.submission.status, 'submitted');
+  assert.match(created.submission.slug, /^c-badge-reader-at-midnight-/);
+  assert.equal((await call(author, 'PATCH', `/community-cases/${created.submission.id}`, { case: draft })).status, 409, 'submitted cases are locked');
+  assert.equal((await call(author, 'GET', '/community-cases/review')).status, 403, 'learners cannot review');
+
+  const slug = created.submission.slug;
+  assert.equal((await call(author, 'GET', `/cases/${slug}`)).status, 404, 'not playable before review');
+
+  const queue = await (await call(mentor, 'GET', '/community-cases/review')).json();
+  assert.ok(queue.submissions.some((item: any) => item.id === created.submission.id));
+  assert.equal((await call(mentor, 'POST', `/community-cases/${created.submission.id}/review`, { decision: 'changes_requested' })).status, 400, 'needs a note');
+  const changes = await (await call(mentor, 'POST', `/community-cases/${created.submission.id}/review`, { decision: 'changes_requested', note: 'Add a second log line.' })).json();
+  assert.equal(changes.submission.status, 'changes_requested');
+
+  const resubmitted = await (await call(author, 'PATCH', `/community-cases/${created.submission.id}`, { case: draft, submit: true })).json();
+  assert.equal(resubmitted.submission.status, 'submitted');
+  const published = await (await call(mentor, 'POST', `/community-cases/${created.submission.id}/review`, { decision: 'publish' })).json();
+  assert.equal(published.submission.status, 'published');
+
+  const list = await (await call(author, 'GET', '/cases')).json();
+  const listed = list.cases.find((item: any) => item.slug === slug);
+  assert.equal(listed.source, 'community');
+  assert.equal(listed.author, 'Case A.');
+  const answer = await (await call(author, 'POST', `/cases/${slug}/answer`, { questionId: 'q2', answer: '4411' })).json();
+  assert.equal(answer.correct, true);
+  assert.ok(!JSON.stringify(list).includes('"answers"'));
+  assert.equal((await call(author, 'DELETE', `/community-cases/${created.submission.id}`)).status, 409);
+  await server.close();
+});

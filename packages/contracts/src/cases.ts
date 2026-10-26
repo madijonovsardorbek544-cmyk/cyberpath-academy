@@ -327,6 +327,25 @@ export const investigationCases: InvestigationCase[] = [
   }
 ];
 
+const RESERVED_IP = /^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|192\.0\.2\.|198\.51\.100\.|203\.0\.113\.)/;
+const RESERVED_DOMAIN = /(^|\.)(example|test|invalid|localhost|local)$|(^|\.)example\.(com|net|org)$/i;
+
+/**
+ * Finds IPs and domains in case text that are not reserved for documentation or private use.
+ * Case evidence must never point at real people's systems.
+ */
+export function findRealWorldIndicators(item: Pick<InvestigationCase, 'evidence' | 'questions' | 'story'>) {
+  const text = [item.story, ...item.evidence.map((evidence) => evidence.content), ...item.questions.flatMap((question) => [question.prompt, ...question.answers, ...(question.options ?? [])])].join('\n');
+  const problems = new Set<string>();
+  for (const ip of text.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) ?? []) {
+    if (ip.split('.').every((part) => Number(part) <= 255) && !RESERVED_IP.test(ip)) problems.add(ip);
+  }
+  for (const match of text.matchAll(/(?:https?:\/\/|@)([a-z0-9.-]+\.[a-z]{2,})/gi)) {
+    if (!RESERVED_DOMAIN.test(match[1])) problems.add(match[1].toLowerCase());
+  }
+  return [...problems];
+}
+
 export function findInvestigationCase(slug: string) {
   return investigationCases.find((item) => item.slug === slug) ?? null;
 }

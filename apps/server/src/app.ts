@@ -14,6 +14,7 @@ import caseRoutes from './routes/cases.js';
 import socRoutes from './routes/soc.js';
 import progressRoutes from './routes/progress.js';
 import profileRoutes from './routes/profile.js';
+import communityCaseRoutes from './routes/communityCases.js';
 import { errorHandler } from './middleware/error.js';
 import { env } from './config/env.js';
 import { initDb, one } from './lib/db.js';
@@ -83,6 +84,7 @@ app.use('/api/cases', caseRoutes);
 app.use('/api/soc', socRoutes);
 app.use('/api/progress', progressRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/community-cases', communityCaseRoutes);
 
 const webDistPath = path.resolve(process.cwd(), 'apps/web/dist');
 if (env.isProduction && fs.existsSync(webDistPath)) {

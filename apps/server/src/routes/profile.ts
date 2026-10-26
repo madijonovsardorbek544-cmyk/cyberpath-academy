@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { profilePatchSchema } from '@cyberpath/contracts';
-import { investigationCases } from '@cyberpath/contracts/cases';
+import { listCases } from '../utils/caseCatalog.js';
 import { gradeSocShift, socShifts } from '@cyberpath/contracts/soc';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { many, one, run } from '../lib/db.js';
@@ -19,7 +19,7 @@ function publicProfile(userId: string) {
   const user = one<Row>('SELECT name, created_at FROM users WHERE id = ?', userId);
   const progress = getLearnerProgress(userId, new Date(), { league: false });
   const solved = many<Row>('SELECT case_slug, COUNT(*) AS solved, MAX(solved_at) AS closed_at FROM case_progress WHERE user_id = ? AND solved_at IS NOT NULL GROUP BY case_slug', userId);
-  const cases = investigationCases.flatMap((item) => {
+  const cases = listCases().flatMap((item) => {
     const row = solved.find((entry) => entry.case_slug === item.slug);
     return row && Number(row.solved) === item.questions.length ? [{ slug: item.slug, title: item.title, category: item.category, difficulty: item.difficulty, closedAt: String(row.closed_at) }] : [];
   });

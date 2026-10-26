@@ -504,3 +504,48 @@ export const profilePatchSchema = z.object({
   isPublic: z.boolean().optional(),
   headline: z.string().trim().max(120).optional()
 });
+
+const caseText = (max: number) => z.string().trim().min(1).max(max);
+export const caseDraftSchema = z.object({
+  title: caseText(80),
+  summary: caseText(240),
+  story: caseText(2000),
+  category: z.enum(['Authentication', 'Phishing', 'Endpoint', 'Network', 'Cloud', 'Web']),
+  difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
+  estimatedMinutes: z.number().int().min(5).max(120),
+  skills: z.array(caseText(40)).min(1).max(6),
+  evidence: z.array(z.object({
+    id: z.string().regex(/^[a-z0-9-]{1,30}$/),
+    name: z.string().trim().regex(/^[\w.-]{1,60}$/, 'Evidence file names may use letters, numbers, dots, dashes and underscores.'),
+    kind: z.enum(['log', 'email', 'json', 'csv', 'text']),
+    description: caseText(200),
+    content: z.string().min(1).max(50_000)
+  })).min(1).max(5),
+  questions: z.array(z.object({
+    id: z.string().regex(/^q\d{1,2}$/),
+    prompt: caseText(300),
+    format: caseText(60),
+    hint: caseText(300),
+    options: z.array(caseText(200)).min(2).max(6).optional(),
+    answers: z.array(caseText(200)).min(1).max(5),
+    explanation: caseText(1000),
+    points: z.number().int().min(5).max(20)
+  })).min(3).max(10),
+  debrief: caseText(3000)
+}).superRefine((value, ctx) => {
+  const ids = new Set<string>();
+  value.questions.forEach((question, index) => {
+    if (ids.has(question.id)) ctx.addIssue({ code: 'custom', path: ['questions', index, 'id'], message: `Question id ${question.id} is used twice.` });
+    ids.add(question.id);
+    if (question.options && !(question.answers.length === 1 && question.options.includes(question.answers[0]))) {
+      ctx.addIssue({ code: 'custom', path: ['questions', index, 'answers'], message: `Question ${index + 1}: a multiple-choice question needs exactly one answer, copied from its options.` });
+    }
+  });
+  if (new Set(value.evidence.map((item) => item.name)).size !== value.evidence.length) ctx.addIssue({ code: 'custom', path: ['evidence'], message: 'Evidence file names must be unique.' });
+  if (new Set(value.evidence.map((item) => item.id)).size !== value.evidence.length) ctx.addIssue({ code: 'custom', path: ['evidence'], message: 'Evidence ids must be unique.' });
+});
+export const caseReviewSchema = z.object({
+  decision: z.enum(['publish', 'changes_requested', 'rejected']),
+  note: z.string().trim().max(2000).optional()
+});
+export type CaseDraft = z.infer<typeof caseDraftSchema>;

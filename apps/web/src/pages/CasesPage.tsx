@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api/client";
+import { useAuth } from "../contexts/AuthContext";
 import { AppShell } from "../components/AppShell";
 import { Badge, Card, ErrorState, Loader, SectionTitle } from "../components/ui";
 import type { CaseListItem } from "../types";
@@ -8,6 +9,7 @@ import type { CaseListItem } from "../types";
 export function CasesPage() {
   const [cases, setCases] = useState<CaseListItem[] | null>(null);
   const [error, setError] = useState("");
+  const { user } = useAuth();
 
   const load = () => {
     setError("");
@@ -29,7 +31,13 @@ export function CasesPage() {
           title="Work real-format evidence like an analyst."
           subtitle="Each case gives you logs, emails or cloud events from a fictional company. Search the evidence, answer the questions, and unlock the full debrief when you finish."
         />
-        <p className="text-sm text-slate-400">{solved} of {cases.length} cases closed · {points} points earned</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-sm text-slate-400">{solved} of {cases.length} cases closed · {points} points earned</p>
+          <div className="flex flex-wrap gap-2 text-sm">
+            <Link to="/cases/mine" className="rounded-2xl border border-slate-700 px-4 py-2 text-slate-100 hover:border-sky-400/40">Write a case</Link>
+            {user?.role === "mentor" || user?.role === "admin" ? <Link to="/cases/review" className="rounded-2xl border border-slate-700 px-4 py-2 text-slate-100 hover:border-sky-400/40">Review queue</Link> : null}
+          </div>
+        </div>
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
           {cases.map((item) => {
             const percent = Math.round((item.progress.solvedQuestions / item.progress.totalQuestions) * 100);
@@ -39,6 +47,7 @@ export function CasesPage() {
                   <div className="flex flex-wrap gap-2">
                     <Badge>{item.category}</Badge>
                     <Badge>{item.difficulty}</Badge>
+                    {item.source === "community" ? <Badge className="border-violet-400/40 text-violet-200">Community · {item.author}</Badge> : null}
                     {item.progress.completed ? <Badge className="border-emerald-400/40 text-emerald-200">Closed</Badge> : null}
                   </div>
                   <h2 className="mt-4 text-xl font-semibold text-white">{item.title}</h2>

@@ -25,6 +25,9 @@ const SocPage = lazy(() => import('../pages/SocPage').then((module) => ({ defaul
 const SocShiftPage = lazy(() => import('../pages/SocShiftPage').then((module) => ({ default: module.SocShiftPage })));
 const ProgressPage = lazy(() => import('../pages/ProgressPage').then((module) => ({ default: module.ProgressPage })));
 const PublicProfilePage = lazy(() => import('../pages/PublicProfilePage').then((module) => ({ default: module.PublicProfilePage })));
+const CaseEditorPage = lazy(() => import('../pages/CaseEditorPage').then((module) => ({ default: module.CaseEditorPage })));
+const MyCasesPage = lazy(() => import('../pages/MyCasesPage').then((module) => ({ default: module.MyCasesPage })));
+const CaseReviewPage = lazy(() => import('../pages/CaseReviewPage').then((module) => ({ default: module.CaseReviewPage })));
 const MistakesPage = lazy(() => import('../pages/MistakesPage').then((module) => ({ default: module.MistakesPage })));
 const AITutorPage = lazy(() => import('../pages/AITutorPage').then((module) => ({ default: module.AITutorPage })));
 const MentorDashboardPage = lazy(() => import('../pages/MentorDashboardPage').then((module) => ({ default: module.MentorDashboardPage })));
@@ -82,6 +85,10 @@ export function App() {
             <Route path="/skills/:skillId" element={<ProtectedRoute><SkillDetailPage /></ProtectedRoute>} />
             <Route path="/lessons/:slug" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
             <Route path="/cases" element={<ProtectedRoute><CasesPage /></ProtectedRoute>} />
+            <Route path="/cases/new" element={<ProtectedRoute><CaseEditorPage /></ProtectedRoute>} />
+            <Route path="/cases/edit/:id" element={<ProtectedRoute><CaseEditorPage /></ProtectedRoute>} />
+            <Route path="/cases/mine" element={<ProtectedRoute><MyCasesPage /></ProtectedRoute>} />
+            <Route path="/cases/review" element={<ProtectedRoute roles={['mentor', 'admin']}><CaseReviewPage /></ProtectedRoute>} />
             <Route path="/cases/:slug" element={<ProtectedRoute><CasePage /></ProtectedRoute>} />
             <Route path="/soc" element={<ProtectedRoute><SocPage /></ProtectedRoute>} />
             <Route path="/soc/:slug" element={<ProtectedRoute><SocShiftPage /></ProtectedRoute>} />

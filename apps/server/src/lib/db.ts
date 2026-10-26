@@ -664,6 +664,22 @@ export function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_league_group ON league_memberships(group_id);
 
+    CREATE TABLE IF NOT EXISTS community_cases (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      author_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      data_json TEXT NOT NULL,
+      review_note TEXT,
+      reviewer_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      published_at TEXT,
+      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_community_cases_status ON community_cases(status, published_at);
+
     CREATE TABLE IF NOT EXISTS user_badges (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,

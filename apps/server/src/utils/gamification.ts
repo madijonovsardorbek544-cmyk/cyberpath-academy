@@ -1,4 +1,4 @@
-import { findInvestigationCase, investigationCases } from '@cyberpath/contracts/cases';
+import { findCase, listCases } from './caseCatalog.js';
 import { findSocShift } from '@cyberpath/contracts/soc';
 import {
   LEAGUE_DEMOTE,
@@ -36,13 +36,13 @@ export function syncXp(userId: string) {
 
   const solvedByCase = new Map<string, Row[]>();
   for (const row of many<Row>(`SELECT case_slug, question_id, points_awarded, solved_at FROM case_progress WHERE user_id = ? AND solved_at IS NOT NULL`, userId)) {
-    const item = findInvestigationCase(String(row.case_slug));
+    const item = findCase(String(row.case_slug));
     if (!item) continue;
     events.push({ key: `case:${row.case_slug}:${row.question_id}`, label: `Solved a question in "${item.title}"`, xp: Number(row.points_awarded), at: String(row.solved_at) });
     solvedByCase.set(item.slug, [...(solvedByCase.get(item.slug) ?? []), row]);
   }
   for (const [slug, rows] of solvedByCase) {
-    const item = findInvestigationCase(slug)!;
+    const item = findCase(slug)!;
     if (rows.length === item.questions.length) {
       const closedAt = rows.map((row) => String(row.solved_at)).sort().at(-1)!;
       events.push({ key: `case-complete:${slug}`, label: `Closed case "${item.title}"`, xp: XP_RULES.caseComplete, at: closedAt });
@@ -106,12 +106,12 @@ function ensureMembership(userId: string, weekStart: string) {
 }
 
 function badgeStats(userId: string, totalXp: number, streak: number) {
-  const casesCompleted = investigationCases.filter((item) => count('SELECT COUNT(*) AS value FROM case_progress WHERE user_id = ? AND case_slug = ? AND solved_at IS NOT NULL', userId, item.slug) === item.questions.length).length;
+  const casesCompleted = listCases().filter((item) => count('SELECT COUNT(*) AS value FROM case_progress WHERE user_id = ? AND case_slug = ? AND solved_at IS NOT NULL', userId, item.slug) === item.questions.length).length;
   return {
     totalXp,
     lessonsCompleted: count('SELECT COUNT(*) AS value FROM lesson_progress WHERE user_id = ? AND completed = 1', userId),
     casesCompleted,
-    totalCases: investigationCases.length,
+    totalCases: listCases().length,
     socShiftsWorked: count('SELECT COUNT(*) AS value FROM soc_shift_attempts WHERE user_id = ?', userId),
     perfectSocShift: count('SELECT COUNT(*) AS value FROM soc_shift_attempts WHERE user_id = ? AND correct_verdicts = total_alerts', userId) > 0,
     streak

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { caseAnswerSchema } from '@cyberpath/contracts';
-import { casePointsFor, caseTotalPoints, findInvestigationCase, investigationCases, isCaseAnswerCorrect, toPublicCase, type InvestigationCase } from '@cyberpath/contracts/cases';
+import { casePointsFor, caseTotalPoints, isCaseAnswerCorrect, toPublicCase, type InvestigationCase } from '@cyberpath/contracts/cases';
+import { findCase, listCases } from '../utils/caseCatalog.js';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { makeId, many, nowIso, one, run } from '../lib/db.js';
 
@@ -51,7 +52,7 @@ function caseDetail(item: InvestigationCase, userId: string) {
 
 router.get('/', (req: AuthenticatedRequest, res) => {
   const userId = req.user!.userId;
-  const cases = investigationCases.map((item) => {
+  const cases = listCases().map((item) => {
     const { evidence, questions, story: _story, ...meta } = toPublicCase(item);
     return { ...meta, evidenceCount: evidence.length, questionCount: questions.length, progress: caseSummary(item, progressFor(userId, item.slug)) };
   });
@@ -59,13 +60,13 @@ router.get('/', (req: AuthenticatedRequest, res) => {
 });
 
 router.get('/:slug', (req: AuthenticatedRequest, res) => {
-  const item = findInvestigationCase(String(req.params.slug));
+  const item = findCase(String(req.params.slug));
   if (!item) return res.status(404).json({ message: 'Case not found.' });
   return res.json(caseDetail(item, req.user!.userId));
 });
 
 router.post('/:slug/answer', (req: AuthenticatedRequest, res) => {
-  const item = findInvestigationCase(String(req.params.slug));
+  const item = findCase(String(req.params.slug));
   if (!item) return res.status(404).json({ message: 'Case not found.' });
   const parsed = caseAnswerSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ message: 'Send a questionId and a non-empty answer.' });

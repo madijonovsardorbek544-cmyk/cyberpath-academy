@@ -1,25 +1,26 @@
 // Mock-demo handlers for the newer learner features. State lives in its own localStorage key so the
 // older demo database format does not change.
-import { caseAnswerSchema, profilePatchSchema, socSubmitSchema } from "@cyberpath/contracts";
+import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, profilePatchSchema, socSubmitSchema } from "@cyberpath/contracts";
 import { LEAGUE_TIERS, XP_RULES, addDays, badgeCatalog, computeStreak, leaderboardName, levelForXp, weekStartOf, type XpEvent } from "@cyberpath/contracts/gamification";
 
-export type MockFeatureContext = { userId: string | null; students: Array<{ id: string; name: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
+export type MockFeatureContext = { userId: string | null; role?: string; students: Array<{ id: string; name: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
 
 const FEATURE_KEY = "cyberpath-demo-features-v1";
 
 type CaseRow = { attempts: number; pointsAwarded: number; solvedAt: string | null };
 type SocAttempt = { score: number; result: unknown; createdAt: string };
 type ProfileRow = { handle: string | null; isPublic: boolean; headline: string };
-type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow> };
+type CommunityRow = { id: string; slug: string; authorId: string; authorName: string; status: string; reviewNote: string | null; case: Record<string, unknown>; createdAt: string; updatedAt: string; publishedAt: string | null };
+type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[] };
 
 function readState(): FeatureState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FEATURE_KEY) || "null") as FeatureState | null;
-    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {} };
+    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [] };
   } catch {
     // Corrupt demo state is replaced below.
   }
-  return { cases: {}, soc: {}, profiles: {} };
+  return { cases: {}, soc: {}, profiles: {}, community: [] };
 }
 
 function writeState(state: FeatureState) {
@@ -63,10 +64,12 @@ async function handleCases(method: string, path: string, body: unknown, userId: 
   const bank = await loadCaseBank();
   const state = readState();
   const mine = (state.cases[userId] ??= {});
+  const community = state.community.filter((row) => row.status === "published").map((row) => ({ ...(row.case as unknown as InvestigationCase), slug: row.slug, source: "community", author: leaderboardName(row.authorName) }));
+  const all = [...bank.investigationCases.map((item) => ({ ...item, source: "core", author: null })), ...community];
 
   if (method === "GET" && path === "/cases") {
     return {
-      cases: bank.investigationCases.map((item) => {
+      cases: all.map((item) => {
         const { evidence, questions, story: _story, ...meta } = bank.toPublicCase(item);
         return { ...meta, evidenceCount: evidence.length, questionCount: questions.length, progress: caseView(bank, item, mine[item.slug] ?? {}).progress };
       })
@@ -74,7 +77,7 @@ async function handleCases(method: string, path: string, body: unknown, userId: 
   }
 
   const [, , slug, action] = path.split("/");
-  const item = bank.findInvestigationCase(slug ?? "");
+  const item = all.find((entry) => entry.slug === slug);
   if (!item) throw new Error("Case not found.");
   const rows = (mine[item.slug] ??= {});
 
@@ -254,15 +257,79 @@ async function handleProfile(method: string, path: string, body: unknown, ctx: M
   throw new Error(`No mock handler for ${method} ${path}`);
 }
 
+async function handleCommunity(method: string, path: string, body: unknown, ctx: MockFeatureContext & { userId: string }, role: string) {
+  const state = readState();
+  const [, , id, action] = path.split("/");
+  const validate = async () => {
+    const data = caseDraftSchema.parse((body as { case?: unknown })?.case);
+    const indicators = (await loadCaseBank()).findRealWorldIndicators(data);
+    if (indicators.length) throw new Error(`Use only documentation addresses and reserved domains. Found: ${indicators.slice(0, 5).join(", ")}`);
+    return data;
+  };
+  const save = () => writeState(state);
+  const submit = Boolean((body as { submit?: boolean })?.submit);
+
+  if (method === "GET" && id === "mine") return { submissions: state.community.filter((row) => row.authorId === ctx.userId) };
+  if (method === "GET" && id === "review") {
+    if (role === "student") throw new Error("You do not have access to this resource.");
+    return { submissions: state.community.filter((row) => row.status === "submitted") };
+  }
+  if (method === "POST" && !id) {
+    const data = await validate();
+    const now = new Date().toISOString();
+    const row: CommunityRow = { id: crypto.randomUUID(), slug: `c-${data.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)}-${Math.random().toString(16).slice(2, 8)}`, authorId: ctx.userId, authorName: ctx.students.find((student) => student.id === ctx.userId)?.name ?? "Learner", status: submit ? "submitted" : "draft", reviewNote: null, case: data, createdAt: now, updatedAt: now, publishedAt: null };
+    state.community.push(row);
+    save();
+    return { submission: row };
+  }
+  const row = state.community.find((entry) => entry.id === id);
+  if (!row) throw new Error("Submission not found.");
+  if (method === "PATCH" && !action) {
+    if (row.authorId !== ctx.userId) throw new Error("Submission not found.");
+    if (!["draft", "changes_requested"].includes(row.status)) throw new Error("Only drafts and cases with requested changes can be edited.");
+    Object.assign(row, { case: await validate(), status: submit ? "submitted" : row.status, updatedAt: new Date().toISOString() });
+    save();
+    return { submission: row };
+  }
+  if (method === "DELETE" && !action) {
+    if (row.authorId !== ctx.userId) throw new Error("Submission not found.");
+    if (row.status === "published") throw new Error("Published cases cannot be deleted by their author. Ask a mentor.");
+    state.community = state.community.filter((entry) => entry.id !== id);
+    save();
+    return { ok: true };
+  }
+  if (method === "POST" && action === "review") {
+    if (role === "student") throw new Error("You do not have access to this resource.");
+    if (row.authorId === ctx.userId) throw new Error("Another reviewer has to review your own case.");
+    const data = caseReviewSchema.parse(body);
+    if (data.decision !== "publish" && !data.note) throw new Error("Tell the author what to change.");
+    const now = new Date().toISOString();
+    Object.assign(row, { status: data.decision === "publish" ? "published" : data.decision, reviewNote: data.note ?? null, updatedAt: now, publishedAt: data.decision === "publish" ? now : null });
+    save();
+    return { submission: row };
+  }
+  throw new Error(`No mock handler for ${method} ${path}`);
+}
+
 /** Returns a response for feature routes, or null so the main mock handles the path. */
 export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext): Promise<unknown> | null {
-  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/");
+  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/");
   if (!isFeature) return null;
-  const ctx = getContext();
-  if (path.startsWith("/profile/")) return handleProfile(method, path, body, ctx);
-  const userId = ctx.userId;
-  if (!userId) return Promise.reject(new Error("Authentication required."));
-  if (path === "/progress/me" && method === "GET") return handleProgress({ ...ctx, userId });
-  if (path.startsWith("/soc/")) return handleSoc(method, path, body, userId);
-  return handleCases(method, path, body, userId);
+  const route = (): Promise<unknown> | unknown => {
+    const ctx = getContext();
+    if (path.startsWith("/profile/")) return handleProfile(method, path, body, ctx);
+    const userId = ctx.userId;
+    if (!userId) throw new Error("Authentication required.");
+    if (path === "/progress/me" && method === "GET") return handleProgress({ ...ctx, userId });
+    if (path.startsWith("/community-cases")) return handleCommunity(method, path, body, { ...ctx, userId }, ctx.role ?? "student");
+    if (path.startsWith("/soc/")) return handleSoc(method, path, body, userId);
+    return handleCases(method, path, body, userId);
+  };
+  // Match the API's 400 message ("path: message") instead of surfacing the raw zod issue list.
+  return Promise.resolve().then(route).catch((error: unknown) => {
+    const issues = (error as { issues?: Array<{ path: PropertyKey[]; message: string }> }).issues;
+    if (!Array.isArray(issues)) throw error;
+    const issue = issues[0];
+    throw new Error(`${issue?.path.join(".") || "request"}: ${issue?.message ?? "invalid"}`);
+  });
 }
