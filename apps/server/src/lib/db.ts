@@ -701,6 +701,10 @@ export function initDb() {
   addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN published_at TEXT;");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN content_type TEXT;");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN content_id TEXT;");
+  addColumn("ALTER TABLE users ADD COLUMN profile_handle TEXT;");
+  addColumn("ALTER TABLE users ADD COLUMN profile_public INTEGER NOT NULL DEFAULT 0;");
+  addColumn("ALTER TABLE users ADD COLUMN profile_headline TEXT NOT NULL DEFAULT '';");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_profile_handle ON users(profile_handle);");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN difficulty_rating TEXT;");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN usefulness_rating INTEGER;");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN confusion_note TEXT;");

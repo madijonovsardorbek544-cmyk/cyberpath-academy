@@ -1,24 +1,25 @@
 // Mock-demo handlers for the newer learner features. State lives in its own localStorage key so the
 // older demo database format does not change.
-import { caseAnswerSchema, socSubmitSchema } from "@cyberpath/contracts";
+import { caseAnswerSchema, profilePatchSchema, socSubmitSchema } from "@cyberpath/contracts";
 import { LEAGUE_TIERS, XP_RULES, addDays, badgeCatalog, computeStreak, leaderboardName, levelForXp, weekStartOf, type XpEvent } from "@cyberpath/contracts/gamification";
 
-export type MockFeatureContext = { userId: string; students: Array<{ id: string; name: string; lessons: Array<{ id: string; title: string; at: string }> }> };
+export type MockFeatureContext = { userId: string | null; students: Array<{ id: string; name: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
 
 const FEATURE_KEY = "cyberpath-demo-features-v1";
 
 type CaseRow = { attempts: number; pointsAwarded: number; solvedAt: string | null };
 type SocAttempt = { score: number; result: unknown; createdAt: string };
-type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>> };
+type ProfileRow = { handle: string | null; isPublic: boolean; headline: string };
+type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow> };
 
 function readState(): FeatureState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FEATURE_KEY) || "null") as FeatureState | null;
-    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {} };
+    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {} };
   } catch {
     // Corrupt demo state is replaced below.
   }
-  return { cases: {}, soc: {} };
+  return { cases: {}, soc: {}, profiles: {} };
 }
 
 function writeState(state: FeatureState) {
@@ -169,7 +170,7 @@ async function xpEventsFor(student: MockFeatureContext["students"][number], stat
   return events;
 }
 
-async function handleProgress(ctx: MockFeatureContext) {
+async function handleProgress(ctx: MockFeatureContext & { userId: string }) {
   const state = readState();
   const now = new Date();
   const today = now.toISOString().slice(0, 10);
@@ -208,13 +209,60 @@ async function handleProgress(ctx: MockFeatureContext) {
   };
 }
 
+async function handleProfile(method: string, path: string, body: unknown, ctx: MockFeatureContext) {
+  const state = readState();
+  const blank: ProfileRow = { handle: null, isPublic: false, headline: "" };
+
+  if (method === "GET" && path.startsWith("/profile/public/")) {
+    const handle = decodeURIComponent(path.split("/")[3] ?? "").toLowerCase();
+    const ownerId = Object.keys(state.profiles).find((id) => state.profiles[id].isPublic && state.profiles[id].handle === handle);
+    const owner = ctx.students.find((student) => student.id === ownerId);
+    if (!ownerId || !owner) throw new Error("This profile does not exist or is private.");
+    const progress = await handleProgress({ ...ctx, userId: ownerId });
+    const caseBank = state.cases[ownerId] ? await loadCaseBank() : null;
+    const socBank = state.soc[ownerId] ? await loadSocBank() : null;
+    const { isPublic: _isPublic, ...settings } = state.profiles[ownerId];
+    return {
+      profile: {
+        ...settings,
+        name: owner.name,
+        memberSince: owner.createdAt ?? new Date().toISOString(),
+        level: progress.xp.level,
+        totalXp: progress.xp.total,
+        streak: progress.streak.current,
+        badges: progress.badges.filter((badge) => badge.earnedAt),
+        cases: caseBank ? caseBank.investigationCases.filter((item) => item.questions.every((question) => state.cases[ownerId]?.[item.slug]?.[question.id]?.solvedAt)).map((item) => ({ slug: item.slug, title: item.title, category: item.category, difficulty: item.difficulty, closedAt: new Date().toISOString() })) : [],
+        soc: socBank ? socBank.socShifts.filter((shift) => state.soc[ownerId]?.[shift.slug]?.length).map((shift) => ({ slug: shift.slug, title: shift.title, bestScore: Math.max(...state.soc[ownerId][shift.slug].map((attempt) => attempt.score)), maxScore: socBank.gradeSocShift(shift, []).maxScore })) : [],
+        artifacts: [],
+        certificates: []
+      }
+    };
+  }
+
+  if (!ctx.userId) throw new Error("Authentication required.");
+  const mine = state.profiles[ctx.userId] ?? blank;
+  if (method === "GET" && path === "/profile/me") return { settings: mine };
+  if (method === "PATCH" && path === "/profile/me") {
+    const data = profilePatchSchema.parse(body);
+    const next = { ...mine, ...data };
+    if (next.isPublic && !next.handle) throw new Error("Choose a handle before making your profile public.");
+    if (data.handle && Object.entries(state.profiles).some(([id, row]) => id !== ctx.userId && row.handle === data.handle)) throw new Error("That handle is already taken.");
+    state.profiles[ctx.userId] = next;
+    writeState(state);
+    return { settings: next };
+  }
+  throw new Error(`No mock handler for ${method} ${path}`);
+}
+
 /** Returns a response for feature routes, or null so the main mock handles the path. */
-export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext | null): Promise<unknown> | null {
-  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me";
+export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext): Promise<unknown> | null {
+  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/");
   if (!isFeature) return null;
   const ctx = getContext();
-  if (!ctx) return Promise.reject(new Error("Authentication required."));
-  if (path === "/progress/me" && method === "GET") return handleProgress(ctx);
-  if (path.startsWith("/soc/")) return handleSoc(method, path, body, ctx.userId);
-  return handleCases(method, path, body, ctx.userId);
+  if (path.startsWith("/profile/")) return handleProfile(method, path, body, ctx);
+  const userId = ctx.userId;
+  if (!userId) return Promise.reject(new Error("Authentication required."));
+  if (path === "/progress/me" && method === "GET") return handleProgress({ ...ctx, userId });
+  if (path.startsWith("/soc/")) return handleSoc(method, path, body, userId);
+  return handleCases(method, path, body, userId);
 }

@@ -494,3 +494,13 @@ export const socSubmitSchema = z.object({
   })).min(1).max(50),
   durationSeconds: z.number().int().min(0).max(24 * 3600).optional()
 });
+
+const reservedHandles = new Set(['admin', 'root', 'support', 'cyberpath', 'me', 'settings', 'api', 'login', 'staff', 'mentor', 'teacher']);
+export const profileHandleSchema = z.string().trim().toLowerCase()
+  .regex(/^[a-z0-9](?:[a-z0-9-]{1,28})[a-z0-9]$/, 'Use 3-30 lowercase letters, numbers or dashes, starting and ending with a letter or number.')
+  .refine((handle) => !reservedHandles.has(handle), 'That handle is reserved.');
+export const profilePatchSchema = z.object({
+  handle: profileHandleSchema.optional(),
+  isPublic: z.boolean().optional(),
+  headline: z.string().trim().max(120).optional()
+});

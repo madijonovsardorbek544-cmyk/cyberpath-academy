@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { Badge, Card, ErrorState, Loader, SectionTitle } from '../components/ui';
 import type { LearnerProgress } from '../types';
+import { ProfileSettingsCard } from '../components/progress/ProfileSettingsCard';
 
 function daysLeft(weekEnds: string) {
   const ms = new Date(`${weekEnds}T00:00:00Z`).getTime() - Date.now();
@@ -98,6 +99,8 @@ export function ProgressPage() {
             ) : <p className="mt-3 text-sm text-slate-400">No XP yet. Finish a lesson or solve a case question to start.</p>}
           </Card>
         </div>
+
+        <ProfileSettingsCard />
 
         <Card className="p-5">
           <h2 className="text-lg font-semibold text-white">Badges</h2>

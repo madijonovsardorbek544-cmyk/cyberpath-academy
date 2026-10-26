@@ -933,3 +933,37 @@ test('progress endpoint turns activity into XP, a streak, a league seat and badg
   assert.equal(nextWeek.xp.thisWeek, 0);
   await server.close();
 });
+
+test('public profiles are private by default and expose only earned achievements once published', async () => {
+  const server = await startServer();
+  const signupAs = async (name: string, email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name, email, password: 'StrongPass1!' })
+  }));
+  const cookie = await signupAs('Profile Owner', 'profileowner@example.com');
+  const other = await signupAs('Other Person', 'otherperson@example.com');
+  const patch = (body: unknown, as = cookie) => fetch(`${server.baseUrl}/api/profile/me`, { method: 'PATCH', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie: as }, body: JSON.stringify(body) });
+
+  const initial = await (await fetch(`${server.baseUrl}/api/profile/me`, { headers: { cookie } })).json();
+  assert.deepEqual(initial.settings, { handle: null, isPublic: false, headline: '' });
+  assert.equal((await patch({ isPublic: true })).status, 400, 'needs a handle first');
+  assert.equal((await patch({ handle: 'admin' })).status, 400, 'reserved');
+  assert.equal((await patch({ handle: 'a' })).status, 400, 'too short');
+  assert.equal((await patch({ handle: 'Blue-Team-Amina', headline: 'Aspiring SOC analyst' })).status, 200);
+  assert.equal((await patch({ handle: 'blue-team-amina' }, other)).status, 409, 'handles are unique, case-insensitive');
+
+  assert.equal((await fetch(`${server.baseUrl}/api/profile/public/blue-team-amina`)).status, 404, 'private until published');
+  assert.equal((await patch({ isPublic: true })).status, 200);
+
+  const publicView = await (await fetch(`${server.baseUrl}/api/profile/public/BLUE-TEAM-AMINA`)).json();
+  assert.equal(publicView.profile.handle, 'blue-team-amina');
+  assert.equal(publicView.profile.headline, 'Aspiring SOC analyst');
+  assert.equal(publicView.profile.totalXp, 0);
+  assert.deepEqual(publicView.profile.badges, []);
+  const text = JSON.stringify(publicView);
+  assert.ok(!text.includes('profileowner@example.com') && !text.includes('"email"') && !text.includes('"league"'));
+
+  assert.equal((await patch({ isPublic: false })).status, 200);
+  assert.equal((await fetch(`${server.baseUrl}/api/profile/public/blue-team-amina`)).status, 404);
+  await server.close();
+});

@@ -24,6 +24,7 @@ const CasePage = lazy(() => import('../pages/CasePage').then((module) => ({ defa
 const SocPage = lazy(() => import('../pages/SocPage').then((module) => ({ default: module.SocPage })));
 const SocShiftPage = lazy(() => import('../pages/SocShiftPage').then((module) => ({ default: module.SocShiftPage })));
 const ProgressPage = lazy(() => import('../pages/ProgressPage').then((module) => ({ default: module.ProgressPage })));
+const PublicProfilePage = lazy(() => import('../pages/PublicProfilePage').then((module) => ({ default: module.PublicProfilePage })));
 const MistakesPage = lazy(() => import('../pages/MistakesPage').then((module) => ({ default: module.MistakesPage })));
 const AITutorPage = lazy(() => import('../pages/AITutorPage').then((module) => ({ default: module.AITutorPage })));
 const MentorDashboardPage = lazy(() => import('../pages/MentorDashboardPage').then((module) => ({ default: module.MentorDashboardPage })));
@@ -64,6 +65,7 @@ export function App() {
             <Route path="/school-pilot" element={<SchoolPilotPage />} />
             <Route path="/pilot" element={<SchoolPilotPage />} />
             <Route path="/public/artifacts/:shareId" element={<PublicArtifactPage />} />
+            <Route path="/u/:handle" element={<PublicProfilePage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/report-bug" element={<BugReportPage />} />
             <Route path="/beta-checklist" element={<ProtectedRoute><BetaChecklistPage /></ProtectedRoute>} />

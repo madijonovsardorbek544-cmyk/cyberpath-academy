@@ -22,3 +22,17 @@ export type LearnerProgress = {
   badges: Array<{ id: string; name: string; description: string; earnedAt: string | null }>;
   recent: Array<{ label: string; xp: number; at: string }>;
 };
+
+export type ProfileSettings = { handle: string | null; isPublic: boolean; headline: string };
+export type PublicProfile = Omit<ProfileSettings, 'isPublic'> & {
+  name: string;
+  memberSince: string;
+  level: number;
+  totalXp: number;
+  streak: number;
+  badges: Array<{ id: string; name: string; description: string; earnedAt: string | null }>;
+  cases: Array<{ slug: string; title: string; category: string; difficulty: string; closedAt: string }>;
+  soc: Array<{ slug: string; title: string; bestScore: number; maxScore: number }>;
+  artifacts: Array<{ title: string; type: string; shareId: string }>;
+  certificates: Array<{ title: string; issuedAt: string }>;
+};

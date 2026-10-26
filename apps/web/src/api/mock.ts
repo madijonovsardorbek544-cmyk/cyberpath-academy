@@ -1108,16 +1108,16 @@ function getSubscriptionForUser(db: DemoDb, userId: string) {
 
 const unsafePatterns = ["credential theft", "keylogger", "persistence", "deploy malware", "steal password", "evade detection", "ransomware", "exploit live target", "phish real users", "bypass mfa"];
 
-function featureContext(): MockFeatureContext | null {
+function featureContext(): MockFeatureContext {
   const user = getSessionUserSafe();
-  if (!user) return null;
   const db = readDb();
   const titles = new Map(db.lessons.map((lesson) => [lesson.id, lesson.title]));
   return {
-    userId: user.id,
+    userId: user?.id ?? null,
     students: db.users.filter((entry) => entry.role === "student").map((entry) => ({
       id: entry.id,
       name: entry.name,
+      createdAt: entry.createdAt,
       lessons: db.progress.filter((item) => item.userId === entry.id && item.completed && item.completedAt).map((item) => ({ id: item.lessonId, title: titles.get(item.lessonId) ?? "a lesson", at: item.completedAt! }))
     }))
   };

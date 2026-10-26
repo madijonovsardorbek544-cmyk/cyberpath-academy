@@ -128,7 +128,7 @@ export function syncBadges(userId: string, totalXp: number, streak: number) {
   return badgeCatalog.map(({ earned: _earned, ...badge }) => ({ ...badge, earnedAt: earned.get(badge.id) ?? null }));
 }
 
-export function getLearnerProgress(userId: string, now = new Date()) {
+export function getLearnerProgress(userId: string, now = new Date(), options: { league?: boolean } = {}) {
   syncXp(userId);
   const today = now.toISOString().slice(0, 10);
   const weekStart = weekStartOf(now);
@@ -140,7 +140,7 @@ export function getLearnerProgress(userId: string, now = new Date()) {
 
   const role = one<Row | null>('SELECT role FROM users WHERE id = ?', userId)?.role;
   let league = null;
-  if (role === 'student') {
+  if (role === 'student' && options.league !== false) {
     const membership = ensureMembership(userId, weekStart);
     const standings = groupStandings(membership.groupId, weekStart);
     const mine = standings.find((entry) => entry.userId === userId)!;
