@@ -1,6 +1,7 @@
 import { labSubmitSchema, lessonCompleteSchema, loginSchema, onboardingSchema, requestResetSchema, resetSchema, signupSchema } from "@cyberpath/contracts";
 import type { Analytics, BugReport, Capstone, Certificate, Cohort, FeedbackItem, GuidedProject, Lab, LearnerProject, Lesson, MentorAlert, MentorAssignment, PilotLead, Plan, PortfolioArtifact, QuizQuestion, Recommendation, ReviewItem, Roadmap, Subscription, Track, User, SkillMasteryRecord, MasteryState, PracticeMode, Exercise } from "../types";
 import { exerciseCatalog, isExerciseCorrect, skillCatalog, skillCategories } from "../learningContent";
+import { handleFeatureRequest } from "./mockFeatures";
 
 type Role = User["role"];
 
@@ -817,7 +818,7 @@ function isAnswerCorrect(expectedValue: unknown, actualValue: unknown, type: str
   return JSON.stringify(expectedValue) === JSON.stringify(actualValue);
 }
 
-async function respond<T>(fn: () => T): Promise<T> {
+async function respond<T>(fn: () => T | Promise<T>): Promise<T> {
   await new Promise((resolve) => setTimeout(resolve, 120));
   return fn();
 }
@@ -1107,11 +1108,13 @@ function getSubscriptionForUser(db: DemoDb, userId: string) {
 
 const unsafePatterns = ["credential theft", "keylogger", "persistence", "deploy malware", "steal password", "evade detection", "ransomware", "exploit live target", "phish real users", "bypass mfa"];
 
+const feature = <T>(method: string, path: string, body?: unknown) => handleFeatureRequest(method, path, body, getSessionUserSafe()?.id ?? null) as Promise<T> | null;
+
 export const mockApi = {
-  get: <T>(path: string) => respond(() => handleGet<T>(path)),
-  post: <T>(path: string, body?: unknown) => respond(() => handlePost<T>(path, body)),
-  patch: <T>(path: string, body?: unknown) => respond(() => handlePatch<T>(path, body)),
-  delete: <T>(path: string) => respond(() => handleDelete<T>(path))
+  get: <T>(path: string) => respond(() => feature<T>("GET", path) ?? handleGet<T>(path)),
+  post: <T>(path: string, body?: unknown) => respond(() => feature<T>("POST", path, body) ?? handlePost<T>(path, body)),
+  patch: <T>(path: string, body?: unknown) => respond(() => feature<T>("PATCH", path, body) ?? handlePatch<T>(path, body)),
+  delete: <T>(path: string) => respond(() => feature<T>("DELETE", path) ?? handleDelete<T>(path))
 };
 
 function handleGet<T>(path: string): T {

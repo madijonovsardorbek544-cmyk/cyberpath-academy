@@ -609,6 +609,21 @@ export function initDb() {
       created_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS case_progress (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      case_slug TEXT NOT NULL,
+      question_id TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      points_awarded INTEGER NOT NULL DEFAULT 0,
+      solved_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(user_id, case_slug, question_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_case_progress_user ON case_progress(user_id, case_slug);
   `);
 
   addColumn("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';");

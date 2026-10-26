@@ -479,3 +479,8 @@ export const assignmentStudentPatchSchema = z.object({ status: z.enum(['open', '
 export const practiceModeSchema = z.enum(['learn', 'practice', 'review', 'mastery_challenge', 'lab_prep']);
 export const practiceSubmitSchema = z.object({ sessionId: z.string().optional(), exerciseId: z.string().min(2), answer: z.unknown(), mode: practiceModeSchema.optional() });
 export const userRolePatchSchema = z.object({ role: roleSchema });
+
+export const caseAnswerSchema = z.object({
+  questionId: z.string().min(1).max(40),
+  answer: z.string().trim().min(1).max(300)
+});

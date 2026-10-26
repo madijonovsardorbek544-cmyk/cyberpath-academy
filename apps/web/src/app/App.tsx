@@ -19,6 +19,8 @@ const ReviewPage = lazy(() => import('../pages/ReviewPage').then((module) => ({ 
 const LessonPage = lazy(() => import('../pages/LessonPage').then((module) => ({ default: module.LessonPage })));
 const LabsPage = lazy(() => import('../pages/LabsPage').then((module) => ({ default: module.LabsPage })));
 const LabPage = lazy(() => import('../pages/LabPage').then((module) => ({ default: module.LabPage })));
+const CasesPage = lazy(() => import('../pages/CasesPage').then((module) => ({ default: module.CasesPage })));
+const CasePage = lazy(() => import('../pages/CasePage').then((module) => ({ default: module.CasePage })));
 const MistakesPage = lazy(() => import('../pages/MistakesPage').then((module) => ({ default: module.MistakesPage })));
 const AITutorPage = lazy(() => import('../pages/AITutorPage').then((module) => ({ default: module.AITutorPage })));
 const MentorDashboardPage = lazy(() => import('../pages/MentorDashboardPage').then((module) => ({ default: module.MentorDashboardPage })));
@@ -74,6 +76,8 @@ export function App() {
             <Route path="/skill-tree" element={<ProtectedRoute><SkillTreePage /></ProtectedRoute>} />
             <Route path="/skills/:skillId" element={<ProtectedRoute><SkillDetailPage /></ProtectedRoute>} />
             <Route path="/lessons/:slug" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
+            <Route path="/cases" element={<ProtectedRoute><CasesPage /></ProtectedRoute>} />
+            <Route path="/cases/:slug" element={<ProtectedRoute><CasePage /></ProtectedRoute>} />
             <Route path="/labs" element={<ProtectedRoute><LabsPage /></ProtectedRoute>} />
             <Route path="/labs/:slug" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
             <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />

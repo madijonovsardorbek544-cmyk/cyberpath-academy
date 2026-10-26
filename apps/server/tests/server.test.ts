@@ -819,3 +819,42 @@ test('ALL_FEATURES_FREE unlocks premium labs for free users', async () => {
     await server.close();
   }
 });
+
+test('investigation cases hide answers, grade attempts, and unlock the debrief', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Case Solver', email: 'casesolver@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const headers = { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie };
+
+  const list = await (await fetch(`${server.baseUrl}/api/cases`, { headers: { cookie } })).json();
+  assert.ok(list.cases.length >= 6);
+  assert.ok(!JSON.stringify(list).includes('"answers"'));
+
+  const detail = await (await fetch(`${server.baseUrl}/api/cases/vpn-password-spray`, { headers: { cookie } })).json();
+  assert.equal(detail.case.debrief, null);
+  assert.ok(detail.case.questions.every((question: any) => question.explanation === null && !('answers' in question)));
+
+  const answer = (questionId: string, value: string) => fetch(`${server.baseUrl}/api/cases/vpn-password-spray/answer`, { method: 'POST', headers, body: JSON.stringify({ questionId, answer: value }) });
+  const wrong = await (await answer('q1', '10.0.0.1')).json();
+  assert.equal(wrong.correct, false);
+  assert.equal(wrong.case.questions[0].attempts, 1);
+  assert.equal(wrong.case.questions[0].explanation, null);
+
+  const { findInvestigationCase } = await import('@cyberpath/contracts/cases');
+  const item = findInvestigationCase('vpn-password-spray')!;
+  let last: any;
+  for (const question of item.questions) last = await (await answer(question.id, question.answers[0])).json();
+  assert.equal(last.progress.completed, true);
+  assert.ok(last.case.debrief);
+  assert.equal(last.case.questions[0].explanation, item.questions[0].explanation);
+
+  const repeat = await (await answer('q1', 'anything')).json();
+  assert.equal(repeat.alreadySolved, true);
+  assert.equal((await answer('nope', 'x')).status, 404);
+  assert.equal((await answer('q1', '')).status, 400);
+  assert.equal((await fetch(`${server.baseUrl}/api/cases/missing-case`, { headers: { cookie } })).status, 404);
+  await server.close();
+});
