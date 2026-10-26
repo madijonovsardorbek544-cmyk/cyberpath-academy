@@ -34,7 +34,7 @@ export type PublicProfile = Omit<ProfileSettings, 'isPublic'> & {
   cases: Array<{ slug: string; title: string; category: string; difficulty: string; closedAt: string }>;
   soc: Array<{ slug: string; title: string; bestScore: number; maxScore: number }>;
   artifacts: Array<{ title: string; type: string; shareId: string }>;
-  certificates: Array<{ title: string; issuedAt: string }>;
+  certificates: Array<{ title: string; issuedAt: string; verifyCode?: string | null }>;
 };
 
 export type CommunitySubmission = { id: string; slug: string; status: 'draft' | 'submitted' | 'changes_requested' | 'published' | 'rejected'; reviewNote: string | null; authorName?: string; createdAt: string; updatedAt: string; publishedAt: string | null; case: import('@cyberpath/contracts').CaseDraft };
@@ -50,3 +50,24 @@ export type EventResponse = {
 export type DiscussionPost = { id: string; kind: 'comment' | 'writeup'; body: string; status: 'visible' | 'hidden'; author: string; authorRole: string | null; isMine: boolean; createdAt: string; updatedAt: string };
 export type DiscussionThread = { comments: DiscussionPost[]; writeups: DiscussionPost[]; writeupsAllowed: boolean; writeupsUnlocked: boolean; canWriteWriteup: boolean };
 export type ModerationPost = DiscussionPost & { targetType: 'lesson' | 'case'; targetSlug: string; reportCount: number; reasons: string[] };
+
+export type ExamRubricCriterion = { id: string; label: string; description: string; points: number };
+export type ExamAttemptSummary = { id: string; status: 'in_progress' | 'submitted' | 'passed' | 'failed'; startedAt: string; deadlineAt: string; submittedAt: string | null; totalScore: number | null; certificateCode: string | null };
+export type ExamOverview = {
+  exam: { slug: string; title: string; summary: string; scenario: string; durationMinutes: number; passMark: number; reportPassMark: number; retakeCooldownDays: number; sections: Array<{ id: string; title: string; questionCount: number }>; questionPoints: number; reportPoints: number; rubric: ExamRubricCriterion[] };
+  attempts: ExamAttemptSummary[];
+  activeAttemptId: string | null;
+  canStart: boolean;
+  blockedReason: string | null;
+};
+export type ExamQuestion = { id: string; prompt: string; format: string; options?: string[]; points: number };
+export type ExamSection = { id: string; title: string; brief: string; evidence: import('@cyberpath/contracts/cases').CaseEvidence[]; questions: ExamQuestion[] };
+export type ExamScoreLine = { id: string; title?: string; label?: string; earned: number; max: number };
+export type ExamAttempt = ExamAttemptSummary & {
+  answers: Record<string, string>;
+  report: string;
+  exam: { slug: string; title: string; scenario: string; durationMinutes: number; sections: ExamSection[]; report: { prompt: string; minLength: number; maxLength: number; rubric: ExamRubricCriterion[] } };
+  result: null | { sections: ExamScoreLine[]; autoScore: number; autoMax: number; report: ExamScoreLine[] | null; reportScore: number | null; reportMax: number; reviewerNote: string | null; passed: boolean };
+};
+export type ExamReviewItem = ExamAttemptSummary & { candidate: string; report: string; autoScore: number; autoMax: number; sections: ExamScoreLine[] };
+export type ExamCertificate = { code: string; name: string; exam: string; passedAt: string; score: number };

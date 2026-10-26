@@ -21,6 +21,10 @@ const LabsPage = lazy(() => import('../pages/LabsPage').then((module) => ({ defa
 const LabPage = lazy(() => import('../pages/LabPage').then((module) => ({ default: module.LabPage })));
 const CasesPage = lazy(() => import('../pages/CasesPage').then((module) => ({ default: module.CasesPage })));
 const CasePage = lazy(() => import('../pages/CasePage').then((module) => ({ default: module.CasePage })));
+const ExamPage = lazy(() => import('../pages/ExamPage').then((module) => ({ default: module.ExamPage })));
+const ExamAttemptPage = lazy(() => import('../pages/ExamAttemptPage').then((module) => ({ default: module.ExamAttemptPage })));
+const ExamReviewPage = lazy(() => import('../pages/ExamReviewPage').then((module) => ({ default: module.ExamReviewPage })));
+const VerifyCertificatePage = lazy(() => import('../pages/VerifyCertificatePage').then((module) => ({ default: module.VerifyCertificatePage })));
 const EventPage = lazy(() => import('../pages/EventPage').then((module) => ({ default: module.EventPage })));
 const SocPage = lazy(() => import('../pages/SocPage').then((module) => ({ default: module.SocPage })));
 const SocShiftPage = lazy(() => import('../pages/SocShiftPage').then((module) => ({ default: module.SocShiftPage })));
@@ -71,6 +75,8 @@ export function App() {
             <Route path="/pilot" element={<SchoolPilotPage />} />
             <Route path="/public/artifacts/:shareId" element={<PublicArtifactPage />} />
             <Route path="/u/:handle" element={<PublicProfilePage />} />
+            <Route path="/verify" element={<VerifyCertificatePage />} />
+            <Route path="/verify/:code" element={<VerifyCertificatePage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/report-bug" element={<BugReportPage />} />
             <Route path="/beta-checklist" element={<ProtectedRoute><BetaChecklistPage /></ProtectedRoute>} />
@@ -93,6 +99,9 @@ export function App() {
             <Route path="/discussions/moderation" element={<ProtectedRoute roles={['mentor', 'admin']}><DiscussionModerationPage /></ProtectedRoute>} />
             <Route path="/cases/review" element={<ProtectedRoute roles={['mentor', 'admin']}><CaseReviewPage /></ProtectedRoute>} />
             <Route path="/cases/:slug" element={<ProtectedRoute><CasePage /></ProtectedRoute>} />
+            <Route path="/exam" element={<ProtectedRoute><ExamPage /></ProtectedRoute>} />
+            <Route path="/exam/review" element={<ProtectedRoute roles={['mentor', 'admin']}><ExamReviewPage /></ProtectedRoute>} />
+            <Route path="/exam/attempt/:id" element={<ProtectedRoute><ExamAttemptPage /></ProtectedRoute>} />
             <Route path="/event" element={<ProtectedRoute><EventPage /></ProtectedRoute>} />
             <Route path="/soc" element={<ProtectedRoute><SocPage /></ProtectedRoute>} />
             <Route path="/soc/:slug" element={<ProtectedRoute><SocShiftPage /></ProtectedRoute>} />

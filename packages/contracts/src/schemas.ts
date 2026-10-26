@@ -556,4 +556,12 @@ export const discussionPostSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('writeup'), body: z.string().trim().min(80, 'A writeup needs at least 80 characters.').max(8000, 'Writeups can be up to 8000 characters.') })
 ]);
 export const discussionReportSchema = z.object({ reason: z.string().trim().min(3).max(300) });
+export const examSaveSchema = z.object({
+  answers: z.record(z.string().max(80), z.string().max(500)).refine((value) => Object.keys(value).length <= 50, 'Too many answers.').optional(),
+  report: z.string().max(12000, 'The report can be up to 12000 characters.').optional()
+});
+export const examGradeSchema = z.object({
+  scores: z.record(z.string().max(40), z.number().int().min(0).max(100)),
+  note: z.string().trim().min(10, 'Leave the candidate a short note (at least 10 characters).').max(3000)
+});
 export const discussionModerateSchema = z.object({ action: z.enum(['hide', 'restore']) });

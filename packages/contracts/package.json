@@ -29,6 +29,10 @@
       "types": "./dist/event.d.ts",
       "import": "./dist/event.js"
     },
+    "./exam": {
+      "types": "./dist/exam.d.ts",
+      "import": "./dist/exam.js"
+    },
     "./lessons": {
       "types": "./dist/lessonTranslations.d.ts",
       "import": "./dist/lessonTranslations.js"

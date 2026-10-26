@@ -4,7 +4,7 @@ import { Award, Flame, SearchCheck, Siren, Zap } from 'lucide-react';
 import { api } from '../api/client';
 import { Badge, Card, Loader } from '../components/ui';
 import type { PublicProfile } from '../types';
-import { linkedInCertificationUrl, publicProfileUrl } from '../components/progress/profileLinks';
+import { certificateVerifyUrl, linkedInCertificationUrl, publicProfileUrl } from '../components/progress/profileLinks';
 
 export function PublicProfilePage() {
   const { handle } = useParams();
@@ -81,7 +81,10 @@ export function PublicProfilePage() {
               {profile.certificates.map((certificate) => (
                 <li key={certificate.title} className="flex flex-wrap items-center justify-between gap-2 text-sm text-slate-200">
                   <span>{certificate.title} · {new Date(certificate.issuedAt).toLocaleDateString()}</span>
-                  <a href={linkedInCertificationUrl(certificate.title, url, certificate.issuedAt)} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-200">Add to LinkedIn</a>
+                  <span className="flex gap-3">
+                    {certificate.verifyCode ? <a href={certificateVerifyUrl(certificate.verifyCode)} className="text-sky-300 hover:text-sky-200">Verify {certificate.verifyCode}</a> : null}
+                    <a href={linkedInCertificationUrl(certificate.title, certificate.verifyCode ? certificateVerifyUrl(certificate.verifyCode) : url, certificate.issuedAt, certificate.verifyCode ?? undefined)} target="_blank" rel="noreferrer" className="text-sky-300 hover:text-sky-200">Add to LinkedIn</a>
+                  </span>
                 </li>
               ))}
             </ul>

@@ -1,5 +1,5 @@
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { Moon, Shield, Sun, LayoutDashboard, GraduationCap, FlaskConical, NotebookTabs, Brain, Users, Settings, LifeBuoy, CreditCard, Target, FileText, Network, ClipboardCheck, SearchCheck, Siren, Flame, CalendarDays } from 'lucide-react';
+import { Moon, Shield, Sun, LayoutDashboard, GraduationCap, FlaskConical, NotebookTabs, Brain, Users, Settings, LifeBuoy, CreditCard, Target, FileText, Network, ClipboardCheck, SearchCheck, Siren, Flame, CalendarDays, BadgeCheck } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
@@ -17,6 +17,7 @@ const studentLinks = [
   { to: '/cases', key: 'cases', icon: SearchCheck },
   { to: '/soc', key: 'soc', icon: Siren },
   { to: '/event', key: 'event', icon: CalendarDays },
+  { to: '/exam', key: 'exam', icon: BadgeCheck },
   { to: '/labs', key: 'labs', icon: FlaskConical },
   { to: '/portfolio', key: 'portfolio', icon: FileText },
   { to: '/mistakes', key: 'mistakes', icon: NotebookTabs },

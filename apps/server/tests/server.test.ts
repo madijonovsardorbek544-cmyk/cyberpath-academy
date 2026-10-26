@@ -1170,3 +1170,90 @@ test('discussions: comments, spoiler-safe writeups, reports and moderation', asy
   assert.equal((await (await call(readers[1], 'GET', '/discussions/lesson/cia-triad')).json()).comments.length, 0);
   await server.close();
 });
+
+test('practical exam: timed attempt, mentor grading and public certificate check', async () => {
+  const server = await startServer();
+  const candidate = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Exam Candidate', email: 'examcandidate@example.com', password: 'StrongPass1!' })
+  }));
+  const mentor = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  }));
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+  const { analystExam } = await import('@cyberpath/contracts/exam');
+
+  const overview = await (await call(candidate, 'GET', '/exams')).json();
+  assert.equal(overview.canStart, true);
+  assert.equal(overview.exam.questionPoints + overview.exam.reportPoints, 100);
+
+  const started = await call(candidate, 'POST', '/exams/cpa-1/start');
+  assert.equal(started.status, 201);
+  const { attempt } = await started.json();
+  assert.ok(!/"answers":\[|"explanation"|"hint"/.test(JSON.stringify(attempt.exam)), 'no answers in the candidate view');
+  assert.equal((await (await call(candidate, 'POST', '/exams/cpa-1/start')).json()).attempt.id, attempt.id, 'starting again resumes the open attempt');
+  assert.equal((await call(mentor, 'GET', `/exams/attempts/${attempt.id}`)).status, 404, 'attempts are private');
+
+  const answers = Object.fromEntries(analystExam.sections.flatMap((section) => section.questions.map((question) => [`${section.id}.${question.id}`, question.answers[0]])));
+  answers['web.account'] = 'wrong.user';
+  answers['not.a.question'] = 'ignored';
+  const saved = await (await call(candidate, 'PATCH', `/exams/attempts/${attempt.id}`, { answers, report: 'Too short.' })).json();
+  assert.equal(saved.attempt.answers['not.a.question'], undefined);
+  assert.equal(saved.attempt.result, null);
+  assert.equal((await call(candidate, 'POST', `/exams/attempts/${attempt.id}/submit`)).status, 400, 'report must be long enough');
+
+  const report = 'Summary: three linked incidents at Harbor Logistics between 2 and 4 March. '.repeat(8);
+  await call(candidate, 'PATCH', `/exams/attempts/${attempt.id}`, { report });
+  const submitted = await (await call(candidate, 'POST', `/exams/attempts/${attempt.id}/submit`)).json();
+  assert.equal(submitted.attempt.status, 'submitted');
+  assert.equal(submitted.attempt.result.autoScore, 54, 'one wrong answer costs 6 points');
+  assert.deepEqual(submitted.attempt.result.sections.map((section: any) => section.earned), [24, 18, 12]);
+  assert.equal(submitted.attempt.result.reportScore, null);
+  assert.equal((await call(candidate, 'PATCH', `/exams/attempts/${attempt.id}`, { report: 'changed' })).status, 409, 'locked after submit');
+  assert.equal((await call(candidate, 'POST', '/exams/cpa-1/start')).status, 409, 'no new attempt while waiting for grading');
+
+  assert.equal((await call(candidate, 'GET', '/exams/review')).status, 403);
+  const queue = await (await call(mentor, 'GET', '/exams/review')).json();
+  const queued = queue.attempts.find((item: any) => item.id === attempt.id);
+  assert.equal(queued.candidate, 'Exam Candidate');
+  assert.equal(queued.report, report);
+  assert.equal((await call(mentor, 'POST', `/exams/attempts/${attempt.id}/grade`, { scores: { timeline: 8 }, note: 'ok' })).status, 400, 'needs a real note');
+  const graded = await (await call(mentor, 'POST', `/exams/attempts/${attempt.id}/grade`, { scores: { timeline: 8, scope: 7, response: 8, clarity: 6 }, note: 'Clear timeline; link the reused password next time.' })).json();
+  assert.equal(graded.attempt.status, 'passed');
+  assert.equal(graded.attempt.totalScore, 83);
+  assert.match(graded.attempt.certificateCode, /^CPA1-[0-9A-F]{5}-[0-9A-F]{5}$/);
+  assert.equal((await call(mentor, 'POST', `/exams/attempts/${attempt.id}/grade`, { scores: {}, note: 'Grading twice should fail.' })).status, 409);
+
+  const mine = await (await call(candidate, 'GET', `/exams/attempts/${attempt.id}`)).json();
+  assert.equal(mine.attempt.result.reviewerNote, 'Clear timeline; link the reused password next time.');
+  assert.equal((await (await call(candidate, 'GET', '/exams')).json()).canStart, false, 'passed candidates cannot retake');
+
+  const verify = await fetch(`${server.baseUrl}/api/exams/verify/${graded.attempt.certificateCode.toLowerCase()}`);
+  assert.equal(verify.status, 200, 'verification works without signing in');
+  const certificate = (await verify.json()).certificate;
+  assert.equal(certificate.name, 'Exam Candidate');
+  assert.equal(certificate.score, 83);
+  assert.ok(!JSON.stringify(certificate).includes('@'), 'no email in the public check');
+  assert.equal((await fetch(`${server.baseUrl}/api/exams/verify/CPA1-00000-00000`)).status, 404);
+
+  // A second candidate runs out of time: the attempt submits itself with what was saved.
+  const late = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Late Candidate', email: 'latecandidate@example.com', password: 'StrongPass1!' })
+  }));
+  const lateAttempt = (await (await call(late, 'POST', '/exams/cpa-1/start')).json()).attempt;
+  await call(late, 'PATCH', `/exams/attempts/${lateAttempt.id}`, { answers: { 'mail.delivered': '2' } });
+  db.prepare('UPDATE exam_attempts SET deadline_at = ? WHERE id = ?').run(new Date(Date.now() - 10 * 60 * 1000).toISOString(), lateAttempt.id);
+  assert.equal((await call(late, 'PATCH', `/exams/attempts/${lateAttempt.id}`, { answers: { 'mail.host': 'HRB-LT-044' } })).status, 409, 'no saves after the deadline');
+  const expired = await (await call(late, 'GET', `/exams/attempts/${lateAttempt.id}`)).json();
+  assert.equal(expired.attempt.status, 'submitted');
+  assert.equal(expired.attempt.result.autoScore, 6);
+  const failed = await (await call(mentor, 'POST', `/exams/attempts/${lateAttempt.id}/grade`, { scores: { timeline: 2 }, note: 'The report was empty; try again after the cooldown.' })).json();
+  assert.equal(failed.attempt.status, 'failed');
+  assert.equal(failed.attempt.certificateCode, null);
+  const cooldown = await (await call(late, 'GET', '/exams')).json();
+  assert.equal(cooldown.canStart, false);
+  assert.match(cooldown.blockedReason, /retake/i);
+  await server.close();
+});

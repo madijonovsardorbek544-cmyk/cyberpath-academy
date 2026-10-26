@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { profilePatchSchema } from '@cyberpath/contracts';
 import { listCases } from '../utils/caseCatalog.js';
 import { gradeSocShift, socShifts } from '@cyberpath/contracts/soc';
+import { analystExam } from '@cyberpath/contracts/exam';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { many, one, run } from '../lib/db.js';
 import { getLearnerProgress } from '../utils/gamification.js';
@@ -31,7 +32,9 @@ function publicProfile(userId: string) {
   const artifacts = many<Row>("SELECT title, artifact_type, public_share_id FROM portfolio_artifacts WHERE user_id = ? AND status = 'published' AND public_share_id IS NOT NULL ORDER BY published_at DESC", userId)
     .map((row) => ({ title: String(row.title), type: String(row.artifact_type), shareId: String(row.public_share_id) }));
   const certificates = many<Row>("SELECT title, issued_at FROM certificate_awards WHERE user_id = ? AND status = 'issued' AND issued_at IS NOT NULL ORDER BY issued_at DESC", userId)
-    .map((row) => ({ title: String(row.title), issuedAt: String(row.issued_at) }));
+    .map((row) => ({ title: String(row.title), issuedAt: String(row.issued_at), verifyCode: null as string | null }));
+  const exams = many<Row>("SELECT reviewed_at, certificate_code FROM exam_attempts WHERE user_id = ? AND status = 'passed' ORDER BY reviewed_at DESC", userId)
+    .map((row) => ({ title: analystExam.title, issuedAt: String(row.reviewed_at), verifyCode: String(row.certificate_code) }));
   return {
     ...settings(userId),
     name: String(user.name),
@@ -43,7 +46,7 @@ function publicProfile(userId: string) {
     cases,
     soc,
     artifacts,
-    certificates
+    certificates: [...exams, ...certificates]
   };
 }
 

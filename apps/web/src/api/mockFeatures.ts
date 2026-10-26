@@ -1,6 +1,6 @@
 // Mock-demo handlers for the newer learner features. State lives in its own localStorage key so the
 // older demo database format does not change.
-import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, discussionModerateSchema, discussionPostSchema, discussionReportSchema, profilePatchSchema, socSubmitSchema } from "@cyberpath/contracts";
+import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, discussionModerateSchema, discussionPostSchema, discussionReportSchema, examGradeSchema, examSaveSchema, profilePatchSchema, socSubmitSchema } from "@cyberpath/contracts";
 import { LEAGUE_TIERS, XP_RULES, addDays, badgeCatalog, computeStreak, leaderboardName, levelForXp, weekStartOf, type XpEvent } from "@cyberpath/contracts/gamification";
 
 export type MockFeatureContext = { userId: string | null; userName?: string; role?: string; students: Array<{ id: string; name: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
@@ -12,16 +12,17 @@ type SocAttempt = { score: number; result: unknown; createdAt: string };
 type ProfileRow = { handle: string | null; isPublic: boolean; headline: string };
 type CommunityRow = { id: string; slug: string; authorId: string; authorName: string; status: string; reviewNote: string | null; case: Record<string, unknown>; createdAt: string; updatedAt: string; publishedAt: string | null };
 type DiscussionRow = { id: string; targetType: string; targetSlug: string; userId: string; authorName: string; authorRole: string; kind: "comment" | "writeup"; body: string; status: "visible" | "hidden"; reports: Array<{ userId: string; reason: string }>; createdAt: string; updatedAt: string };
-type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[]; discussions: DiscussionRow[] };
+type ExamRow = { id: string; userId: string; userName: string; status: "in_progress" | "submitted" | "passed" | "failed"; startedAt: string; deadlineAt: string; submittedAt: string | null; answers: Record<string, string>; report: string; sections: unknown[]; autoScore: number; reportLines: unknown[] | null; reportScore: number | null; note: string | null; reviewedAt: string | null; code: string | null };
+type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[]; discussions: DiscussionRow[]; exams: ExamRow[] };
 
 function readState(): FeatureState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FEATURE_KEY) || "null") as FeatureState | null;
-    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [], discussions: parsed.discussions ?? [] };
+    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [], discussions: parsed.discussions ?? [], exams: parsed.exams ?? [] };
   } catch {
     // Corrupt demo state is replaced below.
   }
-  return { cases: {}, soc: {}, profiles: {}, community: [], discussions: [] };
+  return { cases: {}, soc: {}, profiles: {}, community: [], discussions: [], exams: [] };
 }
 
 function writeState(state: FeatureState) {
@@ -199,6 +200,95 @@ async function handleDiscussions(method: string, path: string, body: unknown, ct
   throw new Error(`No mock handler for ${method} ${path}`);
 }
 
+function loadExamBank() {
+  return import.meta.env.VITE_API_MODE === "mock"
+    ? import("@cyberpath/contracts/exam")
+    : Promise.reject(new Error("Exam content is served by the API outside the demo."));
+}
+
+async function handleExams(method: string, path: string, body: unknown, ctx: MockFeatureContext) {
+  const { analystExam: exam, ...bank } = await loadExamBank();
+  const state = readState();
+  const DAY = 24 * 60 * 60 * 1000;
+  const parts = path.split("/").filter(Boolean);
+  const submit = (row: ExamRow, at = new Date().toISOString()) => {
+    const graded = bank.gradeExamAnswers(exam, row.answers);
+    Object.assign(row, { status: "submitted", submittedAt: at, sections: graded.sections, autoScore: graded.total });
+  };
+  for (const row of state.exams) if (row.status === "in_progress" && Date.now() > Date.parse(row.deadlineAt) + 2 * 60 * 1000) submit(row, row.deadlineAt);
+  const summary = (row: ExamRow) => ({ id: row.id, status: row.status, startedAt: row.startedAt, deadlineAt: row.deadlineAt, submittedAt: row.submittedAt, totalScore: row.reportScore === null ? null : row.autoScore + row.reportScore, certificateCode: row.code });
+  const detail = (row: ExamRow) => ({
+    ...summary(row), answers: row.answers, report: row.report, exam: bank.toPublicExam(exam),
+    result: row.status === "in_progress" ? null : { sections: row.sections, autoScore: row.autoScore, autoMax: bank.examQuestionPoints(exam), report: row.reportLines, reportScore: row.reportScore, reportMax: bank.examReportPoints(exam), reviewerNote: row.note, passed: row.status === "passed" }
+  });
+  const done = <T,>(value: T) => { writeState(state); return value; };
+
+  if (parts[1] === "verify") {
+    const row = state.exams.find((entry) => entry.code === decodeURIComponent(parts[2] ?? "").trim().toUpperCase() && entry.status === "passed");
+    if (!row) throw new Error("No passed exam matches this code.");
+    return { certificate: { code: row.code, name: row.userName, exam: exam.title, passedAt: row.reviewedAt, score: row.autoScore + (row.reportScore ?? 0) } };
+  }
+  const userId = ctx.userId;
+  if (!userId) throw new Error("Authentication required.");
+  const staff = ctx.role === "mentor" || ctx.role === "admin";
+  const mine = state.exams.filter((row) => row.userId === userId).sort((a, b) => b.startedAt.localeCompare(a.startedAt));
+  const active = mine.find((row) => row.status === "in_progress");
+  const lastFail = mine.find((row) => row.status === "failed");
+  const cooldownUntil = lastFail?.reviewedAt ? new Date(Date.parse(lastFail.reviewedAt) + exam.retakeCooldownDays * DAY).toISOString() : null;
+  const blockedReason = active ? null : mine.some((row) => row.status === "passed") ? "You have already passed this exam." : mine.some((row) => row.status === "submitted") ? "Your last attempt is waiting for a mentor to grade the report." : cooldownUntil && cooldownUntil > new Date().toISOString() ? `You can retake the exam after ${cooldownUntil.slice(0, 10)}.` : null;
+
+  if (method === "GET" && parts.length === 1) {
+    return done({
+      exam: { slug: exam.slug, title: exam.title, summary: exam.summary, scenario: exam.scenario, durationMinutes: exam.durationMinutes, passMark: exam.passMark, reportPassMark: exam.reportPassMark, retakeCooldownDays: exam.retakeCooldownDays, sections: exam.sections.map((section) => ({ id: section.id, title: section.title, questionCount: section.questions.length })), questionPoints: bank.examQuestionPoints(exam), reportPoints: bank.examReportPoints(exam), rubric: exam.report.rubric },
+      attempts: mine.map(summary), activeAttemptId: active?.id ?? null, canStart: !active && !blockedReason, blockedReason
+    });
+  }
+  if (method === "POST" && parts[2] === "start") {
+    if (active) return done({ attempt: detail(active) });
+    if (blockedReason) throw new Error(blockedReason);
+    const started = new Date();
+    const row: ExamRow = { id: crypto.randomUUID(), userId, userName: ctx.userName ?? "Learner", status: "in_progress", startedAt: started.toISOString(), deadlineAt: new Date(started.getTime() + exam.durationMinutes * 60 * 1000).toISOString(), submittedAt: null, answers: {}, report: "", sections: [], autoScore: 0, reportLines: null, reportScore: null, note: null, reviewedAt: null, code: null };
+    state.exams.push(row);
+    return done({ attempt: detail(row) });
+  }
+  if (method === "GET" && parts[1] === "review") {
+    if (!staff) throw new Error("You do not have access to this area.");
+    return done({ rubric: exam.report.rubric, reportPrompt: exam.report.prompt, attempts: state.exams.filter((row) => row.status === "submitted").map((row) => ({ ...summary(row), candidate: row.userName, report: row.report, autoScore: row.autoScore, autoMax: bank.examQuestionPoints(exam), sections: row.sections })) });
+  }
+
+  const row = state.exams.find((entry) => entry.id === parts[2]);
+  if (parts[1] !== "attempts" || !row) throw new Error("Attempt not found.");
+  if (parts[3] === "grade") {
+    if (!staff) throw new Error("You do not have access to this area.");
+    if (row.userId === userId) throw new Error("You cannot grade your own exam.");
+    if (row.status !== "submitted") throw new Error("Only submitted attempts can be graded.");
+    const data = examGradeSchema.parse(body);
+    const report = bank.scoreReport(exam, data.scores);
+    const passed = bank.examPassed(exam, row.autoScore, report.total);
+    const hex = Array.from(crypto.getRandomValues(new Uint8Array(5)), (byte) => byte.toString(16).padStart(2, "0")).join("").toUpperCase();
+    Object.assign(row, { status: passed ? "passed" : "failed", reportLines: report.criteria, reportScore: report.total, note: data.note, reviewedAt: new Date().toISOString(), code: passed ? `CPA1-${hex.slice(0, 5)}-${hex.slice(5)}` : null });
+    return done({ attempt: detail(row) });
+  }
+  if (row.userId !== userId) throw new Error("Attempt not found.");
+  if (method === "GET") return done({ attempt: detail(row) });
+  if (method === "PATCH") {
+    if (row.status !== "in_progress") throw new Error("Time is up. This attempt has been submitted.");
+    const data = examSaveSchema.parse(body);
+    const valid = new Set(exam.sections.flatMap((section) => section.questions.map((question) => `${section.id}.${question.id}`)));
+    for (const [key, value] of Object.entries(data.answers ?? {})) if (valid.has(key)) row.answers[key] = value;
+    if (data.report !== undefined) row.report = data.report;
+    return done({ attempt: detail(row) });
+  }
+  if (method === "POST" && parts[3] === "submit") {
+    if (row.status === "in_progress") {
+      if (Date.now() < Date.parse(row.deadlineAt) && row.report.trim().length < exam.report.minLength) throw new Error(`Write at least ${exam.report.minLength} characters in the incident report before submitting.`);
+      submit(row);
+    }
+    return done({ attempt: detail(row) });
+  }
+  throw new Error(`No mock handler for ${method} ${path}`);
+}
+
 function loadSocBank() {
   return import.meta.env.VITE_API_MODE === "mock"
     ? import("@cyberpath/contracts/soc")
@@ -336,7 +426,7 @@ async function handleProfile(method: string, path: string, body: unknown, ctx: M
         cases: caseBank ? caseBank.investigationCases.filter((item) => item.questions.every((question) => state.cases[ownerId]?.[item.slug]?.[question.id]?.solvedAt)).map((item) => ({ slug: item.slug, title: item.title, category: item.category, difficulty: item.difficulty, closedAt: new Date().toISOString() })) : [],
         soc: socBank ? socBank.socShifts.filter((shift) => state.soc[ownerId]?.[shift.slug]?.length).map((shift) => ({ slug: shift.slug, title: shift.title, bestScore: Math.max(...state.soc[ownerId][shift.slug].map((attempt) => attempt.score)), maxScore: socBank.gradeSocShift(shift, []).maxScore })) : [],
         artifacts: [],
-        certificates: []
+        certificates: state.exams.filter((row) => row.userId === ownerId && row.status === "passed").map((row) => ({ title: "CyberPath Practical Analyst (CPA-1)", issuedAt: row.reviewedAt!, verifyCode: row.code }))
       }
     };
   }
@@ -412,11 +502,12 @@ async function handleCommunity(method: string, path: string, body: unknown, ctx:
 
 /** Returns a response for feature routes, or null so the main mock handles the path. */
 export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext): Promise<unknown> | null {
-  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event" || path.startsWith("/discussions/");
+  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event" || path.startsWith("/discussions/") || path === "/exams" || path.startsWith("/exams/");
   if (!isFeature) return null;
   const route = (): Promise<unknown> | unknown => {
     const ctx = getContext();
     if (path.startsWith("/profile/")) return handleProfile(method, path, body, ctx);
+    if (path === "/exams" || path.startsWith("/exams/")) return handleExams(method, path, body, ctx);
     const userId = ctx.userId;
     if (!userId) throw new Error("Authentication required.");
     if (path === "/progress/me" && method === "GET") return handleProgress({ ...ctx, userId });

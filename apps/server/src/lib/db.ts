@@ -708,6 +708,30 @@ export function initDb() {
       FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    CREATE TABLE IF NOT EXISTS exam_attempts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      exam_slug TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'in_progress',
+      started_at TEXT NOT NULL,
+      deadline_at TEXT NOT NULL,
+      submitted_at TEXT,
+      answers_json TEXT NOT NULL DEFAULT '{}',
+      report_text TEXT NOT NULL DEFAULT '',
+      auto_json TEXT,
+      auto_score INTEGER,
+      report_json TEXT,
+      report_score INTEGER,
+      reviewer_id TEXT,
+      reviewer_note TEXT,
+      reviewed_at TEXT,
+      certificate_code TEXT UNIQUE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_exam_attempts_user ON exam_attempts(user_id, exam_slug, started_at);
+    CREATE INDEX IF NOT EXISTS idx_exam_attempts_status ON exam_attempts(status, submitted_at);
+
     CREATE TABLE IF NOT EXISTS user_badges (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
