@@ -20,6 +20,10 @@
     "./gamification": {
       "types": "./dist/gamification.d.ts",
       "import": "./dist/gamification.js"
+    },
+    "./shell": {
+      "types": "./dist/shell.d.ts",
+      "import": "./dist/shell.js"
     }
   },
   "scripts": {

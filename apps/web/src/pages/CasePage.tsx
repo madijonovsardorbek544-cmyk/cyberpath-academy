@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { CheckCircle2, Lightbulb } from "lucide-react";
 import { api } from "../api/client";
@@ -6,11 +6,16 @@ import { AppShell } from "../components/AppShell";
 import { Badge, Button, Card, ErrorMessage, ErrorState, Input, Loader } from "../components/ui";
 import type { CaseAnswerResponse, CaseDetailResponse, CaseEvidence, CaseQuestionState } from "../types";
 
+const ShellTerminal = lazy(() => import("../components/terminal/ShellTerminal").then((module) => ({ default: module.ShellTerminal })));
+const terminalBanner = ["Read-only analyst shell. Evidence files are in this folder.", "Try: ls, then grep, awk, sort | uniq -c. Type help for all commands."];
+
 function EvidenceViewer({ evidence }: { evidence: CaseEvidence[] }) {
   const [activeId, setActiveId] = useState(evidence[0]?.id);
   const [query, setQuery] = useState("");
   const [onlyMatches, setOnlyMatches] = useState(false);
+  const [mode, setMode] = useState<"viewer" | "terminal">("viewer");
   const active = evidence.find((item) => item.id === activeId) ?? evidence[0];
+  const caseFs = useMemo(() => ({ case: Object.fromEntries(evidence.map((item) => [item.name, item.content])) }), [evidence]);
 
   const lines = useMemo(() => active.content.split("\n").map((text, index) => ({ number: index + 1, text })), [active]);
   const needle = query.trim().toLowerCase();
@@ -19,7 +24,21 @@ function EvidenceViewer({ evidence }: { evidence: CaseEvidence[] }) {
 
   return (
     <Card className="min-w-0 p-5 xl:sticky xl:top-28 xl:self-start">
-      <h2 className="text-lg font-semibold text-white">Evidence</h2>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-lg font-semibold text-white">Evidence</h2>
+        <div className="flex rounded-2xl border border-slate-700 p-1 text-sm" role="group" aria-label="Evidence tool">
+          {(["viewer", "terminal"] as const).map((option) => (
+            <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)} className={`rounded-xl px-3 py-1 capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${mode === option ? "bg-sky-400 text-slate-950" : "text-slate-300"}`}>{option}</button>
+          ))}
+        </div>
+      </div>
+      {mode === "terminal" ? (
+        <div className="mt-3">
+          <Suspense fallback={<Loader text="Starting terminal..." />}>
+            <ShellTerminal fs={caseFs} home="/case" banner={terminalBanner} label="Evidence terminal" />
+          </Suspense>
+        </div>
+      ) : (<>
       <div className="mt-3 flex flex-wrap gap-2" role="tablist" aria-label="Evidence files">
         {evidence.map((item) => (
           <button
@@ -56,6 +75,7 @@ function EvidenceViewer({ evidence }: { evidence: CaseEvidence[] }) {
           })}
         </pre>
       </div>
+      </>)}
     </Card>
   );
 }
