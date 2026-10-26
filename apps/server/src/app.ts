@@ -11,6 +11,7 @@ import adminRoutes from './routes/admin.js';
 import aiRoutes from './routes/ai.js';
 import platformRoutes from './routes/platform.js';
 import caseRoutes from './routes/cases.js';
+import socRoutes from './routes/soc.js';
 import { errorHandler } from './middleware/error.js';
 import { env } from './config/env.js';
 import { initDb, one } from './lib/db.js';
@@ -77,6 +78,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/platform', platformRoutes);
 app.use('/api/cases', caseRoutes);
+app.use('/api/soc', socRoutes);
 
 const webDistPath = path.resolve(process.cwd(), 'apps/web/dist');
 if (env.isProduction && fs.existsSync(webDistPath)) {

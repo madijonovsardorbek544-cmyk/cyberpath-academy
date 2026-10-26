@@ -858,3 +858,34 @@ test('investigation cases hide answers, grade attempts, and unlock the debrief',
   assert.equal((await fetch(`${server.baseUrl}/api/cases/missing-case`, { headers: { cookie } })).status, 404);
   await server.close();
 });
+
+test('SOC shift requires every alert, grades it, and records the best score', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Shift Analyst', email: 'shiftanalyst@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const headers = { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie };
+
+  const list = await (await fetch(`${server.baseUrl}/api/soc/shifts`, { headers: { cookie } })).json();
+  assert.ok(list.shifts.length >= 2);
+  const detail = await (await fetch(`${server.baseUrl}/api/soc/shifts/${list.shifts[0].slug}`, { headers: { cookie } })).json();
+  assert.ok(!JSON.stringify(detail).includes('"key"'));
+  assert.equal(detail.attempts, 0);
+
+  const submit = (decisions: unknown) => fetch(`${server.baseUrl}/api/soc/shifts/${list.shifts[0].slug}/submit`, { method: 'POST', headers, body: JSON.stringify({ decisions, durationSeconds: 600 }) });
+  const partial = await submit([{ alertId: detail.shift.alerts[0].id, verdict: 'false_positive', note: 'This looks like normal activity to me.' }]);
+  assert.equal(partial.status, 400);
+
+  const all = detail.shift.alerts.map((alert: any) => ({ alertId: alert.id, verdict: 'true_positive', severity: 'high', note: 'Escalating this for review by the team.' }));
+  const graded = await (await submit(all)).json();
+  assert.ok(graded.result.score > 0 && graded.result.score < graded.result.maxScore);
+  assert.equal(graded.personalBest, true);
+  assert.equal(graded.attempts, 1);
+  assert.ok(graded.result.alerts.every((alert: any) => alert.explanation));
+
+  const missingSeverity = await submit(all.map((decision: any) => ({ ...decision, severity: undefined })));
+  assert.equal(missingSeverity.status, 400);
+  await server.close();
+});

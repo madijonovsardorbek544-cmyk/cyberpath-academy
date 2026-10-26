@@ -484,3 +484,13 @@ export const caseAnswerSchema = z.object({
   questionId: z.string().min(1).max(40),
   answer: z.string().trim().min(1).max(300)
 });
+
+export const socSubmitSchema = z.object({
+  decisions: z.array(z.object({
+    alertId: z.string().min(1).max(20),
+    verdict: z.enum(['true_positive', 'false_positive']),
+    severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+    note: z.string().trim().min(20, 'Write at least a short sentence for each case note.').max(2000)
+  })).min(1).max(50),
+  durationSeconds: z.number().int().min(0).max(24 * 3600).optional()
+});

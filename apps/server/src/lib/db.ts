@@ -624,6 +624,21 @@ export function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_case_progress_user ON case_progress(user_id, case_slug);
+
+    CREATE TABLE IF NOT EXISTS soc_shift_attempts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      shift_slug TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      max_score INTEGER NOT NULL,
+      correct_verdicts INTEGER NOT NULL,
+      total_alerts INTEGER NOT NULL,
+      duration_seconds INTEGER,
+      result_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_soc_attempts_user ON soc_shift_attempts(user_id, shift_slug);
   `);
 
   addColumn("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';");

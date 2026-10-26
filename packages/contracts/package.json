@@ -12,6 +12,10 @@
     "./cases": {
       "types": "./dist/cases.d.ts",
       "import": "./dist/cases.js"
+    },
+    "./soc": {
+      "types": "./dist/socSim.d.ts",
+      "import": "./dist/socSim.js"
     }
   },
   "scripts": {

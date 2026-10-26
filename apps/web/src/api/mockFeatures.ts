@@ -1,20 +1,21 @@
 // Mock-demo handlers for the newer learner features. State lives in its own localStorage key so the
 // older demo database format does not change.
-import { caseAnswerSchema } from "@cyberpath/contracts";
+import { caseAnswerSchema, socSubmitSchema } from "@cyberpath/contracts";
 
 const FEATURE_KEY = "cyberpath-demo-features-v1";
 
 type CaseRow = { attempts: number; pointsAwarded: number; solvedAt: string | null };
-type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>> };
+type SocAttempt = { score: number; result: unknown; createdAt: string };
+type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>> };
 
 function readState(): FeatureState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FEATURE_KEY) || "null") as FeatureState | null;
-    if (parsed && typeof parsed.cases === "object") return parsed;
+    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {} };
   } catch {
     // Corrupt demo state is replaced below.
   }
-  return { cases: {} };
+  return { cases: {}, soc: {} };
 }
 
 function writeState(state: FeatureState) {
@@ -92,11 +93,63 @@ async function handleCases(method: string, path: string, body: unknown, userId: 
   throw new Error(`No mock handler for ${method} ${path}`);
 }
 
+function loadSocBank() {
+  return import.meta.env.VITE_API_MODE === "mock"
+    ? import("@cyberpath/contracts/soc")
+    : Promise.reject(new Error("Shift content is served by the API outside the demo."));
+}
+
+async function handleSoc(method: string, path: string, body: unknown, userId: string) {
+  const bank = await loadSocBank();
+  const state = readState();
+  const mine = (state.soc[userId] ??= {});
+  const stats = (slug: string) => {
+    const attempts = mine[slug] ?? [];
+    return { attempts: attempts.length, bestScore: attempts.length ? Math.max(...attempts.map((attempt) => attempt.score)) : null };
+  };
+
+  if (method === "GET" && path === "/soc/shifts") {
+    return {
+      shifts: bank.socShifts.map((shift) => {
+        const { alerts, briefing: _briefing, ...meta } = shift;
+        return { ...meta, alertCount: alerts.length, maxScore: bank.gradeSocShift(shift, []).maxScore, ...stats(shift.slug) };
+      })
+    };
+  }
+
+  const [, , , slug, action] = path.split("/");
+  const shift = bank.findSocShift(slug ?? "");
+  if (!shift) throw new Error("Shift not found.");
+
+  if (method === "GET" && !action) {
+    const attempts = mine[shift.slug] ?? [];
+    return { shift: bank.toPublicShift(shift), ...stats(shift.slug), lastResult: attempts.at(-1)?.result ?? null };
+  }
+
+  if (method === "POST" && action === "submit") {
+    const data = socSubmitSchema.parse(body);
+    const ids = new Set(data.decisions.map((decision) => decision.alertId));
+    if (ids.size !== shift.alerts.length || shift.alerts.some((alert) => !ids.has(alert.id))) throw new Error("Decide every alert in the queue exactly once before ending the shift.");
+    if (data.decisions.some((decision) => decision.verdict === "true_positive" && !decision.severity)) throw new Error("Set a severity for every alert you mark as a true positive.");
+    const result = bank.gradeSocShift(shift, data.decisions);
+    const previousBest = stats(shift.slug).bestScore;
+    (mine[shift.slug] ??= []).push({ score: result.score, result, createdAt: new Date().toISOString() });
+    writeState(state);
+    return { result, personalBest: previousBest === null || result.score > previousBest, ...stats(shift.slug) };
+  }
+
+  throw new Error(`No mock handler for ${method} ${path}`);
+}
+
 /** Returns a response for feature routes, or null so the main mock handles the path. */
 export function handleFeatureRequest(method: string, path: string, body: unknown, userId: string | null): Promise<unknown> | null {
   if (path === "/cases" || path.startsWith("/cases/")) {
     if (!userId) return Promise.reject(new Error("Authentication required."));
     return handleCases(method, path, body, userId);
+  }
+  if (path.startsWith("/soc/")) {
+    if (!userId) return Promise.reject(new Error("Authentication required."));
+    return handleSoc(method, path, body, userId);
   }
   return null;
 }
