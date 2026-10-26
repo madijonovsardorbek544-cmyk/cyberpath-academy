@@ -1,6 +1,8 @@
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
+import { env } from '../src/config/env.js';
 import { buildRoadmap } from '../src/utils/roadmap.js';
-import { db, initDb, makeId, nowIso, run, toDbJson } from '../src/lib/db.js';
+import { db, initDb, makeId, nowIso, one, run, toDbJson } from '../src/lib/db.js';
 
 type LessonBlueprint = {
   slug: string;
@@ -480,6 +482,16 @@ const portfolioTemplates = [
 async function main() {
   initDb();
 
+  const force = process.argv.includes('--force');
+  const { count } = one<{ count: number }>('SELECT COUNT(*) AS count FROM users');
+  if (count > 0 && !force) {
+    console.log('Database already has users; skipping seed. Run `npm run db:reset` to wipe it and reseed (never in production).');
+    return;
+  }
+  if (force && env.isProduction) {
+    throw new Error('Refusing to wipe the database with --force in production.');
+  }
+
   db.exec(`
     DELETE FROM audit_logs;
     DELETE FROM platform_feedback;
@@ -512,9 +524,12 @@ async function main() {
     DELETE FROM users;
   `);
 
-  const studentPassword = await bcrypt.hash('Student123!', 10);
-  const mentorPassword = await bcrypt.hash('Mentor123!', 10);
-  const adminPassword = await bcrypt.hash('Admin123!', 10);
+  // Production gets unguessable demo passwords; the real admin comes from ADMIN_EMAIL / ADMIN_PASSWORD.
+  const demoPassword = (devPassword: string) => bcrypt.hash(env.isProduction ? crypto.randomBytes(24).toString('hex') : devPassword, 10);
+  const studentPassword = await demoPassword('Student123!');
+  const mentorPassword = await demoPassword('Mentor123!');
+  const adminPassword = env.adminPassword ? await bcrypt.hash(env.adminPassword, 10) : await demoPassword('Admin123!');
+  const adminEmail = env.adminEmail?.toLowerCase() ?? 'admin@cyberpath.local';
   const now = nowIso();
 
   const studentId = makeId();
@@ -529,7 +544,7 @@ async function main() {
   run(`INSERT INTO users (id, name, email, password_hash, role, created_at, updated_at)
        VALUES (?, ?, ?, ?, ?, ?, ?)`, mentorId, 'Mira Mentor', 'mentor@cyberpath.local', mentorPassword, 'mentor', now, now);
   run(`INSERT INTO users (id, name, email, password_hash, role, created_at, updated_at)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`, adminId, 'Alex Admin', 'admin@cyberpath.local', adminPassword, 'admin', now, now);
+       VALUES (?, ?, ?, ?, ?, ?, ?)`, adminId, 'Alex Admin', adminEmail, adminPassword, 'admin', now, now);
 
   run('INSERT INTO mentor_students (id, mentor_id, student_id, created_at) VALUES (?, ?, ?, ?)', makeId(), mentorId, studentId, now);
   run('INSERT INTO mentor_students (id, mentor_id, student_id, created_at) VALUES (?, ?, ?, ?)', makeId(), mentorId, studentTwoId, now);
@@ -921,11 +936,15 @@ async function main() {
   );
 
   console.log('Seeded CyberPath Academy.');
-  console.log('Demo accounts:');
-  console.log('student@cyberpath.local / Student123!');
-  console.log('student2@cyberpath.local / Student123!');
-  console.log('mentor@cyberpath.local / Mentor123!');
-  console.log('admin@cyberpath.local / Admin123!');
+  if (env.isProduction) {
+    console.log(env.adminPassword ? `Admin account: ${adminEmail}` : 'No ADMIN_EMAIL/ADMIN_PASSWORD set; demo accounts have random passwords.');
+  } else {
+    console.log('Demo accounts:');
+    console.log('student@cyberpath.local / Student123!');
+    console.log('student2@cyberpath.local / Student123!');
+    console.log('mentor@cyberpath.local / Mentor123!');
+    console.log(`${adminEmail} / ${env.adminPassword ? '(ADMIN_PASSWORD)' : 'Admin123!'}`);
+  }
   console.log(`Created ${lessonBlueprints.length} lessons, ${lessonBlueprints.length * 6} quiz questions, ${allLabs.length} labs, ${allGuidedProjects.length} guided projects, ${allGlossaryTerms.length} glossary terms.`);
 }
 

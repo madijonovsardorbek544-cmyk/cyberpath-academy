@@ -10,6 +10,7 @@ fs.mkdirSync(path.dirname(dbPath), { recursive: true });
 export const db = new DatabaseSync(dbPath);
 db.exec('PRAGMA journal_mode = WAL;');
 db.exec('PRAGMA foreign_keys = ON;');
+db.exec('PRAGMA busy_timeout = 5000;');
 
 export type Role = 'student' | 'mentor' | 'admin';
 export type FeedbackStatus = 'new' | 'reviewed' | 'resolved';
@@ -52,6 +53,15 @@ export function run(sql: string, ...params: unknown[]) {
 export function count(sql: string, ...params: unknown[]) {
   const row = one<{ value: number }>(sql, ...params);
   return Number(row?.value ?? 0);
+}
+
+// SQLite has no ADD COLUMN IF NOT EXISTS; only the "already added" error is expected here.
+function addColumn(sql: string) {
+  try {
+    db.exec(sql);
+  } catch (error) {
+    if (!String(error).includes('duplicate column name')) throw error;
+  }
 }
 
 export function initDb() {
@@ -587,7 +597,6 @@ export function initDb() {
     CREATE INDEX IF NOT EXISTS idx_lesson_revisions_lesson ON lesson_revisions(lesson_id, version);
     CREATE INDEX IF NOT EXISTS idx_mentor_assignments_student ON mentor_assignments(student_id, status);
     CREATE INDEX IF NOT EXISTS idx_learner_projects_user ON learner_projects(user_id, status);
-    CREATE INDEX IF NOT EXISTS idx_portfolio_public_share ON portfolio_artifacts(public_share_id);
     CREATE INDEX IF NOT EXISTS idx_platform_feedback_content ON platform_feedback(content_type, content_id);
 
     CREATE TABLE IF NOT EXISTS tutor_events (
@@ -602,42 +611,43 @@ export function initDb() {
     );
   `);
 
-  try { db.exec("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';"); } catch {}
-  try { db.exec("ALTER TABLE specialization_tracks ADD COLUMN estimated_hours INTEGER NOT NULL DEFAULT 12;"); } catch {}
-  try { db.exec("ALTER TABLE specialization_tracks ADD COLUMN hero TEXT NOT NULL DEFAULT '';"); } catch {}
-  try { db.exec("ALTER TABLE specialization_tracks ADD COLUMN outcomes_json TEXT NOT NULL DEFAULT '[]';"); } catch {}
-  try { db.exec("ALTER TABLE specialization_tracks ADD COLUMN entry_points_json TEXT NOT NULL DEFAULT '[]';"); } catch {}
-  try { db.exec("ALTER TABLE specialization_tracks ADD COLUMN prerequisites_json TEXT NOT NULL DEFAULT '[]';"); } catch {}
-  try { db.exec("ALTER TABLE specialization_tracks ADD COLUMN recommended_for_json TEXT NOT NULL DEFAULT '[]';"); } catch {}
-  try { db.exec("ALTER TABLE lessons ADD COLUMN version INTEGER NOT NULL DEFAULT 1;"); } catch {}
-  try { db.exec("ALTER TABLE lessons ADD COLUMN last_reviewed_at TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE lessons ADD COLUMN review_due_at TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE lessons ADD COLUMN reviewed_by TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE labs ADD COLUMN access_tier TEXT NOT NULL DEFAULT 'free';"); } catch {}
-  try { db.exec("ALTER TABLE labs ADD COLUMN rubric_json TEXT NOT NULL DEFAULT '{}';"); } catch {}
-  try { db.exec("ALTER TABLE labs ADD COLUMN expected_evidence TEXT NOT NULL DEFAULT '[]';"); } catch {}
-  try { db.exec("ALTER TABLE labs ADD COLUMN hints TEXT NOT NULL DEFAULT '[]';"); } catch {}
-  try { db.exec("ALTER TABLE lab_submissions ADD COLUMN rubric_result_json TEXT NOT NULL DEFAULT '{}';"); } catch {}
-  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN scenario TEXT NOT NULL DEFAULT '';"); } catch {}
-  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN evidence_used_json TEXT NOT NULL DEFAULT '[]';"); } catch {}
-  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN risk_explanation TEXT NOT NULL DEFAULT '';"); } catch {}
-  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN defensive_recommendations TEXT NOT NULL DEFAULT '';"); } catch {}
-  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN reflection TEXT NOT NULL DEFAULT '';"); } catch {}
-  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN source_lab_submission_id TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN public_share_id TEXT UNIQUE;"); } catch {}
-  try { db.exec("ALTER TABLE portfolio_artifacts ADD COLUMN published_at TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN content_type TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN content_id TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN difficulty_rating TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN usefulness_rating INTEGER;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN confusion_note TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN missing_explanation TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN would_recommend TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN would_pay TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE platform_feedback ADD COLUMN learner_goal TEXT;"); } catch {}
-  try { db.exec("ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0;"); } catch {}
-  try { db.exec("ALTER TABLE users ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0;"); } catch {}
-  try { db.exec("ALTER TABLE users ADD COLUMN locked_until TEXT;"); } catch {}
+  addColumn("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';");
+  addColumn("ALTER TABLE specialization_tracks ADD COLUMN estimated_hours INTEGER NOT NULL DEFAULT 12;");
+  addColumn("ALTER TABLE specialization_tracks ADD COLUMN hero TEXT NOT NULL DEFAULT '';");
+  addColumn("ALTER TABLE specialization_tracks ADD COLUMN outcomes_json TEXT NOT NULL DEFAULT '[]';");
+  addColumn("ALTER TABLE specialization_tracks ADD COLUMN entry_points_json TEXT NOT NULL DEFAULT '[]';");
+  addColumn("ALTER TABLE specialization_tracks ADD COLUMN prerequisites_json TEXT NOT NULL DEFAULT '[]';");
+  addColumn("ALTER TABLE specialization_tracks ADD COLUMN recommended_for_json TEXT NOT NULL DEFAULT '[]';");
+  addColumn("ALTER TABLE lessons ADD COLUMN version INTEGER NOT NULL DEFAULT 1;");
+  addColumn("ALTER TABLE lessons ADD COLUMN last_reviewed_at TEXT;");
+  addColumn("ALTER TABLE lessons ADD COLUMN review_due_at TEXT;");
+  addColumn("ALTER TABLE lessons ADD COLUMN reviewed_by TEXT;");
+  addColumn("ALTER TABLE labs ADD COLUMN access_tier TEXT NOT NULL DEFAULT 'free';");
+  addColumn("ALTER TABLE labs ADD COLUMN rubric_json TEXT NOT NULL DEFAULT '{}';");
+  addColumn("ALTER TABLE labs ADD COLUMN expected_evidence TEXT NOT NULL DEFAULT '[]';");
+  addColumn("ALTER TABLE labs ADD COLUMN hints TEXT NOT NULL DEFAULT '[]';");
+  addColumn("ALTER TABLE lab_submissions ADD COLUMN rubric_result_json TEXT NOT NULL DEFAULT '{}';");
+  addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN scenario TEXT NOT NULL DEFAULT '';");
+  addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN evidence_used_json TEXT NOT NULL DEFAULT '[]';");
+  addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN risk_explanation TEXT NOT NULL DEFAULT '';");
+  addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN defensive_recommendations TEXT NOT NULL DEFAULT '';");
+  addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN reflection TEXT NOT NULL DEFAULT '';");
+  addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN source_lab_submission_id TEXT;");
+  addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN public_share_id TEXT;");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_portfolio_public_share_id ON portfolio_artifacts(public_share_id);");
+  addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN published_at TEXT;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN content_type TEXT;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN content_id TEXT;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN difficulty_rating TEXT;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN usefulness_rating INTEGER;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN confusion_note TEXT;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN missing_explanation TEXT;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN would_recommend TEXT;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN would_pay TEXT;");
+  addColumn("ALTER TABLE platform_feedback ADD COLUMN learner_goal TEXT;");
+  addColumn("ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0;");
+  addColumn("ALTER TABLE users ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0;");
+  addColumn("ALTER TABLE users ADD COLUMN locked_until TEXT;");
 }
 
 export function mapUser(row: Record<string, unknown> | null) {

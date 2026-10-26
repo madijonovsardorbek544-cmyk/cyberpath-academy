@@ -27,7 +27,7 @@ export function errorHandler(err: unknown, req: Request, res: Response, _next: N
   } catch {}
 
   return res.status(500).json({
-    message: err instanceof Error ? err.message : 'Unexpected server error.',
+    message: 'Unexpected server error.',
     requestId: req.requestId ?? null
   });
 }

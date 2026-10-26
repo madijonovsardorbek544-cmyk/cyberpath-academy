@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
+import { requireAuth, requireRole, type AuthenticatedRequest } from '../middleware/auth.js';
+import { publicFormLimiter } from '../middleware/security.js';
 import { env } from '../config/env.js';
 import { createAuditLog } from '../utils/audit.js';
 import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapPilotLead, mapPortfolioArtifact, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
@@ -77,7 +78,7 @@ router.get('/plans', (_req, res) => {
 
 
 
-router.post('/bug-reports', (req, res) => {
+router.post('/bug-reports', publicFormLimiter, (req, res) => {
   const parsed = bugReportSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid bug report.', errors: parsed.error.flatten() });
@@ -102,7 +103,7 @@ router.post('/bug-reports', (req, res) => {
   return res.status(201).json({ message: 'Bug report submitted for beta triage.', bugReport: { id, ...parsed.data, status: 'new', notes: null, createdAt: now, updatedAt: now } });
 });
 
-router.post('/pilot-leads', (req, res) => {
+router.post('/pilot-leads', publicFormLimiter, (req, res) => {
   const parsed = pilotLeadSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid school pilot lead.', errors: parsed.error.flatten() });
@@ -134,7 +135,7 @@ router.post('/pilot-leads', (req, res) => {
   return res.status(201).json({ message: 'School pilot request received. We will use this to qualify a safe, defensive cohort pilot — not to send spam.', pilotLead });
 });
 
-router.post('/feedback', (req, res) => {
+router.post('/feedback', publicFormLimiter, (req, res) => {
   const parsed = feedbackSchema.safeParse(req.body);
   if (!parsed.success) {
     return res.status(400).json({ message: 'Invalid feedback payload.', errors: parsed.error.flatten() });
@@ -167,7 +168,7 @@ router.post('/feedback', (req, res) => {
   return res.status(201).json({ message: 'Feedback submitted. This is the user feedback loop you actually need for a beta.' });
 });
 
-router.get('/metrics', (req, res) => {
+router.get('/metrics', requireAuth, requireRole(['admin']), (req, res) => {
   const metrics = {
     users: count('SELECT COUNT(*) as value FROM users'),
     students: count("SELECT COUNT(*) as value FROM users WHERE role = 'student'"),
@@ -252,6 +253,12 @@ router.post('/subscription/demo-checkout', (req: AuthenticatedRequest, res) => {
   }
   if (!env.enableDemoBilling) {
     return res.status(400).json({ message: 'Demo billing is disabled. Configure a real provider before launch.' });
+  }
+  if (parsed.data.planId === 'school') {
+    return res.status(403).json({ message: 'School plans are set up by the CyberPath team. Use the school pilot form to request one.' });
+  }
+  if (parsed.data.planId === 'premium' && one(`SELECT id FROM audit_logs WHERE actor_user_id = ? AND action = 'billing.demo_checkout' AND json_extract(metadata, '$.planId') = 'premium'`, req.user!.userId)) {
+    return res.status(409).json({ message: 'You have already used your free Premium trial.' });
   }
 
   const now = nowIso();

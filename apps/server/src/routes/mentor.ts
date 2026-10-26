@@ -225,7 +225,9 @@ async function buildCohortDashboard(req: AuthenticatedRequest) {
 }
 
 function escapeCsv(value: unknown) {
-  const text = String(value ?? '');
+  const raw = String(value ?? '');
+  // Leading = + - @ tab or CR make spreadsheets run the cell as a formula.
+  const text = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw;
   return /[\",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

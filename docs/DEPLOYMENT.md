@@ -70,9 +70,30 @@ Local defaults:
 - Web API mode: `VITE_API_MODE=api`
 - SQLite database path: configured by `apps/server/.env`
 
+## Full-stack on Render (free)
+
+`render.yaml` deploys the root `Dockerfile` as one free Render web service that serves both the API and the built web app.
+
+Free Render instances have no persistent disk, so the container uses [Litestream](https://litestream.io) to stream the SQLite database to free S3-compatible storage (for example Backblaze B2) and restore it on every start. Without the `LITESTREAM_*` variables the site still runs, but all data is lost on each restart or redeploy.
+
+On start, `scripts/docker-start.sh` restores the database, runs `npm run db:setup` (which only seeds an empty database and never wipes data), then starts the server.
+
+Environment variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First admin account, created only when the database is first seeded. Password must be at least 12 characters. Demo accounts get random passwords in production. |
+| `LITESTREAM_BUCKET`, `LITESTREAM_ENDPOINT`, `LITESTREAM_REGION`, `LITESTREAM_ACCESS_KEY_ID`, `LITESTREAM_SECRET_ACCESS_KEY` | Where the database replica lives. |
+| `MAIL_MODE=brevo`, `BREVO_API_KEY`, `MAIL_FROM` | Real email for password reset. Render's free tier blocks SMTP ports, so email goes through Brevo's HTTP API. `MAIL_FROM` must be a sender verified in Brevo. |
+| `ENABLE_DEMO_BILLING` | Lets each user start one free 30-day Premium trial. School plans are never self-serve. |
+
+`CLIENT_URL` and `APP_BASE_URL` default to Render's `RENDER_EXTERNAL_URL`, so they only need setting for a custom domain.
+
+Only run one instance: two instances writing the same Litestream replica will conflict.
+
 ## Full production deployment later
 
-A future full-stack deployment should host the backend separately from, or together with, the frontend. Render, Railway, Fly.io, and similar platforms are reasonable backend options. Vercel, Netlify, Render static sites, or other static hosting providers can host the frontend when configured with the deployed API URL.
+A future full-stack deployment should host the backend separately from, or together with, the frontend. Render (see above) is the supported target. Vercel, Netlify, Render static sites, or other static hosting providers can host the frontend when configured with the deployed API URL.
 
 Minimum production configuration checklist:
 
