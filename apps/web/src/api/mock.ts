@@ -1115,6 +1115,7 @@ function featureContext(): MockFeatureContext {
   const titles = new Map(db.lessons.map((lesson) => [lesson.id, lesson.title]));
   return {
     userId: user?.id ?? null,
+    userName: user?.name,
     role: user?.role,
     students: db.users.filter((entry) => entry.role === "student").map((entry) => ({
       id: entry.id,

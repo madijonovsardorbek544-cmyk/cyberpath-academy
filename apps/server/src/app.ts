@@ -16,6 +16,7 @@ import progressRoutes from './routes/progress.js';
 import profileRoutes from './routes/profile.js';
 import communityCaseRoutes from './routes/communityCases.js';
 import eventRoutes from './routes/event.js';
+import discussionRoutes from './routes/discussions.js';
 import { errorHandler } from './middleware/error.js';
 import { env } from './config/env.js';
 import { initDb, one } from './lib/db.js';
@@ -87,6 +88,7 @@ app.use('/api/progress', progressRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/community-cases', communityCaseRoutes);
 app.use('/api/event', eventRoutes);
+app.use('/api/discussions', discussionRoutes);
 
 const webDistPath = path.resolve(process.cwd(), 'apps/web/dist');
 if (env.isProduction && fs.existsSync(webDistPath)) {

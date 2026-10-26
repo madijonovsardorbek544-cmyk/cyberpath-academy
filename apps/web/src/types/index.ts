@@ -46,3 +46,7 @@ export type EventResponse = {
   leaderboard: Array<{ rank: number; name: string; points: number; solved: number; isMe: boolean }>;
   me: { rank: number; points: number; solved: number } | null;
 };
+
+export type DiscussionPost = { id: string; kind: 'comment' | 'writeup'; body: string; status: 'visible' | 'hidden'; author: string; authorRole: string | null; isMine: boolean; createdAt: string; updatedAt: string };
+export type DiscussionThread = { comments: DiscussionPost[]; writeups: DiscussionPost[]; writeupsAllowed: boolean; writeupsUnlocked: boolean; canWriteWriteup: boolean };
+export type ModerationPost = DiscussionPost & { targetType: 'lesson' | 'case'; targetSlug: string; reportCount: number; reasons: string[] };

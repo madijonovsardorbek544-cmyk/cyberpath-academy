@@ -1,9 +1,9 @@
 // Mock-demo handlers for the newer learner features. State lives in its own localStorage key so the
 // older demo database format does not change.
-import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, profilePatchSchema, socSubmitSchema } from "@cyberpath/contracts";
+import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, discussionModerateSchema, discussionPostSchema, discussionReportSchema, profilePatchSchema, socSubmitSchema } from "@cyberpath/contracts";
 import { LEAGUE_TIERS, XP_RULES, addDays, badgeCatalog, computeStreak, leaderboardName, levelForXp, weekStartOf, type XpEvent } from "@cyberpath/contracts/gamification";
 
-export type MockFeatureContext = { userId: string | null; role?: string; students: Array<{ id: string; name: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
+export type MockFeatureContext = { userId: string | null; userName?: string; role?: string; students: Array<{ id: string; name: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
 
 const FEATURE_KEY = "cyberpath-demo-features-v1";
 
@@ -11,16 +11,17 @@ type CaseRow = { attempts: number; pointsAwarded: number; solvedAt: string | nul
 type SocAttempt = { score: number; result: unknown; createdAt: string };
 type ProfileRow = { handle: string | null; isPublic: boolean; headline: string };
 type CommunityRow = { id: string; slug: string; authorId: string; authorName: string; status: string; reviewNote: string | null; case: Record<string, unknown>; createdAt: string; updatedAt: string; publishedAt: string | null };
-type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[] };
+type DiscussionRow = { id: string; targetType: string; targetSlug: string; userId: string; authorName: string; authorRole: string; kind: "comment" | "writeup"; body: string; status: "visible" | "hidden"; reports: Array<{ userId: string; reason: string }>; createdAt: string; updatedAt: string };
+type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[]; discussions: DiscussionRow[] };
 
 function readState(): FeatureState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FEATURE_KEY) || "null") as FeatureState | null;
-    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [] };
+    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [], discussions: parsed.discussions ?? [] };
   } catch {
     // Corrupt demo state is replaced below.
   }
-  return { cases: {}, soc: {}, profiles: {}, community: [] };
+  return { cases: {}, soc: {}, profiles: {}, community: [], discussions: [] };
 }
 
 function writeState(state: FeatureState) {
@@ -133,6 +134,69 @@ async function handleEvent(ctx: MockFeatureContext & { userId: string }) {
     leaderboard: ranked.slice(0, 20).map(({ userId, ...row }) => ({ ...row, isMe: userId === ctx.userId })),
     me: me ? { rank: me.rank, points: me.points, solved: me.solved } : null
   };
+}
+
+const STAFF_ROLES = new Set(["mentor", "admin"]);
+
+async function handleDiscussions(method: string, path: string, body: unknown, ctx: MockFeatureContext & { userId: string }) {
+  const state = readState();
+  const staff = STAFF_ROLES.has(ctx.role ?? "");
+  const view = (row: DiscussionRow) => ({ id: row.id, kind: row.kind, body: row.body, status: row.status, author: leaderboardName(row.authorName), authorRole: STAFF_ROLES.has(row.authorRole) ? row.authorRole : null, isMine: row.userId === ctx.userId, createdAt: row.createdAt, updatedAt: row.updatedAt });
+  const parts = path.split("/").filter(Boolean);
+
+  if (method === "GET" && path === "/discussions/moderation") {
+    if (!staff) throw new Error("You do not have access to this area.");
+    return { posts: state.discussions.filter((row) => row.status === "hidden" || row.reports.length).map((row) => ({ ...view(row), targetType: row.targetType, targetSlug: row.targetSlug, reportCount: row.reports.length, reasons: row.reports.map((report) => report.reason) })) };
+  }
+
+  if (parts[1] === "posts") {
+    const row = state.discussions.find((entry) => entry.id === parts[2]);
+    if (!row) throw new Error("Post not found.");
+    if (method === "DELETE") {
+      if (row.userId !== ctx.userId && !staff) throw new Error("You can only delete your own posts.");
+      state.discussions = state.discussions.filter((entry) => entry.id !== row.id);
+    } else if (parts[3] === "report") {
+      if (row.userId === ctx.userId) throw new Error("You cannot report your own post.");
+      const data = discussionReportSchema.parse(body);
+      if (!row.reports.some((report) => report.userId === ctx.userId)) row.reports.push({ userId: ctx.userId, reason: data.reason });
+      if (row.reports.length >= 3) row.status = "hidden";
+    } else if (parts[3] === "moderate") {
+      if (!staff) throw new Error("You do not have access to this area.");
+      const data = discussionModerateSchema.parse(body);
+      row.status = data.action === "hide" ? "hidden" : "visible";
+      if (data.action === "restore") row.reports = [];
+    }
+    writeState(state);
+    return { ok: true, post: view(row) };
+  }
+
+  const [, targetType, targetSlug] = parts;
+  if (targetType !== "lesson" && targetType !== "case") throw new Error("Nothing to discuss here.");
+  let completed = false;
+  if (targetType === "case") {
+    const [bank, events] = await Promise.all([loadCaseBank(), loadEventBank()]);
+    const community = state.community.find((row) => row.slug === targetSlug && row.status === "published")?.case as unknown as InvestigationCase | undefined;
+    const item = bank.findInvestigationCase(targetSlug) ?? community ?? events.findUnlockedEventDay(events.annualEvent, eventStartsOn(events.annualEvent.startsOn), targetSlug, new Date());
+    if (!item) throw new Error("Nothing to discuss here.");
+    completed = item.questions.every((question) => state.cases[ctx.userId]?.[targetSlug]?.[question.id]?.solvedAt);
+  }
+  const writeupsAllowed = targetType === "case";
+  const writeupsUnlocked = writeupsAllowed && (completed || staff);
+  const here = (kind: string) => state.discussions.filter((row) => row.targetType === targetType && row.targetSlug === targetSlug && row.kind === kind && (row.status === "visible" || row.userId === ctx.userId || staff)).map(view);
+
+  if (method === "GET") return { comments: here("comment"), writeups: writeupsUnlocked ? here("writeup") : [], writeupsAllowed, writeupsUnlocked, canWriteWriteup: writeupsAllowed && completed };
+
+  if (method === "POST") {
+    const data = discussionPostSchema.parse(body);
+    if (data.kind === "writeup" && !(writeupsAllowed && completed)) throw new Error("Finish the case before writing a writeup.");
+    const now = new Date().toISOString();
+    const existing = data.kind === "writeup" ? state.discussions.find((row) => row.kind === "writeup" && row.targetType === targetType && row.targetSlug === targetSlug && row.userId === ctx.userId) : undefined;
+    if (existing) Object.assign(existing, { body: data.body, updatedAt: now });
+    else state.discussions.push({ id: crypto.randomUUID(), targetType, targetSlug, userId: ctx.userId, authorName: ctx.userName ?? "Learner", authorRole: ctx.role ?? "student", kind: data.kind, body: data.body, status: "visible", reports: [], createdAt: now, updatedAt: now });
+    writeState(state);
+    return { post: view(existing ?? state.discussions.at(-1)!) };
+  }
+  throw new Error(`No mock handler for ${method} ${path}`);
 }
 
 function loadSocBank() {
@@ -348,7 +412,7 @@ async function handleCommunity(method: string, path: string, body: unknown, ctx:
 
 /** Returns a response for feature routes, or null so the main mock handles the path. */
 export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext): Promise<unknown> | null {
-  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event";
+  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event" || path.startsWith("/discussions/");
   if (!isFeature) return null;
   const route = (): Promise<unknown> | unknown => {
     const ctx = getContext();
@@ -357,6 +421,7 @@ export function handleFeatureRequest(method: string, path: string, body: unknown
     if (!userId) throw new Error("Authentication required.");
     if (path === "/progress/me" && method === "GET") return handleProgress({ ...ctx, userId });
     if (path === "/event" && method === "GET") return handleEvent({ ...ctx, userId });
+    if (path.startsWith("/discussions/")) return handleDiscussions(method, path, body, { ...ctx, userId });
     if (path.startsWith("/community-cases")) return handleCommunity(method, path, body, { ...ctx, userId }, ctx.role ?? "student");
     if (path.startsWith("/soc/")) return handleSoc(method, path, body, userId);
     return handleCases(method, path, body, userId);

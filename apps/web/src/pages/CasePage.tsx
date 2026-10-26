@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { CheckCircle2, Lightbulb } from "lucide-react";
 import { api } from "../api/client";
 import { AppShell } from "../components/AppShell";
+import { DiscussionPanel } from "../components/discussion/DiscussionPanel";
 import { Badge, Button, Card, ErrorMessage, ErrorState, Input, Loader } from "../components/ui";
 import type { CaseAnswerResponse, CaseDetailResponse, CaseEvidence, CaseQuestionState } from "../types";
 
@@ -198,6 +199,7 @@ export function CasePage() {
             {item.questions.map((question, index) => <QuestionCard key={question.id} question={question} index={index} onAnswer={answer} />)}
           </div>
         </div>
+        {slug ? <DiscussionPanel targetType="case" slug={slug} refreshKey={progress.completed} /> : null}
         <p className="text-xs text-slate-500">All people, companies, domains and IP addresses in this case are fictional or reserved for documentation.</p>
       </div>
     </AppShell>

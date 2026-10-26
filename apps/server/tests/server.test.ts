@@ -1105,3 +1105,68 @@ test('lessons are served in Uzbek or Russian when a translation exists', async (
   assert.equal(untranslated.contentLocale, 'en', 'missing translations fall back to English');
   await server.close();
 });
+
+test('discussions: comments, spoiler-safe writeups, reports and moderation', async () => {
+  const server = await startServer();
+  const signupAs = async (name: string, email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name, email, password: 'StrongPass1!' })
+  }));
+  const author = await signupAs('Disc Author', 'discauthor@example.com');
+  const readers = [await signupAs('Reader One', 'reader1@example.com'), await signupAs('Reader Two', 'reader2@example.com'), await signupAs('Reader Three', 'reader3@example.com')];
+  const mentor = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  }));
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+
+  assert.equal((await call(author, 'POST', '/discussions/lesson/no-such-lesson', { kind: 'comment', body: 'Hello' })).status, 404);
+  assert.equal((await call(author, 'POST', '/discussions/lesson/cia-triad', { kind: 'comment', body: ' ' })).status, 400);
+  assert.equal((await call(author, 'POST', '/discussions/lesson/cia-triad', { kind: 'writeup', body: 'x'.repeat(100) })).status, 403, 'lessons have no writeups');
+  const comment = (await (await call(author, 'POST', '/discussions/lesson/cia-triad', { kind: 'comment', body: 'Availability was the one I mixed up at first.' })).json()).post;
+  assert.equal(comment.author, 'Disc A.');
+  assert.equal(comment.isMine, true);
+  const lessonThread = await (await call(readers[0], 'GET', '/discussions/lesson/cia-triad')).json();
+  assert.equal(lessonThread.comments.length, 1);
+  assert.equal(lessonThread.comments[0].isMine, false);
+  assert.equal(lessonThread.writeupsAllowed, false);
+
+  const writeup = { kind: 'writeup', body: 'I grouped the FAIL lines by source IP, then looked for the same address with a SUCCESS line afterwards.' };
+  assert.equal((await call(author, 'POST', '/discussions/case/vpn-password-spray', writeup)).status, 403, 'writeups unlock after solving');
+  const { findInvestigationCase } = await import('@cyberpath/contracts/cases');
+  for (const question of findInvestigationCase('vpn-password-spray')!.questions) {
+    await call(author, 'POST', '/cases/vpn-password-spray/answer', { questionId: question.id, answer: question.answers[0] });
+  }
+  assert.equal((await call(author, 'POST', '/discussions/case/vpn-password-spray', { kind: 'writeup', body: 'too short' })).status, 400);
+  const first = (await (await call(author, 'POST', '/discussions/case/vpn-password-spray', writeup)).json()).post;
+  const edited = (await (await call(author, 'POST', '/discussions/case/vpn-password-spray', { ...writeup, body: `${writeup.body} Edited.` })).json()).post;
+  assert.equal(edited.id, first.id, 'a second writeup edits the first');
+  const authorView = await (await call(author, 'GET', '/discussions/case/vpn-password-spray')).json();
+  assert.equal(authorView.writeups.length, 1);
+  assert.equal(authorView.canWriteWriteup, true);
+  const spoilerSafe = await (await call(readers[0], 'GET', '/discussions/case/vpn-password-spray')).json();
+  assert.equal(spoilerSafe.writeupsUnlocked, false);
+  assert.deepEqual(spoilerSafe.writeups, [], 'unsolved learners never receive writeups');
+  assert.equal((await (await call(mentor, 'GET', '/discussions/case/vpn-password-spray')).json()).writeups.length, 1, 'mentors can read writeups');
+
+  assert.equal((await call(author, 'POST', `/discussions/posts/${comment.id}/report`, { reason: 'mine' })).status, 400, 'no self reports');
+  for (const reader of readers) assert.equal((await call(reader, 'POST', `/discussions/posts/${comment.id}/report`, { reason: 'Off topic' })).status, 200);
+  await call(readers[0], 'POST', `/discussions/posts/${comment.id}/report`, { reason: 'Again' });
+  assert.equal((await (await call(readers[1], 'GET', '/discussions/lesson/cia-triad')).json()).comments.length, 0, 'hidden after three reports');
+  const ownView = await (await call(author, 'GET', '/discussions/lesson/cia-triad')).json();
+  assert.equal(ownView.comments[0].status, 'hidden', 'author still sees their hidden post');
+
+  assert.equal((await call(readers[0], 'GET', '/discussions/moderation')).status, 403);
+  const queue = await (await call(mentor, 'GET', '/discussions/moderation')).json();
+  const queued = queue.posts.find((post: any) => post.id === comment.id);
+  assert.equal(queued.reportCount, 3, 'duplicate reports are ignored');
+  assert.equal(queued.targetSlug, 'cia-triad');
+  const restored = await (await call(mentor, 'POST', `/discussions/posts/${comment.id}/moderate`, { action: 'restore' })).json();
+  assert.equal(restored.post.status, 'visible');
+  assert.equal((await (await call(readers[1], 'GET', '/discussions/lesson/cia-triad')).json()).comments.length, 1);
+
+  assert.equal((await call(readers[0], 'DELETE', `/discussions/posts/${comment.id}`)).status, 403);
+  assert.equal((await call(author, 'DELETE', `/discussions/posts/${comment.id}`)).status, 200);
+  assert.equal((await (await call(readers[1], 'GET', '/discussions/lesson/cia-triad')).json()).comments.length, 0);
+  await server.close();
+});

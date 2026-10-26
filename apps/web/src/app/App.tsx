@@ -28,6 +28,7 @@ const ProgressPage = lazy(() => import('../pages/ProgressPage').then((module) =>
 const PublicProfilePage = lazy(() => import('../pages/PublicProfilePage').then((module) => ({ default: module.PublicProfilePage })));
 const CaseEditorPage = lazy(() => import('../pages/CaseEditorPage').then((module) => ({ default: module.CaseEditorPage })));
 const MyCasesPage = lazy(() => import('../pages/MyCasesPage').then((module) => ({ default: module.MyCasesPage })));
+const DiscussionModerationPage = lazy(() => import('../pages/DiscussionModerationPage').then((module) => ({ default: module.DiscussionModerationPage })));
 const CaseReviewPage = lazy(() => import('../pages/CaseReviewPage').then((module) => ({ default: module.CaseReviewPage })));
 const MistakesPage = lazy(() => import('../pages/MistakesPage').then((module) => ({ default: module.MistakesPage })));
 const AITutorPage = lazy(() => import('../pages/AITutorPage').then((module) => ({ default: module.AITutorPage })));
@@ -89,6 +90,7 @@ export function App() {
             <Route path="/cases/new" element={<ProtectedRoute><CaseEditorPage /></ProtectedRoute>} />
             <Route path="/cases/edit/:id" element={<ProtectedRoute><CaseEditorPage /></ProtectedRoute>} />
             <Route path="/cases/mine" element={<ProtectedRoute><MyCasesPage /></ProtectedRoute>} />
+            <Route path="/discussions/moderation" element={<ProtectedRoute roles={['mentor', 'admin']}><DiscussionModerationPage /></ProtectedRoute>} />
             <Route path="/cases/review" element={<ProtectedRoute roles={['mentor', 'admin']}><CaseReviewPage /></ProtectedRoute>} />
             <Route path="/cases/:slug" element={<ProtectedRoute><CasePage /></ProtectedRoute>} />
             <Route path="/event" element={<ProtectedRoute><EventPage /></ProtectedRoute>} />

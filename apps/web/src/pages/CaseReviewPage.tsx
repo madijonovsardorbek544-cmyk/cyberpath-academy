@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api/client";
 import { AppShell } from "../components/AppShell";
 import { Badge, Button, Card, EmptyState, ErrorMessage, Loader, SectionTitle, Textarea } from "../components/ui";
@@ -68,6 +69,7 @@ export function CaseReviewPage() {
     <AppShell>
       <div className="space-y-6">
         <SectionTitle eyebrow="Mentor review" title="Community cases waiting for review" subtitle="Publish cases that are accurate, defensive and use only fictional data. Send others back with a clear note." />
+        <Link to="/discussions/moderation" className="inline-flex text-sm text-sky-300 hover:text-sky-200">Reported discussion posts →</Link>
         {error ? <ErrorMessage>{error}</ErrorMessage> : null}
         {!submissions ? <Loader text="Loading the review queue..." /> : submissions.length === 0 ? <EmptyState title="Nothing to review" description="New submissions will appear here." /> : submissions.map((item) => <ReviewCard key={item.id} item={item} onDone={() => void load()} />)}
       </div>

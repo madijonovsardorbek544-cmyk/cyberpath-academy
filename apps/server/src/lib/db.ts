@@ -680,6 +680,34 @@ export function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_community_cases_status ON community_cases(status, published_at);
 
+    CREATE TABLE IF NOT EXISTS discussion_posts (
+      id TEXT PRIMARY KEY,
+      target_type TEXT NOT NULL,
+      target_slug TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      body TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'visible',
+      report_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_discussion_target ON discussion_posts(target_type, target_slug, kind, created_at);
+    -- One writeup per learner per case.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_discussion_one_writeup ON discussion_posts(target_type, target_slug, user_id) WHERE kind = 'writeup';
+
+    CREATE TABLE IF NOT EXISTS discussion_reports (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      reporter_id TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(post_id, reporter_id),
+      FOREIGN KEY (post_id) REFERENCES discussion_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS user_badges (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,

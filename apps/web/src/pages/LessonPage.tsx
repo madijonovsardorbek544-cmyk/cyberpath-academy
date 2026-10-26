@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { BetaFeedbackCard } from '../components/BetaMode';
+import { DiscussionPanel } from '../components/discussion/DiscussionPanel';
 import { Badge, Button, Card, Loader, SectionTitle } from '../components/ui';
 import type { Lesson, QuizResult } from '../types';
 import { QuizRenderer } from '../components/QuizRenderer';
@@ -159,6 +160,7 @@ export function LessonPage() {
           <SectionTitle eyebrow="Quiz engine" title="End-of-lesson assessment" subtitle="Immediate feedback, topic scoring, and mistake capture feed your notebook automatically." />
           {lesson.quizQuestions?.length ? <QuizRenderer questions={lesson.quizQuestions} onSubmit={submitQuiz} /> : <Card className="p-5">No quiz attached yet.</Card>}
         </section>
+        <DiscussionPanel targetType="lesson" slug={lesson.slug} />
         <BetaFeedbackCard context="lesson_completion" title="Lesson feedback" />
       </div>
     </AppShell>

@@ -550,3 +550,10 @@ export const caseReviewSchema = z.object({
   note: z.string().trim().max(2000).optional()
 });
 export type CaseDraft = z.infer<typeof caseDraftSchema>;
+
+export const discussionPostSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('comment'), body: z.string().trim().min(2, 'Write at least 2 characters.').max(2000, 'Comments can be up to 2000 characters.') }),
+  z.object({ kind: z.literal('writeup'), body: z.string().trim().min(80, 'A writeup needs at least 80 characters.').max(8000, 'Writeups can be up to 8000 characters.') })
+]);
+export const discussionReportSchema = z.object({ reason: z.string().trim().min(3).max(300) });
+export const discussionModerateSchema = z.object({ action: z.enum(['hide', 'restore']) });
