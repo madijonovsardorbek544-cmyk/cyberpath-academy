@@ -800,3 +800,22 @@ test('demo checkout allows one premium trial and no self-serve school plan', asy
   assert.equal((await checkout('premium')).status, 409);
   await server.close();
 });
+
+test('ALL_FEATURES_FREE unlocks premium labs for free users', async () => {
+  const { env } = await import('../src/config/env.ts');
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Free Everything', email: 'freeall@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const lockedCount = async () => (await (await fetch(`${server.baseUrl}/api/learning/labs`, { headers: { cookie } })).json()).labs.filter((lab: any) => lab.locked).length;
+  assert.ok(await lockedCount() > 0);
+  env.allFeaturesFree = true;
+  try {
+    assert.equal(await lockedCount(), 0);
+  } finally {
+    env.allFeaturesFree = false;
+    await server.close();
+  }
+});

@@ -85,6 +85,7 @@ Environment variables:
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | First admin account, created only when the database is first seeded. Password must be at least 12 characters. Demo accounts get random passwords in production. |
 | `LITESTREAM_BUCKET`, `LITESTREAM_ENDPOINT`, `LITESTREAM_REGION`, `LITESTREAM_ACCESS_KEY_ID`, `LITESTREAM_SECRET_ACCESS_KEY` | Where the database replica lives. |
 | `MAIL_MODE=brevo`, `BREVO_API_KEY`, `MAIL_FROM` | Real email for password reset. Render's free tier blocks SMTP ports, so email goes through Brevo's HTTP API. `MAIL_FROM` must be a sender verified in Brevo. |
+| `ALL_FEATURES_FREE` | `true` gives every user all Premium learner features (the site is free for now). Pricing and billing links are hidden in the web app unless it is built with `VITE_SHOW_PRICING=true`. |
 | `ENABLE_DEMO_BILLING` | Lets each user start one free 30-day Premium trial. School plans are never self-serve. |
 
 `CLIENT_URL` and `APP_BASE_URL` default to Render's `RENDER_EXTERNAL_URL`, so they only need setting for a custom domain.

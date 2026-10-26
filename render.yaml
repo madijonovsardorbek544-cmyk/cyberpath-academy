@@ -14,8 +14,10 @@ services:
         generateValue: true
       - key: COOKIE_SECURE
         value: true
-      - key: ENABLE_DEMO_BILLING
+      - key: ALL_FEATURES_FREE
         value: true
+      - key: ENABLE_DEMO_BILLING
+        value: false
       - key: MAIL_MODE
         value: console
       - key: DEFAULT_LOCALE

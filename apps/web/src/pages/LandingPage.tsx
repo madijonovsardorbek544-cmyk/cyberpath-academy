@@ -4,7 +4,7 @@ import { BadgeCheck, BookOpen, Building2, ChartNoAxesCombined, ClipboardCheck, D
 import { Badge, Button, Card, Input, SectionTitle, Select, Textarea } from '../components/ui';
 import { useLocale } from '../contexts/LocaleContext';
 import { useAuth } from '../contexts/AuthContext';
-import { api, isMockApiMode } from '../api/client';
+import { api, isMockApiMode, showPricing } from '../api/client';
 
 const demoAccounts = {
   student: { email: 'student@cyberpath.local', password: 'Student123!', target: '/dashboard' },
@@ -76,7 +76,7 @@ export function LandingPage() {
           <div className="flex flex-wrap items-center gap-3">
             <select aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}><option value="en">EN</option><option value="uz" disabled>UZ (review)</option><option value="ru" disabled>RU (review)</option></select>
             <span className="hidden text-xs text-slate-500 lg:inline" title={localeNotice}>English beta</span>
-            <Link className="text-sm text-slate-300" to="/pricing">{t('pricing')}</Link>
+            {showPricing ? <Link className="text-sm text-slate-300" to="/pricing">{t('pricing')}</Link> : null}
             <Link className="text-sm text-sky-300" to="/school-pilot">Request school pilot</Link>
             <Link className="text-sm text-slate-300" to="/login">{t('login')}</Link>
           </div>
@@ -127,7 +127,7 @@ export function LandingPage() {
 
         <section className="grid gap-5 py-10 lg:grid-cols-[0.85fr,1.15fr]">
           <Card className="p-6"><SectionTitle eyebrow="Portfolio proof" title="The moat is evidence students can show." /><p className="mt-3 text-sm text-slate-300">CyberPath turns safe lab submissions into mentor-reviewable artifacts. Public links expose only read-only student-safe summaries, never private lab answers or sensitive data.</p><Link to="/public/artifacts/demo-phishing-brief"><Button className="mt-5 border border-slate-700 bg-slate-900 text-white">View sample public artifact</Button></Link></Card>
-          <Card className="p-6"><SectionTitle eyebrow="Pricing model: Free, Premium, School" title="Monetization path without collecting cards in the demo." /><div className="mt-4 grid gap-4 md:grid-cols-3">{pricing.map((plan) => <div key={plan.name} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold text-white">{plan.name}</h3><DollarSign className="text-sky-300" size={18} /></div><p className="mt-1 text-sm text-sky-200">{plan.price}</p><p className="mt-2 text-xs text-slate-400">{plan.copy}</p><div className="mt-3 flex flex-wrap gap-2">{plan.features.map((feature) => <Badge key={feature}>{feature}</Badge>)}</div></div>)}</div><Link to="/pricing"><Button className="mt-5 bg-sky-400 text-slate-950">Explore pricing details</Button></Link></Card>
+          {showPricing ? <Card className="p-6"><SectionTitle eyebrow="Pricing model: Free, Premium, School" title="Monetization path without collecting cards in the demo." /><div className="mt-4 grid gap-4 md:grid-cols-3">{pricing.map((plan) => <div key={plan.name} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex items-center justify-between gap-2"><h3 className="font-semibold text-white">{plan.name}</h3><DollarSign className="text-sky-300" size={18} /></div><p className="mt-1 text-sm text-sky-200">{plan.price}</p><p className="mt-2 text-xs text-slate-400">{plan.copy}</p><div className="mt-3 flex flex-wrap gap-2">{plan.features.map((feature) => <Badge key={feature}>{feature}</Badge>)}</div></div>)}</div><Link to="/pricing"><Button className="mt-5 bg-sky-400 text-slate-950">Explore pricing details</Button></Link></Card> : null}
         </section>
 
         <section className="grid gap-5 py-10 lg:grid-cols-[1fr,0.9fr]">
@@ -135,7 +135,7 @@ export function LandingPage() {
           <Card className="p-6"><Globe2 className="text-sky-300" /><h2 className="mt-4 text-2xl font-semibold text-white">Built for emerging-market learners</h2><p className="mt-3 text-sm text-slate-300">The MVP prioritizes beginner clarity, low-cost access, Uzbek/English learning pathways, and school/cohort purchasing because individual-only subscriptions require far more scale.</p><div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-400">Next validation target: 100 demo users, 10 serious feedback interviews, 3 school/cohort pilot conversations, and one paid pilot offer.</div></Card>
         </section>
 
-        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 py-8 text-sm text-slate-400"><p>CyberPath Academy is beta defensive cybersecurity education software using fictional practice data in the public demo.</p><div className="flex flex-wrap gap-4"><Link to="/pricing">Pricing</Link><Link to="/support">Support</Link><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><Link to="/safety">Safety</Link></div></footer>
+        <footer className="flex flex-wrap items-center justify-between gap-4 border-t border-slate-800 py-8 text-sm text-slate-400"><p>CyberPath Academy is beta defensive cybersecurity education software using fictional practice data in the public demo.</p><div className="flex flex-wrap gap-4">{showPricing ? <Link to="/pricing">Pricing</Link> : null}<Link to="/support">Support</Link><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link><Link to="/safety">Safety</Link></div></footer>
       </div>
     </div>
   );
