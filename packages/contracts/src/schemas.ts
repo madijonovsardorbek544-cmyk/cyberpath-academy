@@ -45,7 +45,8 @@ export const lessonSchema = z.object({
   glossary: z.array(z.object({ term: z.string(), definition: z.string() })), examples: z.array(z.string()), knowledgeChecks: z.array(z.string()),
   commonMistakes: z.string(), whyItMatters: z.string(), icon: z.string().optional(), version: z.number().optional(), lastReviewedAt: z.string().nullable().optional(),
   reviewDueAt: z.string().nullable().optional(), reviewedBy: z.string().nullable().optional(), revisionCount: z.number().optional(),
-  relatedTracks: z.array(trackSchema).optional(), completed: z.boolean().optional(), timeSpentMinutes: z.number().optional(), quizQuestions: z.array(quizQuestionSchema).optional()
+  relatedTracks: z.array(trackSchema).optional(), completed: z.boolean().optional(), timeSpentMinutes: z.number().optional(), quizQuestions: z.array(quizQuestionSchema).optional(),
+  contentLocale: z.enum(['en', 'uz', 'ru']).optional()
 });
 
 export const lessonInputSchema = lessonSchema.omit({ id: true, estimatedMinutes: true }).extend({
@@ -479,3 +480,106 @@ export const assignmentStudentPatchSchema = z.object({ status: z.enum(['open', '
 export const practiceModeSchema = z.enum(['learn', 'practice', 'review', 'mastery_challenge', 'lab_prep']);
 export const practiceSubmitSchema = z.object({ sessionId: z.string().optional(), exerciseId: z.string().min(2), answer: z.unknown(), mode: practiceModeSchema.optional() });
 export const userRolePatchSchema = z.object({ role: roleSchema });
+
+export const caseAnswerSchema = z.object({
+  questionId: z.string().min(1).max(40),
+  answer: z.string().trim().min(1).max(300)
+});
+
+export const socSubmitSchema = z.object({
+  decisions: z.array(z.object({
+    alertId: z.string().min(1).max(20),
+    verdict: z.enum(['true_positive', 'false_positive']),
+    severity: z.enum(['low', 'medium', 'high', 'critical']).optional(),
+    note: z.string().trim().min(20, 'Write at least a short sentence for each case note.').max(2000)
+  })).min(1).max(50),
+  durationSeconds: z.number().int().min(0).max(24 * 3600).optional()
+});
+
+const reservedHandles = new Set(['admin', 'root', 'support', 'cyberpath', 'me', 'settings', 'api', 'login', 'staff', 'mentor', 'teacher']);
+export const profileHandleSchema = z.string().trim().toLowerCase()
+  .regex(/^[a-z0-9](?:[a-z0-9-]{1,28})[a-z0-9]$/, 'Use 3-30 lowercase letters, numbers or dashes, starting and ending with a letter or number.')
+  .refine((handle) => !reservedHandles.has(handle), 'That handle is reserved.');
+export const profilePatchSchema = z.object({
+  handle: profileHandleSchema.optional(),
+  isPublic: z.boolean().optional(),
+  headline: z.string().trim().max(120).optional(),
+  openToWork: z.boolean().optional()
+});
+
+const caseText = (max: number) => z.string().trim().min(1).max(max);
+export const caseDraftSchema = z.object({
+  title: caseText(80),
+  summary: caseText(240),
+  story: caseText(2000),
+  category: z.enum(['Authentication', 'Phishing', 'Endpoint', 'Network', 'Cloud', 'Web']),
+  difficulty: z.enum(['beginner', 'intermediate', 'advanced']),
+  estimatedMinutes: z.number().int().min(5).max(120),
+  skills: z.array(caseText(40)).min(1).max(6),
+  evidence: z.array(z.object({
+    id: z.string().regex(/^[a-z0-9-]{1,30}$/),
+    name: z.string().trim().regex(/^[\w.-]{1,60}$/, 'Evidence file names may use letters, numbers, dots, dashes and underscores.'),
+    kind: z.enum(['log', 'email', 'json', 'csv', 'text']),
+    description: caseText(200),
+    content: z.string().min(1).max(50_000)
+  })).min(1).max(5),
+  questions: z.array(z.object({
+    id: z.string().regex(/^q\d{1,2}$/),
+    prompt: caseText(300),
+    format: caseText(60),
+    hint: caseText(300),
+    options: z.array(caseText(200)).min(2).max(6).optional(),
+    answers: z.array(caseText(200)).min(1).max(5),
+    explanation: caseText(1000),
+    points: z.number().int().min(5).max(20)
+  })).min(3).max(10),
+  debrief: caseText(3000)
+}).superRefine((value, ctx) => {
+  const ids = new Set<string>();
+  value.questions.forEach((question, index) => {
+    if (ids.has(question.id)) ctx.addIssue({ code: 'custom', path: ['questions', index, 'id'], message: `Question id ${question.id} is used twice.` });
+    ids.add(question.id);
+    if (question.options && !(question.answers.length === 1 && question.options.includes(question.answers[0]))) {
+      ctx.addIssue({ code: 'custom', path: ['questions', index, 'answers'], message: `Question ${index + 1}: a multiple-choice question needs exactly one answer, copied from its options.` });
+    }
+  });
+  if (new Set(value.evidence.map((item) => item.name)).size !== value.evidence.length) ctx.addIssue({ code: 'custom', path: ['evidence'], message: 'Evidence file names must be unique.' });
+  if (new Set(value.evidence.map((item) => item.id)).size !== value.evidence.length) ctx.addIssue({ code: 'custom', path: ['evidence'], message: 'Evidence ids must be unique.' });
+});
+export const caseReviewSchema = z.object({
+  decision: z.enum(['publish', 'changes_requested', 'rejected']),
+  note: z.string().trim().max(2000).optional()
+});
+export type CaseDraft = z.infer<typeof caseDraftSchema>;
+
+export const discussionPostSchema = z.discriminatedUnion('kind', [
+  z.object({ kind: z.literal('comment'), body: z.string().trim().min(2, 'Write at least 2 characters.').max(2000, 'Comments can be up to 2000 characters.') }),
+  z.object({ kind: z.literal('writeup'), body: z.string().trim().min(80, 'A writeup needs at least 80 characters.').max(8000, 'Writeups can be up to 8000 characters.') })
+]);
+export const discussionReportSchema = z.object({ reason: z.string().trim().min(3).max(300) });
+export const examSaveSchema = z.object({
+  answers: z.record(z.string().max(80), z.string().max(500)).refine((value) => Object.keys(value).length <= 50, 'Too many answers.').optional(),
+  report: z.string().max(12000, 'The report can be up to 12000 characters.').optional()
+});
+export const examGradeSchema = z.object({
+  scores: z.record(z.string().max(40), z.number().int().min(0).max(100)),
+  note: z.string().trim().min(10, 'Leave the candidate a short note (at least 10 characters).').max(3000)
+});
+export const teamCreateSchema = z.object({
+  name: z.string().trim().min(3, 'Give the team a name of at least 3 characters.').max(80),
+  description: z.string().trim().max(300).optional()
+});
+export const teamJoinSchema = z.object({ code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{8}$/, 'Join codes are 8 letters and numbers.') });
+export const jobKinds = ['full_time', 'part_time', 'internship', 'apprenticeship', 'volunteer'] as const;
+export const jobPostSchema = z.object({
+  title: z.string().trim().min(3).max(120),
+  company: z.string().trim().min(2).max(120),
+  location: z.string().trim().min(2).max(120),
+  remote: z.boolean(),
+  kind: z.enum(jobKinds),
+  description: z.string().trim().min(30).max(4000),
+  // Only links a learner can safely click: no javascript: or plain-http phishing pages.
+  applyUrl: z.string().trim().max(500).refine((value) => /^https:\/\/[^\s/]+\.[^\s]+$/i.test(value) || /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(value), 'Use an https:// link or a mailto: address.')
+});
+export const jobReviewSchema = z.object({ decision: z.enum(['approve', 'reject']), note: z.string().trim().max(500).optional() });
+export const discussionModerateSchema = z.object({ action: z.enum(['hide', 'restore']) });

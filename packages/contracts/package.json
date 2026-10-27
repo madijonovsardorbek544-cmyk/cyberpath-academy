@@ -8,6 +8,38 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./cases": {
+      "types": "./dist/cases.d.ts",
+      "import": "./dist/cases.js"
+    },
+    "./soc": {
+      "types": "./dist/socSim.d.ts",
+      "import": "./dist/socSim.js"
+    },
+    "./gamification": {
+      "types": "./dist/gamification.d.ts",
+      "import": "./dist/gamification.js"
+    },
+    "./shell": {
+      "types": "./dist/shell.d.ts",
+      "import": "./dist/shell.js"
+    },
+    "./event": {
+      "types": "./dist/event.d.ts",
+      "import": "./dist/event.js"
+    },
+    "./exam": {
+      "types": "./dist/exam.d.ts",
+      "import": "./dist/exam.js"
+    },
+    "./lessons": {
+      "types": "./dist/lessonTranslations.d.ts",
+      "import": "./dist/lessonTranslations.js"
+    },
+    "./siem": {
+      "types": "./dist/siem.d.ts",
+      "import": "./dist/siem.js"
     }
   },
   "scripts": {

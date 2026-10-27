@@ -20,7 +20,9 @@ const baseEnv = {
   COOKIE_SECURE: 'false',
   ENABLE_DEMO_BILLING: 'true',
   AUTH_RATE_LIMIT_MAX: '100',
-  RATE_LIMIT_MAX: '1000'
+  RATE_LIMIT_MAX: '1000',
+  // Event started two days ago, so days 1-3 are unlocked and day 4 onwards are locked.
+  EVENT_START_DATE: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
 };
 
 execFileSync('node', ['--import', 'tsx', 'prisma/seed.ts'], { cwd: serverRoot, env: baseEnv, stdio: 'inherit' });
@@ -818,4 +820,539 @@ test('ALL_FEATURES_FREE unlocks premium labs for free users', async () => {
     env.allFeaturesFree = false;
     await server.close();
   }
+});
+
+test('investigation cases hide answers, grade attempts, and unlock the debrief', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Case Solver', email: 'casesolver@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const headers = { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie };
+
+  const list = await (await fetch(`${server.baseUrl}/api/cases`, { headers: { cookie } })).json();
+  assert.ok(list.cases.length >= 6);
+  assert.ok(!JSON.stringify(list).includes('"answers"'));
+
+  const detail = await (await fetch(`${server.baseUrl}/api/cases/vpn-password-spray`, { headers: { cookie } })).json();
+  assert.equal(detail.case.debrief, null);
+  assert.ok(detail.case.questions.every((question: any) => question.explanation === null && !('answers' in question)));
+
+  const answer = (questionId: string, value: string) => fetch(`${server.baseUrl}/api/cases/vpn-password-spray/answer`, { method: 'POST', headers, body: JSON.stringify({ questionId, answer: value }) });
+  const wrong = await (await answer('q1', '10.0.0.1')).json();
+  assert.equal(wrong.correct, false);
+  assert.equal(wrong.case.questions[0].attempts, 1);
+  assert.equal(wrong.case.questions[0].explanation, null);
+
+  const { findInvestigationCase } = await import('@cyberpath/contracts/cases');
+  const item = findInvestigationCase('vpn-password-spray')!;
+  let last: any;
+  for (const question of item.questions) last = await (await answer(question.id, question.answers[0])).json();
+  assert.equal(last.progress.completed, true);
+  assert.ok(last.case.debrief);
+  assert.equal(last.case.questions[0].explanation, item.questions[0].explanation);
+
+  const repeat = await (await answer('q1', 'anything')).json();
+  assert.equal(repeat.alreadySolved, true);
+  assert.equal((await answer('nope', 'x')).status, 404);
+  assert.equal((await answer('q1', '')).status, 400);
+  assert.equal((await fetch(`${server.baseUrl}/api/cases/missing-case`, { headers: { cookie } })).status, 404);
+  await server.close();
+});
+
+test('SOC shift requires every alert, grades it, and records the best score', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Shift Analyst', email: 'shiftanalyst@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const headers = { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie };
+
+  const list = await (await fetch(`${server.baseUrl}/api/soc/shifts`, { headers: { cookie } })).json();
+  assert.ok(list.shifts.length >= 2);
+  const detail = await (await fetch(`${server.baseUrl}/api/soc/shifts/${list.shifts[0].slug}`, { headers: { cookie } })).json();
+  assert.ok(!JSON.stringify(detail).includes('"key"'));
+  assert.equal(detail.attempts, 0);
+
+  const submit = (decisions: unknown) => fetch(`${server.baseUrl}/api/soc/shifts/${list.shifts[0].slug}/submit`, { method: 'POST', headers, body: JSON.stringify({ decisions, durationSeconds: 600 }) });
+  const partial = await submit([{ alertId: detail.shift.alerts[0].id, verdict: 'false_positive', note: 'This looks like normal activity to me.' }]);
+  assert.equal(partial.status, 400);
+
+  const all = detail.shift.alerts.map((alert: any) => ({ alertId: alert.id, verdict: 'true_positive', severity: 'high', note: 'Escalating this for review by the team.' }));
+  const graded = await (await submit(all)).json();
+  assert.ok(graded.result.score > 0 && graded.result.score < graded.result.maxScore);
+  assert.equal(graded.personalBest, true);
+  assert.equal(graded.attempts, 1);
+  assert.ok(graded.result.alerts.every((alert: any) => alert.explanation));
+
+  const missingSeverity = await submit(all.map((decision: any) => ({ ...decision, severity: undefined })));
+  assert.equal(missingSeverity.status, 400);
+  await server.close();
+});
+
+test('progress endpoint turns activity into XP, a streak, a league seat and badges', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Xp Earner', email: 'xpearner@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const headers = { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie };
+
+  const empty = await (await fetch(`${server.baseUrl}/api/progress/me`, { headers: { cookie } })).json();
+  assert.equal(empty.xp.total, 0);
+  assert.equal(empty.streak.current, 0);
+  assert.equal(empty.league.tierName, 'Bronze');
+  assert.equal(empty.league.members.filter((member: any) => member.isMe).length, 1);
+  assert.ok(empty.badges.every((badge: any) => badge.earnedAt === null));
+
+  const { findInvestigationCase } = await import('@cyberpath/contracts/cases');
+  const item = findInvestigationCase('public-payroll-bucket')!;
+  for (const question of item.questions) {
+    await fetch(`${server.baseUrl}/api/cases/${item.slug}/answer`, { method: 'POST', headers, body: JSON.stringify({ questionId: question.id, answer: question.answers[0] }) });
+  }
+  const expected = item.questions.reduce((sum, question) => sum + question.points, 0) + 50;
+
+  const after = await (await fetch(`${server.baseUrl}/api/progress/me`, { headers: { cookie } })).json();
+  assert.equal(after.xp.total, expected);
+  assert.equal(after.xp.thisWeek, expected);
+  assert.equal(after.streak.current, 1);
+  assert.equal(after.streak.activeToday, true);
+  assert.ok(after.badges.find((badge: any) => badge.id === 'first-case').earnedAt);
+  assert.equal(after.league.members.find((member: any) => member.isMe).xp, expected);
+  assert.equal(after.league.members.find((member: any) => member.isMe).name, 'Xp E.');
+
+  const again = await (await fetch(`${server.baseUrl}/api/progress/me`, { headers: { cookie } })).json();
+  assert.equal(again.xp.total, expected, 'syncing twice does not double-count');
+
+  const { getLearnerProgress } = await import('../src/utils/gamification.ts');
+  const { weekStartOf, addDays } = await import('@cyberpath/contracts/gamification');
+  const userId = (db.prepare('SELECT id FROM users WHERE email = ?').get('xpearner@example.com') as { id: string }).id;
+  const nextWeek = getLearnerProgress(userId, new Date(`${addDays(weekStartOf(new Date()), 7)}T09:00:00Z`));
+  assert.equal(nextWeek.league!.tierName, 'Silver', 'top of last week\'s group is promoted');
+  assert.equal(nextWeek.xp.thisWeek, 0);
+  await server.close();
+});
+
+test('public profiles are private by default and expose only earned achievements once published', async () => {
+  const server = await startServer();
+  const signupAs = async (name: string, email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name, email, password: 'StrongPass1!' })
+  }));
+  const cookie = await signupAs('Profile Owner', 'profileowner@example.com');
+  const other = await signupAs('Other Person', 'otherperson@example.com');
+  const patch = (body: unknown, as = cookie) => fetch(`${server.baseUrl}/api/profile/me`, { method: 'PATCH', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie: as }, body: JSON.stringify(body) });
+
+  const initial = await (await fetch(`${server.baseUrl}/api/profile/me`, { headers: { cookie } })).json();
+  assert.deepEqual(initial.settings, { handle: null, isPublic: false, headline: '', openToWork: false });
+  assert.equal((await patch({ isPublic: true })).status, 400, 'needs a handle first');
+  assert.equal((await patch({ handle: 'admin' })).status, 400, 'reserved');
+  assert.equal((await patch({ handle: 'a' })).status, 400, 'too short');
+  assert.equal((await patch({ handle: 'Blue-Team-Amina', headline: 'Aspiring SOC analyst' })).status, 200);
+  assert.equal((await patch({ handle: 'blue-team-amina' }, other)).status, 409, 'handles are unique, case-insensitive');
+
+  assert.equal((await fetch(`${server.baseUrl}/api/profile/public/blue-team-amina`)).status, 404, 'private until published');
+  assert.equal((await patch({ isPublic: true })).status, 200);
+
+  const publicView = await (await fetch(`${server.baseUrl}/api/profile/public/BLUE-TEAM-AMINA`)).json();
+  assert.equal(publicView.profile.handle, 'blue-team-amina');
+  assert.equal(publicView.profile.headline, 'Aspiring SOC analyst');
+  assert.equal(publicView.profile.totalXp, 0);
+  assert.deepEqual(publicView.profile.badges, []);
+  const text = JSON.stringify(publicView);
+  assert.ok(!text.includes('profileowner@example.com') && !text.includes('"email"') && !text.includes('"league"'));
+
+  assert.equal((await patch({ isPublic: false })).status, 200);
+  assert.equal((await fetch(`${server.baseUrl}/api/profile/public/blue-team-amina`)).status, 404);
+  await server.close();
+});
+
+test('community cases go through mentor review before learners can play them', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Case Author', email: 'caseauthor@example.com', password: 'StrongPass1!' })
+  });
+  const author = cookieHeaderFrom(signup);
+  const mentorLogin = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  });
+  const mentor = cookieHeaderFrom(mentorLogin);
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+
+  const draft = {
+    title: 'Badge reader at midnight', summary: 'A door badge was used at midnight.', story: 'Security asks you to check the badge log.',
+    category: 'Authentication', difficulty: 'beginner', estimatedMinutes: 10, skills: ['Log reading'],
+    evidence: [{ id: 'badge', name: 'badge.log', kind: 'log', description: 'Door badge events.', content: '2026-01-01T00:02:00Z door=server-room badge=4411 src=10.1.1.5 result=granted' }],
+    questions: [
+      { id: 'q1', prompt: 'Which door?', format: 'Door name', hint: 'door=', answers: ['server-room'], explanation: 'The door field says server-room.', points: 10 },
+      { id: 'q2', prompt: 'Which badge?', format: 'Number', hint: 'badge=', answers: ['4411'], explanation: 'Badge 4411.', points: 10 },
+      { id: 'q3', prompt: 'Was it allowed?', format: 'Pick one', hint: 'result=', options: ['Yes', 'No'], answers: ['Yes'], explanation: 'result=granted.', points: 10 }
+    ],
+    debrief: 'Check who holds badge 4411.'
+  };
+
+  const realIp = await call(author, 'POST', '/community-cases', { case: { ...draft, evidence: [{ ...draft.evidence[0], content: 'src=8.8.8.8' }] } });
+  assert.equal(realIp.status, 400);
+  assert.match((await realIp.json()).message, /8\.8\.8\.8/);
+  const badOption = await call(author, 'POST', '/community-cases', { case: { ...draft, questions: [draft.questions[0], draft.questions[1], { ...draft.questions[2], answers: ['Maybe'] }] } });
+  assert.equal(badOption.status, 400);
+
+  const created = await (await call(author, 'POST', '/community-cases', { case: draft, submit: true })).json();
+  assert.equal(created.submission.status, 'submitted');
+  assert.match(created.submission.slug, /^c-badge-reader-at-midnight-/);
+  assert.equal((await call(author, 'PATCH', `/community-cases/${created.submission.id}`, { case: draft })).status, 409, 'submitted cases are locked');
+  assert.equal((await call(author, 'GET', '/community-cases/review')).status, 403, 'learners cannot review');
+
+  const slug = created.submission.slug;
+  assert.equal((await call(author, 'GET', `/cases/${slug}`)).status, 404, 'not playable before review');
+
+  const queue = await (await call(mentor, 'GET', '/community-cases/review')).json();
+  assert.ok(queue.submissions.some((item: any) => item.id === created.submission.id));
+  assert.equal((await call(mentor, 'POST', `/community-cases/${created.submission.id}/review`, { decision: 'changes_requested' })).status, 400, 'needs a note');
+  const changes = await (await call(mentor, 'POST', `/community-cases/${created.submission.id}/review`, { decision: 'changes_requested', note: 'Add a second log line.' })).json();
+  assert.equal(changes.submission.status, 'changes_requested');
+
+  const resubmitted = await (await call(author, 'PATCH', `/community-cases/${created.submission.id}`, { case: draft, submit: true })).json();
+  assert.equal(resubmitted.submission.status, 'submitted');
+  const published = await (await call(mentor, 'POST', `/community-cases/${created.submission.id}/review`, { decision: 'publish' })).json();
+  assert.equal(published.submission.status, 'published');
+
+  const list = await (await call(author, 'GET', '/cases')).json();
+  const listed = list.cases.find((item: any) => item.slug === slug);
+  assert.equal(listed.source, 'community');
+  assert.equal(listed.author, 'Case A.');
+  const answer = await (await call(author, 'POST', `/cases/${slug}/answer`, { questionId: 'q2', answer: '4411' })).json();
+  assert.equal(answer.correct, true);
+  assert.ok(!JSON.stringify(list).includes('"answers"'));
+  assert.equal((await call(author, 'DELETE', `/community-cases/${created.submission.id}`)).status, 409);
+  await server.close();
+});
+
+test('yearly event unlocks one case per day and ranks solvers', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Event Player', email: 'eventplayer@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const call = (method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+
+  const before = await (await call('GET', '/event')).json();
+  assert.equal(before.event.status, 'live');
+  assert.deepEqual(before.days.map((day: any) => day.unlocked).slice(0, 5), [true, true, true, false, false]);
+  assert.equal(before.days[3].title, 'Day 4', 'locked titles stay hidden');
+  assert.equal(before.days[3].summary, null);
+  assert.ok(!JSON.stringify(before).includes('"answers"'));
+  assert.equal(before.me, null);
+
+  assert.equal((await call('GET', '/cases/event-2026-d04')).status, 404, 'locked day is not playable');
+  assert.equal((await call('POST', '/cases/event-2026-d04/answer', { questionId: 'ports', answer: '9' })).status, 404);
+  const listed = await (await call('GET', '/cases')).json();
+  assert.ok(!listed.cases.some((item: any) => item.slug.startsWith('event-')), 'event days stay off the main case list');
+
+  const day1 = await (await call('POST', '/cases/event-2026-d01/answer', { questionId: 'ip', answer: '203.0.113.77' })).json();
+  assert.equal(day1.correct, true);
+  await call('POST', '/cases/event-2026-d01/answer', { questionId: 'account', answer: 'deploy' });
+  await call('POST', '/cases/event-2026-d01/answer', { questionId: 'nadia', answer: 'No, it looks like a normal user with a mistyped password' });
+
+  const after = await (await call('GET', '/event')).json();
+  assert.equal(after.days[0].completed, true);
+  assert.equal(after.days[0].pointsEarned, 25);
+  assert.deepEqual(after.me, { rank: 1, points: 25, solved: 3 });
+  assert.equal(after.leaderboard[0].name, 'Event P.');
+  assert.equal(after.leaderboard[0].isMe, true);
+  assert.ok(!JSON.stringify(after.leaderboard).includes('userId'));
+
+  const progress = await (await call('GET', '/progress/me')).json();
+  assert.ok(progress.xp.total >= 25 + 50, 'event solves earn XP like any case');
+  await server.close();
+});
+
+test('lessons are served in Uzbek or Russian when a translation exists', async () => {
+  const server = await startServer();
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'student@cyberpath.local', password: 'Student123!' })
+  });
+  const cookie = cookieHeaderFrom(login);
+  const get = (path: string, locale?: string) => fetch(`${server.baseUrl}/api${path}`, { headers: { origin: 'http://localhost:5173', cookie, ...(locale ? { 'x-cyberpath-locale': locale } : {}) } }).then((res) => res.json());
+
+  const { lessonTranslations } = await import('@cyberpath/contracts/lessons');
+  const slugs = (db.prepare('SELECT slug FROM lessons').all() as Array<{ slug: string }>).map((row) => row.slug);
+  for (const locale of ['uz', 'ru'] as const) {
+    for (const slug of Object.keys(lessonTranslations[locale])) assert.ok(slugs.includes(slug), `${locale} translation for unknown lesson ${slug}`);
+  }
+
+  const uz = await get('/learning/lessons/cia-triad', 'uz');
+  assert.equal(uz.lesson.title, 'CIA uchligi');
+  assert.equal(uz.lesson.contentLocale, 'uz');
+  assert.equal(uz.lesson.learningObjectives.length, 4);
+  const ru = await get('/learning/lessons/cia-triad', 'ru');
+  assert.equal(ru.lesson.title, 'Триада CIA');
+  const en = await get('/learning/lessons/cia-triad');
+  assert.equal(en.lesson.title, 'The CIA Triad');
+  assert.equal(en.lesson.contentLocale, 'en');
+  assert.equal((await get('/learning/lessons/cia-triad', 'xx')).lesson.contentLocale, 'en', 'unknown locales fall back to English');
+
+  const list = await get('/learning/lessons', 'ru');
+  assert.equal(list.lessons.find((lesson: any) => lesson.slug === 'what-is-cybersecurity').title, 'Что такое кибербезопасность?');
+  const untranslated = list.lessons.find((lesson: any) => !lessonTranslations.ru[lesson.slug]);
+  assert.equal(untranslated.contentLocale, 'en', 'missing translations fall back to English');
+  await server.close();
+});
+
+test('discussions: comments, spoiler-safe writeups, reports and moderation', async () => {
+  const server = await startServer();
+  const signupAs = async (name: string, email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name, email, password: 'StrongPass1!' })
+  }));
+  const author = await signupAs('Disc Author', 'discauthor@example.com');
+  const readers = [await signupAs('Reader One', 'reader1@example.com'), await signupAs('Reader Two', 'reader2@example.com'), await signupAs('Reader Three', 'reader3@example.com')];
+  const mentor = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  }));
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+
+  assert.equal((await call(author, 'POST', '/discussions/lesson/no-such-lesson', { kind: 'comment', body: 'Hello' })).status, 404);
+  assert.equal((await call(author, 'POST', '/discussions/lesson/cia-triad', { kind: 'comment', body: ' ' })).status, 400);
+  assert.equal((await call(author, 'POST', '/discussions/lesson/cia-triad', { kind: 'writeup', body: 'x'.repeat(100) })).status, 403, 'lessons have no writeups');
+  const comment = (await (await call(author, 'POST', '/discussions/lesson/cia-triad', { kind: 'comment', body: 'Availability was the one I mixed up at first.' })).json()).post;
+  assert.equal(comment.author, 'Disc A.');
+  assert.equal(comment.isMine, true);
+  const lessonThread = await (await call(readers[0], 'GET', '/discussions/lesson/cia-triad')).json();
+  assert.equal(lessonThread.comments.length, 1);
+  assert.equal(lessonThread.comments[0].isMine, false);
+  assert.equal(lessonThread.writeupsAllowed, false);
+
+  const writeup = { kind: 'writeup', body: 'I grouped the FAIL lines by source IP, then looked for the same address with a SUCCESS line afterwards.' };
+  assert.equal((await call(author, 'POST', '/discussions/case/vpn-password-spray', writeup)).status, 403, 'writeups unlock after solving');
+  const { findInvestigationCase } = await import('@cyberpath/contracts/cases');
+  for (const question of findInvestigationCase('vpn-password-spray')!.questions) {
+    await call(author, 'POST', '/cases/vpn-password-spray/answer', { questionId: question.id, answer: question.answers[0] });
+  }
+  assert.equal((await call(author, 'POST', '/discussions/case/vpn-password-spray', { kind: 'writeup', body: 'too short' })).status, 400);
+  const first = (await (await call(author, 'POST', '/discussions/case/vpn-password-spray', writeup)).json()).post;
+  const edited = (await (await call(author, 'POST', '/discussions/case/vpn-password-spray', { ...writeup, body: `${writeup.body} Edited.` })).json()).post;
+  assert.equal(edited.id, first.id, 'a second writeup edits the first');
+  const authorView = await (await call(author, 'GET', '/discussions/case/vpn-password-spray')).json();
+  assert.equal(authorView.writeups.length, 1);
+  assert.equal(authorView.canWriteWriteup, true);
+  const spoilerSafe = await (await call(readers[0], 'GET', '/discussions/case/vpn-password-spray')).json();
+  assert.equal(spoilerSafe.writeupsUnlocked, false);
+  assert.deepEqual(spoilerSafe.writeups, [], 'unsolved learners never receive writeups');
+  assert.equal((await (await call(mentor, 'GET', '/discussions/case/vpn-password-spray')).json()).writeups.length, 1, 'mentors can read writeups');
+
+  assert.equal((await call(author, 'POST', `/discussions/posts/${comment.id}/report`, { reason: 'mine' })).status, 400, 'no self reports');
+  for (const reader of readers) assert.equal((await call(reader, 'POST', `/discussions/posts/${comment.id}/report`, { reason: 'Off topic' })).status, 200);
+  await call(readers[0], 'POST', `/discussions/posts/${comment.id}/report`, { reason: 'Again' });
+  assert.equal((await (await call(readers[1], 'GET', '/discussions/lesson/cia-triad')).json()).comments.length, 0, 'hidden after three reports');
+  const ownView = await (await call(author, 'GET', '/discussions/lesson/cia-triad')).json();
+  assert.equal(ownView.comments[0].status, 'hidden', 'author still sees their hidden post');
+
+  assert.equal((await call(readers[0], 'GET', '/discussions/moderation')).status, 403);
+  const queue = await (await call(mentor, 'GET', '/discussions/moderation')).json();
+  const queued = queue.posts.find((post: any) => post.id === comment.id);
+  assert.equal(queued.reportCount, 3, 'duplicate reports are ignored');
+  assert.equal(queued.targetSlug, 'cia-triad');
+  const restored = await (await call(mentor, 'POST', `/discussions/posts/${comment.id}/moderate`, { action: 'restore' })).json();
+  assert.equal(restored.post.status, 'visible');
+  assert.equal((await (await call(readers[1], 'GET', '/discussions/lesson/cia-triad')).json()).comments.length, 1);
+
+  assert.equal((await call(readers[0], 'DELETE', `/discussions/posts/${comment.id}`)).status, 403);
+  assert.equal((await call(author, 'DELETE', `/discussions/posts/${comment.id}`)).status, 200);
+  assert.equal((await (await call(readers[1], 'GET', '/discussions/lesson/cia-triad')).json()).comments.length, 0);
+  await server.close();
+});
+
+test('practical exam: timed attempt, mentor grading and public certificate check', async () => {
+  const server = await startServer();
+  const candidate = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Exam Candidate', email: 'examcandidate@example.com', password: 'StrongPass1!' })
+  }));
+  const mentor = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' })
+  }));
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+  const { analystExam } = await import('@cyberpath/contracts/exam');
+
+  const overview = await (await call(candidate, 'GET', '/exams')).json();
+  assert.equal(overview.canStart, true);
+  assert.equal(overview.exam.questionPoints + overview.exam.reportPoints, 100);
+
+  const started = await call(candidate, 'POST', '/exams/cpa-1/start');
+  assert.equal(started.status, 201);
+  const { attempt } = await started.json();
+  assert.ok(!/"answers":\[|"explanation"|"hint"/.test(JSON.stringify(attempt.exam)), 'no answers in the candidate view');
+  assert.equal((await (await call(candidate, 'POST', '/exams/cpa-1/start')).json()).attempt.id, attempt.id, 'starting again resumes the open attempt');
+  assert.equal((await call(mentor, 'GET', `/exams/attempts/${attempt.id}`)).status, 404, 'attempts are private');
+
+  const answers = Object.fromEntries(analystExam.sections.flatMap((section) => section.questions.map((question) => [`${section.id}.${question.id}`, question.answers[0]])));
+  answers['web.account'] = 'wrong.user';
+  answers['not.a.question'] = 'ignored';
+  const saved = await (await call(candidate, 'PATCH', `/exams/attempts/${attempt.id}`, { answers, report: 'Too short.' })).json();
+  assert.equal(saved.attempt.answers['not.a.question'], undefined);
+  assert.equal(saved.attempt.result, null);
+  assert.equal((await call(candidate, 'POST', `/exams/attempts/${attempt.id}/submit`)).status, 400, 'report must be long enough');
+
+  const report = 'Summary: three linked incidents at Harbor Logistics between 2 and 4 March. '.repeat(8);
+  await call(candidate, 'PATCH', `/exams/attempts/${attempt.id}`, { report });
+  const submitted = await (await call(candidate, 'POST', `/exams/attempts/${attempt.id}/submit`)).json();
+  assert.equal(submitted.attempt.status, 'submitted');
+  assert.equal(submitted.attempt.result.autoScore, 54, 'one wrong answer costs 6 points');
+  assert.deepEqual(submitted.attempt.result.sections.map((section: any) => section.earned), [24, 18, 12]);
+  assert.equal(submitted.attempt.result.reportScore, null);
+  assert.equal((await call(candidate, 'PATCH', `/exams/attempts/${attempt.id}`, { report: 'changed' })).status, 409, 'locked after submit');
+  assert.equal((await call(candidate, 'POST', '/exams/cpa-1/start')).status, 409, 'no new attempt while waiting for grading');
+
+  assert.equal((await call(candidate, 'GET', '/exams/review')).status, 403);
+  const queue = await (await call(mentor, 'GET', '/exams/review')).json();
+  const queued = queue.attempts.find((item: any) => item.id === attempt.id);
+  assert.equal(queued.candidate, 'Exam Candidate');
+  assert.equal(queued.report, report);
+  assert.equal((await call(mentor, 'POST', `/exams/attempts/${attempt.id}/grade`, { scores: { timeline: 8 }, note: 'ok' })).status, 400, 'needs a real note');
+  const graded = await (await call(mentor, 'POST', `/exams/attempts/${attempt.id}/grade`, { scores: { timeline: 8, scope: 7, response: 8, clarity: 6 }, note: 'Clear timeline; link the reused password next time.' })).json();
+  assert.equal(graded.attempt.status, 'passed');
+  assert.equal(graded.attempt.totalScore, 83);
+  assert.match(graded.attempt.certificateCode, /^CPA1-[0-9A-F]{5}-[0-9A-F]{5}$/);
+  assert.equal((await call(mentor, 'POST', `/exams/attempts/${attempt.id}/grade`, { scores: {}, note: 'Grading twice should fail.' })).status, 409);
+
+  const mine = await (await call(candidate, 'GET', `/exams/attempts/${attempt.id}`)).json();
+  assert.equal(mine.attempt.result.reviewerNote, 'Clear timeline; link the reused password next time.');
+  assert.equal((await (await call(candidate, 'GET', '/exams')).json()).canStart, false, 'passed candidates cannot retake');
+
+  const verify = await fetch(`${server.baseUrl}/api/exams/verify/${graded.attempt.certificateCode.toLowerCase()}`);
+  assert.equal(verify.status, 200, 'verification works without signing in');
+  const certificate = (await verify.json()).certificate;
+  assert.equal(certificate.name, 'Exam Candidate');
+  assert.equal(certificate.score, 83);
+  assert.ok(!JSON.stringify(certificate).includes('@'), 'no email in the public check');
+  assert.equal((await fetch(`${server.baseUrl}/api/exams/verify/CPA1-00000-00000`)).status, 404);
+
+  // A second candidate runs out of time: the attempt submits itself with what was saved.
+  const late = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Late Candidate', email: 'latecandidate@example.com', password: 'StrongPass1!' })
+  }));
+  const lateAttempt = (await (await call(late, 'POST', '/exams/cpa-1/start')).json()).attempt;
+  await call(late, 'PATCH', `/exams/attempts/${lateAttempt.id}`, { answers: { 'mail.delivered': '2' } });
+  db.prepare('UPDATE exam_attempts SET deadline_at = ? WHERE id = ?').run(new Date(Date.now() - 10 * 60 * 1000).toISOString(), lateAttempt.id);
+  assert.equal((await call(late, 'PATCH', `/exams/attempts/${lateAttempt.id}`, { answers: { 'mail.host': 'HRB-LT-044' } })).status, 409, 'no saves after the deadline');
+  const expired = await (await call(late, 'GET', `/exams/attempts/${lateAttempt.id}`)).json();
+  assert.equal(expired.attempt.status, 'submitted');
+  assert.equal(expired.attempt.result.autoScore, 6);
+  const failed = await (await call(mentor, 'POST', `/exams/attempts/${lateAttempt.id}/grade`, { scores: { timeline: 2 }, note: 'The report was empty; try again after the cooldown.' })).json();
+  assert.equal(failed.attempt.status, 'failed');
+  assert.equal(failed.attempt.certificateCode, null);
+  const cooldown = await (await call(late, 'GET', '/exams')).json();
+  assert.equal(cooldown.canStart, false);
+  assert.match(cooldown.blockedReason, /retake/i);
+  await server.close();
+});
+
+test('teams: leaders invite with a code and see only their members progress', async () => {
+  const server = await startServer();
+  const signupAs = async (name: string, email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name, email, password: 'StrongPass1!' })
+  }));
+  const leader = await signupAs('Team Teacher', 'teamteacher@example.com');
+  const learner = await signupAs('Team Learner', 'teamlearner@example.com');
+  const outsider = await signupAs('Other Person', 'teamoutsider@example.com');
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+
+  assert.equal((await call(leader, 'POST', '/teams', { name: 'x' })).status, 400);
+  const { team } = await (await call(leader, 'POST', '/teams', { name: 'Grade 10 Cyber Club', description: 'Tuesday club' })).json();
+  assert.match(team.joinCode, /^[A-Z2-9]{8}$/);
+  assert.equal(team.isLeader, true);
+
+  const invite = await (await call(learner, 'GET', `/teams/invite/${team.joinCode.toLowerCase()}`)).json();
+  assert.equal(invite.team.name, 'Grade 10 Cyber Club');
+  assert.equal(invite.team.leader, 'Team Teacher');
+  assert.equal((await call(learner, 'POST', '/teams/join', { code: 'ZZZZZZZZ' })).status, 404);
+  const joined = await (await call(learner, 'POST', '/teams/join', { code: team.joinCode })).json();
+  assert.equal(joined.team.joinCode, null, 'members never see the join code');
+  await call(learner, 'POST', '/teams/join', { code: team.joinCode });
+  assert.equal((await call(leader, 'POST', '/teams/join', { code: team.joinCode })).status, 400);
+
+  const { findInvestigationCase } = await import('@cyberpath/contracts/cases');
+  for (const question of findInvestigationCase('invoice-bank-change-phish')!.questions) {
+    await call(learner, 'POST', '/cases/invoice-bank-change-phish/answer', { questionId: question.id, answer: question.answers[0] });
+  }
+
+  assert.equal((await call(outsider, 'GET', `/teams/${team.id}`)).status, 404, 'only the leader sees progress');
+  assert.equal((await call(learner, 'GET', `/teams/${team.id}`)).status, 404, 'members cannot see each other');
+  const view = await (await call(leader, 'GET', `/teams/${team.id}`)).json();
+  assert.equal(view.members.length, 1, 'joining twice adds one member');
+  assert.equal(view.members[0].name, 'Team Learner');
+  assert.equal(view.members[0].casesClosed, 1);
+  assert.ok(view.members[0].lastActiveAt);
+
+  const lists = await (await call(learner, 'GET', '/teams')).json();
+  assert.equal(lists.memberOf[0].name, 'Grade 10 Cyber Club');
+  const rotated = await (await call(leader, 'POST', `/teams/${team.id}/rotate-code`)).json();
+  assert.notEqual(rotated.team.joinCode, team.joinCode);
+  assert.equal((await call(outsider, 'POST', '/teams/join', { code: team.joinCode })).status, 404, 'old codes stop working');
+
+  assert.equal((await call(outsider, 'DELETE', `/teams/${team.id}/members/${view.members[0].id}`)).status, 403);
+  assert.equal((await call(learner, 'DELETE', `/teams/${team.id}/members/${view.members[0].id}`)).status, 200, 'members can leave');
+  assert.equal((await (await call(leader, 'GET', `/teams/${team.id}`)).json()).members.length, 0);
+  assert.equal((await call(leader, 'DELETE', `/teams/${team.id}`)).status, 200);
+  await server.close();
+});
+
+test('jobs: listings need mentor approval, safe apply links, and the talent list is opt-in', async () => {
+  const server = await startServer();
+  const signupAs = async (name: string, email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name, email, password: 'StrongPass1!' })
+  }));
+  const poster = await signupAs('Hiring Manager', 'jobposter@example.com');
+  const seeker = await signupAs('Job Seeker', 'jobseeker@example.com');
+  const mentor = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' }, body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' }) }));
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+  const listing = { title: 'Junior SOC Analyst', company: 'Example Bank', location: 'Tashkent', remote: false, kind: 'full_time', description: 'Triage alerts, write short incident notes and learn from senior analysts on a friendly team.', applyUrl: 'https://jobs.example/soc' };
+
+  assert.equal((await call(poster, 'POST', '/jobs', { ...listing, applyUrl: 'javascript:alert(1)' })).status, 400);
+  assert.equal((await call(poster, 'POST', '/jobs', { ...listing, applyUrl: 'http://jobs.example/soc' })).status, 400, 'https only');
+  assert.equal((await call(poster, 'POST', '/jobs', { ...listing, applyUrl: 'mailto:hr@bank.example' })).status, 201);
+  const { job } = await (await call(poster, 'POST', '/jobs', listing)).json();
+  assert.equal(job.status, 'pending');
+  assert.equal((await (await fetch(`${server.baseUrl}/api/jobs`)).json()).jobs.length, 0, 'pending listings are hidden');
+
+  assert.equal((await call(seeker, 'GET', '/jobs/review')).status, 403);
+  assert.equal((await call(seeker, 'POST', `/jobs/${job.id}/review`, { decision: 'approve' })).status, 403);
+  const queue = await (await call(mentor, 'GET', '/jobs/review')).json();
+  assert.equal(queue.jobs.length, 2);
+  const approved = await (await call(mentor, 'POST', `/jobs/${job.id}/review`, { decision: 'approve' })).json();
+  assert.ok(Date.parse(approved.job.expiresAt) - Date.now() > 59 * 24 * 60 * 60 * 1000);
+  const board = await (await fetch(`${server.baseUrl}/api/jobs`)).json();
+  assert.deepEqual(board.jobs.map((item: { title: string }) => item.title), ['Junior SOC Analyst']);
+  assert.ok(!JSON.stringify(board).includes('jobposter@example.com'));
+
+  assert.equal((await call(seeker, 'POST', `/jobs/${job.id}/close`)).status, 404, 'only the poster closes a listing');
+  assert.equal((await call(poster, 'POST', `/jobs/${job.id}/close`)).status, 200);
+  assert.equal((await (await fetch(`${server.baseUrl}/api/jobs`)).json()).jobs.length, 0);
+
+  const patch = (body: unknown) => call(seeker, 'PATCH', '/profile/me', body);
+  assert.equal((await patch({ openToWork: true })).status, 200);
+  assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent`)).json()).talent.length, 0, 'private profiles are never listed');
+  await patch({ handle: 'job-seeker', isPublic: true, headline: 'Entry-level SOC analyst' });
+  const talent = (await (await fetch(`${server.baseUrl}/api/profile/talent`)).json()).talent;
+  assert.equal(talent.length, 1);
+  assert.equal(talent[0].handle, 'job-seeker');
+  assert.equal(talent[0].certified, false);
+  assert.ok(!JSON.stringify(talent).includes('jobseeker@example.com'));
+  assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent?certified=1`)).json()).talent.length, 0);
+  await patch({ openToWork: false });
+  assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent`)).json()).talent.length, 0);
+  await server.close();
 });

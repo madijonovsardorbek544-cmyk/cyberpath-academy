@@ -19,6 +19,28 @@ const ReviewPage = lazy(() => import('../pages/ReviewPage').then((module) => ({ 
 const LessonPage = lazy(() => import('../pages/LessonPage').then((module) => ({ default: module.LessonPage })));
 const LabsPage = lazy(() => import('../pages/LabsPage').then((module) => ({ default: module.LabsPage })));
 const LabPage = lazy(() => import('../pages/LabPage').then((module) => ({ default: module.LabPage })));
+const CasesPage = lazy(() => import('../pages/CasesPage').then((module) => ({ default: module.CasesPage })));
+const CasePage = lazy(() => import('../pages/CasePage').then((module) => ({ default: module.CasePage })));
+const ExamPage = lazy(() => import('../pages/ExamPage').then((module) => ({ default: module.ExamPage })));
+const ExamAttemptPage = lazy(() => import('../pages/ExamAttemptPage').then((module) => ({ default: module.ExamAttemptPage })));
+const ExamReviewPage = lazy(() => import('../pages/ExamReviewPage').then((module) => ({ default: module.ExamReviewPage })));
+const VerifyCertificatePage = lazy(() => import('../pages/VerifyCertificatePage').then((module) => ({ default: module.VerifyCertificatePage })));
+const TeamsPage = lazy(() => import('../pages/TeamsPage').then((module) => ({ default: module.TeamsPage })));
+const TeamPage = lazy(() => import('../pages/TeamPage').then((module) => ({ default: module.TeamPage })));
+const JoinTeamPage = lazy(() => import('../pages/JoinTeamPage').then((module) => ({ default: module.JoinTeamPage })));
+const JobsPage = lazy(() => import('../pages/JobsPage').then((module) => ({ default: module.JobsPage })));
+const JobPostPage = lazy(() => import('../pages/JobPostPage').then((module) => ({ default: module.JobPostPage })));
+const JobReviewPage = lazy(() => import('../pages/JobReviewPage').then((module) => ({ default: module.JobReviewPage })));
+const TalentPage = lazy(() => import('../pages/TalentPage').then((module) => ({ default: module.TalentPage })));
+const EventPage = lazy(() => import('../pages/EventPage').then((module) => ({ default: module.EventPage })));
+const SocPage = lazy(() => import('../pages/SocPage').then((module) => ({ default: module.SocPage })));
+const SocShiftPage = lazy(() => import('../pages/SocShiftPage').then((module) => ({ default: module.SocShiftPage })));
+const ProgressPage = lazy(() => import('../pages/ProgressPage').then((module) => ({ default: module.ProgressPage })));
+const PublicProfilePage = lazy(() => import('../pages/PublicProfilePage').then((module) => ({ default: module.PublicProfilePage })));
+const CaseEditorPage = lazy(() => import('../pages/CaseEditorPage').then((module) => ({ default: module.CaseEditorPage })));
+const MyCasesPage = lazy(() => import('../pages/MyCasesPage').then((module) => ({ default: module.MyCasesPage })));
+const DiscussionModerationPage = lazy(() => import('../pages/DiscussionModerationPage').then((module) => ({ default: module.DiscussionModerationPage })));
+const CaseReviewPage = lazy(() => import('../pages/CaseReviewPage').then((module) => ({ default: module.CaseReviewPage })));
 const MistakesPage = lazy(() => import('../pages/MistakesPage').then((module) => ({ default: module.MistakesPage })));
 const AITutorPage = lazy(() => import('../pages/AITutorPage').then((module) => ({ default: module.AITutorPage })));
 const MentorDashboardPage = lazy(() => import('../pages/MentorDashboardPage').then((module) => ({ default: module.MentorDashboardPage })));
@@ -59,6 +81,9 @@ export function App() {
             <Route path="/school-pilot" element={<SchoolPilotPage />} />
             <Route path="/pilot" element={<SchoolPilotPage />} />
             <Route path="/public/artifacts/:shareId" element={<PublicArtifactPage />} />
+            <Route path="/u/:handle" element={<PublicProfilePage />} />
+            <Route path="/verify" element={<VerifyCertificatePage />} />
+            <Route path="/verify/:code" element={<VerifyCertificatePage />} />
             <Route path="/support" element={<SupportPage />} />
             <Route path="/report-bug" element={<BugReportPage />} />
             <Route path="/beta-checklist" element={<ProtectedRoute><BetaChecklistPage /></ProtectedRoute>} />
@@ -74,6 +99,27 @@ export function App() {
             <Route path="/skill-tree" element={<ProtectedRoute><SkillTreePage /></ProtectedRoute>} />
             <Route path="/skills/:skillId" element={<ProtectedRoute><SkillDetailPage /></ProtectedRoute>} />
             <Route path="/lessons/:slug" element={<ProtectedRoute><LessonPage /></ProtectedRoute>} />
+            <Route path="/cases" element={<ProtectedRoute><CasesPage /></ProtectedRoute>} />
+            <Route path="/cases/new" element={<ProtectedRoute><CaseEditorPage /></ProtectedRoute>} />
+            <Route path="/cases/edit/:id" element={<ProtectedRoute><CaseEditorPage /></ProtectedRoute>} />
+            <Route path="/cases/mine" element={<ProtectedRoute><MyCasesPage /></ProtectedRoute>} />
+            <Route path="/discussions/moderation" element={<ProtectedRoute roles={['mentor', 'admin']}><DiscussionModerationPage /></ProtectedRoute>} />
+            <Route path="/cases/review" element={<ProtectedRoute roles={['mentor', 'admin']}><CaseReviewPage /></ProtectedRoute>} />
+            <Route path="/cases/:slug" element={<ProtectedRoute><CasePage /></ProtectedRoute>} />
+            <Route path="/exam" element={<ProtectedRoute><ExamPage /></ProtectedRoute>} />
+            <Route path="/exam/review" element={<ProtectedRoute roles={['mentor', 'admin']}><ExamReviewPage /></ProtectedRoute>} />
+            <Route path="/exam/attempt/:id" element={<ProtectedRoute><ExamAttemptPage /></ProtectedRoute>} />
+            <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
+            <Route path="/teams/:id" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
+            <Route path="/join/:code" element={<ProtectedRoute><JoinTeamPage /></ProtectedRoute>} />
+            <Route path="/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
+            <Route path="/jobs/post" element={<ProtectedRoute><JobPostPage /></ProtectedRoute>} />
+            <Route path="/jobs/review" element={<ProtectedRoute roles={['mentor', 'admin']}><JobReviewPage /></ProtectedRoute>} />
+            <Route path="/talent" element={<ProtectedRoute><TalentPage /></ProtectedRoute>} />
+            <Route path="/event" element={<ProtectedRoute><EventPage /></ProtectedRoute>} />
+            <Route path="/soc" element={<ProtectedRoute><SocPage /></ProtectedRoute>} />
+            <Route path="/soc/:slug" element={<ProtectedRoute><SocShiftPage /></ProtectedRoute>} />
+            <Route path="/progress" element={<ProtectedRoute><ProgressPage /></ProtectedRoute>} />
             <Route path="/labs" element={<ProtectedRoute><LabsPage /></ProtectedRoute>} />
             <Route path="/labs/:slug" element={<ProtectedRoute><LabPage /></ProtectedRoute>} />
             <Route path="/portfolio" element={<ProtectedRoute><PortfolioPage /></ProtectedRoute>} />

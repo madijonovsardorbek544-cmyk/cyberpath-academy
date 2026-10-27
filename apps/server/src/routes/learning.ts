@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { assignmentStudentPatchSchema, labSubmitSchema, learnerProjectPatchSchema, lessonCompleteSchema, onboardingSchema, portfolioPatchSchema, portfolioSchema, practiceModeSchema, practiceSubmitSchema, quizSubmitSchema, reviewOutcomeSchema, sessionSchema } from '@cyberpath/contracts';
 import { z } from 'zod';
+import { localizeLesson, resolveContentLocale } from '@cyberpath/contracts/lessons';
 import { requireAuth, type AuthenticatedRequest } from '../middleware/auth.js';
 import { buildRoadmap } from '../utils/roadmap.js';
 import { getStudentAnalytics } from '../utils/analytics.js';
@@ -215,9 +216,10 @@ router.post('/onboarding', (req: AuthenticatedRequest, res) => {
   return res.json({ user, roadmap });
 });
 
-router.get('/paths', (_req, res) => {
+router.get('/paths', (req, res) => {
+  const locale = resolveContentLocale(req.get('x-cyberpath-locale'));
   const lessonRows = many<Record<string, unknown>>('SELECT * FROM lessons ORDER BY phase ASC, order_index ASC');
-  const lessons = lessonRows.map(mapLesson);
+  const lessons = lessonRows.map((row) => localizeLesson(mapLesson(row), locale));
   const capstones = many<Record<string, unknown>>('SELECT * FROM capstone_ideas ORDER BY title ASC').map(mapCapstone);
   const glossary = many<Record<string, unknown>>('SELECT * FROM glossary_terms ORDER BY term ASC LIMIT 30').map((row) => ({
     id: String(row.id),
@@ -248,8 +250,9 @@ router.get('/paths', (_req, res) => {
 });
 
 router.get('/lessons', (req: AuthenticatedRequest, res) => {
+  const locale = resolveContentLocale(req.get('x-cyberpath-locale'));
   const lessons = many<Record<string, unknown>>('SELECT * FROM lessons ORDER BY phase ASC, order_index ASC').map((lessonRow) => {
-    const lesson = mapLesson(lessonRow);
+    const lesson = localizeLesson(mapLesson(lessonRow), locale);
     const progress = getLessonProgress(req.user!.userId, lesson.id);
     return {
       ...lesson,
@@ -269,7 +272,7 @@ router.get('/lessons/:slug', (req: AuthenticatedRequest, res) => {
     return res.status(404).json({ message: 'Lesson not found.' });
   }
 
-  const lesson = mapLesson(lessonRow);
+  const lesson = localizeLesson(mapLesson(lessonRow), resolveContentLocale(req.get('x-cyberpath-locale')));
   if (!isStarterLesson(lesson.id) && !hasEntitlement(req.user!.userId, 'lessons:all')) {
     return lockedResponse(res, 'lessons:all', 'This lesson is part of the Premium and School catalog. Start with the free beginner lessons or upgrade to continue.');
   }

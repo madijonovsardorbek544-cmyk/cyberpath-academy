@@ -3,6 +3,8 @@ import { Terminal } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import "@xterm/xterm/css/xterm.css";
 import { api } from "../../api/client";
+import { runShell } from "@cyberpath/contracts/shell";
+import { writeShellOutput } from "../terminal/ShellTerminal";
 import type { Lab } from "../../types";
 
 type FsNode = string | FsDirectory;
@@ -149,6 +151,8 @@ function getNode(fs: FsDirectory, path: string): FsNode | null {
 
   return node;
 }
+
+const ANALYST_COMMANDS = new Set(["grep", "head", "tail", "wc", "sort", "uniq", "cut", "awk", "find", "base64", "iconv"]);
 
 function parseCommand(line: string) {
   const result: string[] = [];
@@ -321,6 +325,14 @@ export function LabTerminal({ lab, onSubmission }: LabTerminalProps) {
 
     const [command, ...args] = parseCommand(trimmed);
 
+    // Text tools and pipelines run in the shared read-only analyst shell.
+    if (trimmed.includes("|") || ANALYST_COMMANDS.has(command)) {
+      const result = runShell(trimmed, { fs: state.fs, cwd: state.cwd, home: "/home/learner" });
+      writeShellOutput(term, result.output);
+      prompt(term, state.cwd);
+      return;
+    }
+
     try {
       switch (command) {
         case "help": {
@@ -330,6 +342,7 @@ export function LabTerminal({ lab, onSubmission }: LabTerminalProps) {
           term.writeln(`  cd <path>                    change folder`);
           term.writeln(`  pwd                          show current folder`);
           term.writeln(`  cat <file>                   read a file`);
+          term.writeln(`  grep, awk, sort, uniq, wc...  analyst text tools; pipes (|) work`);
           term.writeln(`  hint                         show next safe hint`);
           term.writeln(`  answer <taskId> "text"       save a task answer`);
           term.writeln(`  answers                      show saved answers`);

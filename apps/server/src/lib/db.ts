@@ -609,6 +609,158 @@ export function initDb() {
       created_at TEXT NOT NULL,
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
     );
+
+    CREATE TABLE IF NOT EXISTS case_progress (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      case_slug TEXT NOT NULL,
+      question_id TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 0,
+      points_awarded INTEGER NOT NULL DEFAULT 0,
+      solved_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(user_id, case_slug, question_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_case_progress_user ON case_progress(user_id, case_slug);
+
+    CREATE TABLE IF NOT EXISTS soc_shift_attempts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      shift_slug TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      max_score INTEGER NOT NULL,
+      correct_verdicts INTEGER NOT NULL,
+      total_alerts INTEGER NOT NULL,
+      duration_seconds INTEGER,
+      result_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_soc_attempts_user ON soc_shift_attempts(user_id, shift_slug);
+
+    CREATE TABLE IF NOT EXISTS xp_events (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      event_key TEXT NOT NULL,
+      label TEXT NOT NULL,
+      xp INTEGER NOT NULL,
+      earned_at TEXT NOT NULL,
+      UNIQUE(user_id, event_key),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_xp_events_user_time ON xp_events(user_id, earned_at);
+
+    CREATE TABLE IF NOT EXISTS league_memberships (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      week_start TEXT NOT NULL,
+      tier INTEGER NOT NULL,
+      group_id TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(user_id, week_start),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_league_group ON league_memberships(group_id);
+
+    CREATE TABLE IF NOT EXISTS community_cases (
+      id TEXT PRIMARY KEY,
+      slug TEXT NOT NULL UNIQUE,
+      author_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      data_json TEXT NOT NULL,
+      review_note TEXT,
+      reviewer_id TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      published_at TEXT,
+      FOREIGN KEY (author_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_community_cases_status ON community_cases(status, published_at);
+
+    CREATE TABLE IF NOT EXISTS discussion_posts (
+      id TEXT PRIMARY KEY,
+      target_type TEXT NOT NULL,
+      target_slug TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      body TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'visible',
+      report_count INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_discussion_target ON discussion_posts(target_type, target_slug, kind, created_at);
+    -- One writeup per learner per case.
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_discussion_one_writeup ON discussion_posts(target_type, target_slug, user_id) WHERE kind = 'writeup';
+
+    CREATE TABLE IF NOT EXISTS discussion_reports (
+      id TEXT PRIMARY KEY,
+      post_id TEXT NOT NULL,
+      reporter_id TEXT NOT NULL,
+      reason TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      UNIQUE(post_id, reporter_id),
+      FOREIGN KEY (post_id) REFERENCES discussion_posts(id) ON DELETE CASCADE,
+      FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS exam_attempts (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      exam_slug TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'in_progress',
+      started_at TEXT NOT NULL,
+      deadline_at TEXT NOT NULL,
+      submitted_at TEXT,
+      answers_json TEXT NOT NULL DEFAULT '{}',
+      report_text TEXT NOT NULL DEFAULT '',
+      auto_json TEXT,
+      auto_score INTEGER,
+      report_json TEXT,
+      report_score INTEGER,
+      reviewer_id TEXT,
+      reviewer_note TEXT,
+      reviewed_at TEXT,
+      certificate_code TEXT UNIQUE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_exam_attempts_user ON exam_attempts(user_id, exam_slug, started_at);
+    CREATE INDEX IF NOT EXISTS idx_exam_attempts_status ON exam_attempts(status, submitted_at);
+    CREATE TABLE IF NOT EXISTS job_posts (
+      id TEXT PRIMARY KEY,
+      poster_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      company TEXT NOT NULL,
+      location TEXT NOT NULL,
+      remote INTEGER NOT NULL DEFAULT 0,
+      kind TEXT NOT NULL,
+      description TEXT NOT NULL,
+      apply_url TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      review_note TEXT,
+      reviewer_id TEXT,
+      created_at TEXT NOT NULL,
+      approved_at TEXT,
+      expires_at TEXT,
+      FOREIGN KEY (poster_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_posts_status ON job_posts(status, expires_at);
+    CREATE INDEX IF NOT EXISTS idx_job_posts_poster ON job_posts(poster_id, created_at);
+
+    CREATE TABLE IF NOT EXISTS user_badges (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      badge_id TEXT NOT NULL,
+      earned_at TEXT NOT NULL,
+      UNIQUE(user_id, badge_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
   `);
 
   addColumn("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';");
@@ -638,6 +790,10 @@ export function initDb() {
   addColumn("ALTER TABLE portfolio_artifacts ADD COLUMN published_at TEXT;");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN content_type TEXT;");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN content_id TEXT;");
+  addColumn("ALTER TABLE users ADD COLUMN profile_handle TEXT;");
+  addColumn("ALTER TABLE users ADD COLUMN profile_public INTEGER NOT NULL DEFAULT 0;");
+  addColumn("ALTER TABLE users ADD COLUMN profile_headline TEXT NOT NULL DEFAULT '';");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_profile_handle ON users(profile_handle);");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN difficulty_rating TEXT;");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN usefulness_rating INTEGER;");
   addColumn("ALTER TABLE platform_feedback ADD COLUMN confusion_note TEXT;");
@@ -648,6 +804,9 @@ export function initDb() {
   addColumn("ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0;");
   addColumn("ALTER TABLE users ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0;");
   addColumn("ALTER TABLE users ADD COLUMN locked_until TEXT;");
+  addColumn("ALTER TABLE cohorts ADD COLUMN join_code TEXT;");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_cohorts_join_code ON cohorts(join_code);");
+  addColumn("ALTER TABLE users ADD COLUMN open_to_work INTEGER NOT NULL DEFAULT 0;");
 }
 
 export function mapUser(row: Record<string, unknown> | null) {
