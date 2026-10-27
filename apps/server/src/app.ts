@@ -19,6 +19,7 @@ import eventRoutes from './routes/event.js';
 import discussionRoutes from './routes/discussions.js';
 import examRoutes, { examVerifyRouter } from './routes/exams.js';
 import teamRoutes from './routes/teams.js';
+import jobRoutes from './routes/jobs.js';
 import { errorHandler } from './middleware/error.js';
 import { env } from './config/env.js';
 import { initDb, one } from './lib/db.js';
@@ -94,6 +95,7 @@ app.use('/api/discussions', discussionRoutes);
 app.use('/api/exams/verify', examVerifyRouter);
 app.use('/api/exams', examRoutes);
 app.use('/api/teams', teamRoutes);
+app.use('/api/jobs', jobRoutes);
 
 const webDistPath = path.resolve(process.cwd(), 'apps/web/dist');
 if (env.isProduction && fs.existsSync(webDistPath)) {

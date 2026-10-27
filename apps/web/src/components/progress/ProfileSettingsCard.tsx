@@ -80,6 +80,10 @@ export function ProfileSettingsCard() {
           <a href={linkedInShareUrl(url)} target="_blank" rel="noreferrer" className="rounded-2xl border border-sky-400/40 px-4 py-3 text-sky-100 hover:bg-sky-400/10">Share on LinkedIn</a>
         </div>
       ) : null}
+      <label className="flex items-start gap-3 text-sm text-slate-200">
+        <input type="checkbox" className="mt-1 h-4 w-4" checked={settings.openToWork} disabled={busy} onChange={(event) => void save({ openToWork: event.target.checked }, event.target.checked ? 'You are open to work.' : 'Open to work is off.')} />
+        <span>Open to work<span className="block text-xs text-slate-400">Adds a badge to your profile and lists you on the <Link to="/talent" className="text-sky-300 hover:text-sky-200">talent list</Link> employers can browse. Only works while your profile is public; your email is never shown.</span></span>
+      </label>
     </Card>
   );
 }

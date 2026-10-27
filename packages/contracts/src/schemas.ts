@@ -503,7 +503,8 @@ export const profileHandleSchema = z.string().trim().toLowerCase()
 export const profilePatchSchema = z.object({
   handle: profileHandleSchema.optional(),
   isPublic: z.boolean().optional(),
-  headline: z.string().trim().max(120).optional()
+  headline: z.string().trim().max(120).optional(),
+  openToWork: z.boolean().optional()
 });
 
 const caseText = (max: number) => z.string().trim().min(1).max(max);
@@ -569,4 +570,16 @@ export const teamCreateSchema = z.object({
   description: z.string().trim().max(300).optional()
 });
 export const teamJoinSchema = z.object({ code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{8}$/, 'Join codes are 8 letters and numbers.') });
+export const jobKinds = ['full_time', 'part_time', 'internship', 'apprenticeship', 'volunteer'] as const;
+export const jobPostSchema = z.object({
+  title: z.string().trim().min(3).max(120),
+  company: z.string().trim().min(2).max(120),
+  location: z.string().trim().min(2).max(120),
+  remote: z.boolean(),
+  kind: z.enum(jobKinds),
+  description: z.string().trim().min(30).max(4000),
+  // Only links a learner can safely click: no javascript: or plain-http phishing pages.
+  applyUrl: z.string().trim().max(500).refine((value) => /^https:\/\/[^\s/]+\.[^\s]+$/i.test(value) || /^mailto:[^\s@]+@[^\s@]+\.[^\s@]+$/i.test(value), 'Use an https:// link or a mailto: address.')
+});
+export const jobReviewSchema = z.object({ decision: z.enum(['approve', 'reject']), note: z.string().trim().max(500).optional() });
 export const discussionModerateSchema = z.object({ action: z.enum(['hide', 'restore']) });

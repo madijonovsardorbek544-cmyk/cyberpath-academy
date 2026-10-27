@@ -23,7 +23,7 @@ export type LearnerProgress = {
   recent: Array<{ label: string; xp: number; at: string }>;
 };
 
-export type ProfileSettings = { handle: string | null; isPublic: boolean; headline: string };
+export type ProfileSettings = { handle: string | null; isPublic: boolean; headline: string; openToWork: boolean };
 export type PublicProfile = Omit<ProfileSettings, 'isPublic'> & {
   name: string;
   memberSince: string;
@@ -74,3 +74,6 @@ export type ExamCertificate = { code: string; name: string; exam: string; passed
 
 export type TeamSummary = { id: string; name: string; description: string; leader: string; isLeader: boolean; joinCode: string | null; memberCount: number; createdAt: string };
 export type TeamMember = { id: string; name: string; email: string; joinedAt: string; lessonsCompleted: number; casesClosed: number; xp: number; examStatus: string | null; lastActiveAt: string | null };
+
+export type JobPost = { id: string; title: string; company: string; location: string; remote: boolean; kind: string; description: string; applyUrl: string; approvedAt: string | null; expiresAt: string | null; status?: 'pending' | 'approved' | 'rejected' | 'closed'; reviewNote?: string | null; createdAt?: string; posterName?: string };
+export type TalentEntry = { handle: string; name: string; headline: string; level: number; totalXp: number; casesClosed: number; badges: number; certified: boolean };

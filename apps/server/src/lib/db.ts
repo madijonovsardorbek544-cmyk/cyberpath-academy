@@ -731,6 +731,27 @@ export function initDb() {
     );
     CREATE INDEX IF NOT EXISTS idx_exam_attempts_user ON exam_attempts(user_id, exam_slug, started_at);
     CREATE INDEX IF NOT EXISTS idx_exam_attempts_status ON exam_attempts(status, submitted_at);
+    CREATE TABLE IF NOT EXISTS job_posts (
+      id TEXT PRIMARY KEY,
+      poster_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      company TEXT NOT NULL,
+      location TEXT NOT NULL,
+      remote INTEGER NOT NULL DEFAULT 0,
+      kind TEXT NOT NULL,
+      description TEXT NOT NULL,
+      apply_url TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      review_note TEXT,
+      reviewer_id TEXT,
+      created_at TEXT NOT NULL,
+      approved_at TEXT,
+      expires_at TEXT,
+      FOREIGN KEY (poster_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (reviewer_id) REFERENCES users(id) ON DELETE SET NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_job_posts_status ON job_posts(status, expires_at);
+    CREATE INDEX IF NOT EXISTS idx_job_posts_poster ON job_posts(poster_id, created_at);
 
     CREATE TABLE IF NOT EXISTS user_badges (
       id TEXT PRIMARY KEY,

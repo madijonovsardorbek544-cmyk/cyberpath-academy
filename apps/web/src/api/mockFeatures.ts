@@ -1,6 +1,7 @@
 // Mock-demo handlers for the newer learner features. State lives in its own localStorage key so the
 // older demo database format does not change.
-import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, discussionModerateSchema, discussionPostSchema, discussionReportSchema, examGradeSchema, examSaveSchema, profilePatchSchema, socSubmitSchema, teamCreateSchema, teamJoinSchema } from "@cyberpath/contracts";
+import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, discussionModerateSchema, discussionPostSchema, discussionReportSchema, examGradeSchema, examSaveSchema, jobPostSchema, jobReviewSchema, profilePatchSchema, socSubmitSchema, teamCreateSchema, teamJoinSchema } from "@cyberpath/contracts";
+import type { PublicProfile } from "../types";
 import { LEAGUE_TIERS, XP_RULES, addDays, badgeCatalog, computeStreak, leaderboardName, levelForXp, weekStartOf, type XpEvent } from "@cyberpath/contracts/gamification";
 
 export type MockFeatureContext = { userId: string | null; userName?: string; role?: string; students: Array<{ id: string; name: string; email?: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
@@ -9,21 +10,22 @@ const FEATURE_KEY = "cyberpath-demo-features-v1";
 
 type CaseRow = { attempts: number; pointsAwarded: number; solvedAt: string | null };
 type SocAttempt = { score: number; result: unknown; createdAt: string };
-type ProfileRow = { handle: string | null; isPublic: boolean; headline: string };
+type ProfileRow = { handle: string | null; isPublic: boolean; headline: string; openToWork?: boolean };
 type CommunityRow = { id: string; slug: string; authorId: string; authorName: string; status: string; reviewNote: string | null; case: Record<string, unknown>; createdAt: string; updatedAt: string; publishedAt: string | null };
 type DiscussionRow = { id: string; targetType: string; targetSlug: string; userId: string; authorName: string; authorRole: string; kind: "comment" | "writeup"; body: string; status: "visible" | "hidden"; reports: Array<{ userId: string; reason: string }>; createdAt: string; updatedAt: string };
+type JobRow = { id: string; posterId: string; posterName: string; title: string; company: string; location: string; remote: boolean; kind: string; description: string; applyUrl: string; status: "pending" | "approved" | "rejected" | "closed"; reviewNote: string | null; createdAt: string; approvedAt: string | null; expiresAt: string | null };
 type TeamRow = { id: string; name: string; description: string; leaderId: string; leaderName: string; code: string; createdAt: string; members: Array<{ userId: string; name: string; joinedAt: string }> };
 type ExamRow = { id: string; userId: string; userName: string; status: "in_progress" | "submitted" | "passed" | "failed"; startedAt: string; deadlineAt: string; submittedAt: string | null; answers: Record<string, string>; report: string; sections: unknown[]; autoScore: number; reportLines: unknown[] | null; reportScore: number | null; note: string | null; reviewedAt: string | null; code: string | null };
-type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[]; discussions: DiscussionRow[]; exams: ExamRow[]; teams: TeamRow[] };
+type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[]; discussions: DiscussionRow[]; exams: ExamRow[]; teams: TeamRow[]; jobs: JobRow[] };
 
 function readState(): FeatureState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FEATURE_KEY) || "null") as FeatureState | null;
-    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [], discussions: parsed.discussions ?? [], exams: parsed.exams ?? [], teams: parsed.teams ?? [] };
+    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [], discussions: parsed.discussions ?? [], exams: parsed.exams ?? [], teams: parsed.teams ?? [], jobs: parsed.jobs ?? [] };
   } catch {
     // Corrupt demo state is replaced below.
   }
-  return { cases: {}, soc: {}, profiles: {}, community: [], discussions: [], exams: [], teams: [] };
+  return { cases: {}, soc: {}, profiles: {}, community: [], discussions: [], exams: [], teams: [], jobs: [] };
 }
 
 function writeState(state: FeatureState) {
@@ -402,9 +404,9 @@ async function handleProgress(ctx: MockFeatureContext & { userId: string }) {
   };
 }
 
-async function handleProfile(method: string, path: string, body: unknown, ctx: MockFeatureContext) {
+async function handleProfile(method: string, path: string, body: unknown, ctx: MockFeatureContext): Promise<unknown> {
   const state = readState();
-  const blank: ProfileRow = { handle: null, isPublic: false, headline: "" };
+  const blank: ProfileRow = { handle: null, isPublic: false, headline: "", openToWork: false };
 
   if (method === "GET" && path.startsWith("/profile/public/")) {
     const handle = decodeURIComponent(path.split("/")[3] ?? "").toLowerCase();
@@ -432,8 +434,17 @@ async function handleProfile(method: string, path: string, body: unknown, ctx: M
     };
   }
 
+  if (method === "GET" && path.startsWith("/profile/talent")) {
+    const certifiedOnly = path.includes("certified=1");
+    const handles = Object.values(state.profiles).filter((row) => row.isPublic && row.openToWork && row.handle).map((row) => row.handle!);
+    const profiles = await Promise.all(handles.map((handle) => handleProfile("GET", `/profile/public/${handle}`, undefined, ctx).then((result) => (result as { profile: PublicProfile }).profile, () => null)));
+    const talent = profiles.flatMap((profile) => profile ? [{ handle: profile.handle, name: profile.name, headline: profile.headline, level: profile.level, totalXp: profile.totalXp, casesClosed: profile.cases.length, badges: profile.badges.length, certified: profile.certificates.length > 0 }] : [])
+      .filter((entry) => !certifiedOnly || entry.certified)
+      .sort((a, b) => Number(b.certified) - Number(a.certified) || b.totalXp - a.totalXp);
+    return { talent };
+  }
   if (!ctx.userId) throw new Error("Authentication required.");
-  const mine = state.profiles[ctx.userId] ?? blank;
+  const mine = { ...blank, ...state.profiles[ctx.userId] };
   if (method === "GET" && path === "/profile/me") return { settings: mine };
   if (method === "PATCH" && path === "/profile/me") {
     const data = profilePatchSchema.parse(body);
@@ -574,14 +585,57 @@ async function handleTeams(method: string, path: string, body: unknown, ctx: Moc
   throw new Error(`No mock handler for ${method} ${path}`);
 }
 
+async function handleJobs(method: string, path: string, body: unknown, ctx: MockFeatureContext) {
+  const state = readState();
+  const parts = path.split("/").filter(Boolean);
+  const now = new Date();
+  const view = ({ posterId: _posterId, ...row }: JobRow) => row;
+  const done = <T,>(value: T) => { writeState(state); return value; };
+  if (method === "GET" && parts.length === 1) {
+    return { jobs: state.jobs.filter((row) => row.status === "approved" && row.expiresAt! > now.toISOString()).sort((a, b) => b.approvedAt!.localeCompare(a.approvedAt!)).map(({ posterId: _poster, posterName: _name, status: _status, reviewNote: _note, createdAt: _created, ...row }) => row) };
+  }
+  const userId = ctx.userId;
+  if (!userId) throw new Error("Authentication required.");
+  const staff = ctx.role === "mentor" || ctx.role === "admin";
+  if (method === "GET" && parts[1] === "mine") return { jobs: state.jobs.filter((row) => row.posterId === userId).map(view) };
+  if (method === "GET" && parts[1] === "review") {
+    if (!staff) throw new Error("Only mentors and admins review job listings.");
+    return { jobs: state.jobs.filter((row) => row.status === "pending").sort((a, b) => a.createdAt.localeCompare(b.createdAt)).map(view) };
+  }
+  if (method === "POST" && parts.length === 1) {
+    const data = jobPostSchema.parse(body);
+    const since = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+    if (state.jobs.filter((row) => row.posterId === userId && row.createdAt > since).length >= 5) throw new Error("You can submit up to 5 listings a day.");
+    const row: JobRow = { id: `job_${now.getTime().toString(36)}`, posterId: userId, posterName: ctx.userName ?? "Demo user", ...data, status: "pending", reviewNote: null, createdAt: now.toISOString(), approvedAt: null, expiresAt: null };
+    state.jobs.unshift(row);
+    return done({ job: view(row) });
+  }
+  const row = state.jobs.find((entry) => entry.id === parts[1]);
+  if (method === "POST" && parts[2] === "review") {
+    if (!staff) throw new Error("Only mentors and admins review job listings.");
+    const data = jobReviewSchema.parse(body);
+    if (!row || row.status !== "pending") throw new Error("This listing is not waiting for review.");
+    const approve = data.decision === "approve";
+    Object.assign(row, { status: approve ? "approved" : "rejected", reviewNote: data.note ?? null, approvedAt: approve ? now.toISOString() : null, expiresAt: approve ? new Date(now.getTime() + 60 * 24 * 60 * 60 * 1000).toISOString() : null });
+    return done({ job: view(row) });
+  }
+  if (method === "POST" && parts[2] === "close") {
+    if (!row || (row.posterId !== userId && !staff)) throw new Error("Listing not found.");
+    row.status = "closed";
+    return done({ job: view(row) });
+  }
+  throw new Error(`No mock handler for ${method} ${path}`);
+}
+
 /** Returns a response for feature routes, or null so the main mock handles the path. */
 export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext): Promise<unknown> | null {
-  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event" || path.startsWith("/discussions/") || path === "/exams" || path.startsWith("/exams/") || path === "/teams" || path.startsWith("/teams/");
+  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event" || path.startsWith("/discussions/") || path === "/exams" || path.startsWith("/exams/") || path === "/teams" || path.startsWith("/teams/") || path === "/jobs" || path.startsWith("/jobs/");
   if (!isFeature) return null;
   const route = (): Promise<unknown> | unknown => {
     const ctx = getContext();
     if (path.startsWith("/profile/")) return handleProfile(method, path, body, ctx);
     if (path === "/exams" || path.startsWith("/exams/")) return handleExams(method, path, body, ctx);
+    if (path === "/jobs" || path.startsWith("/jobs/")) return handleJobs(method, path, body, ctx);
     const userId = ctx.userId;
     if (!userId) throw new Error("Authentication required.");
     if (path === "/progress/me" && method === "GET") return handleProgress({ ...ctx, userId });

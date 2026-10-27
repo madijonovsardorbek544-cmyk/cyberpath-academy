@@ -947,7 +947,7 @@ test('public profiles are private by default and expose only earned achievements
   const patch = (body: unknown, as = cookie) => fetch(`${server.baseUrl}/api/profile/me`, { method: 'PATCH', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie: as }, body: JSON.stringify(body) });
 
   const initial = await (await fetch(`${server.baseUrl}/api/profile/me`, { headers: { cookie } })).json();
-  assert.deepEqual(initial.settings, { handle: null, isPublic: false, headline: '' });
+  assert.deepEqual(initial.settings, { handle: null, isPublic: false, headline: '', openToWork: false });
   assert.equal((await patch({ isPublic: true })).status, 400, 'needs a handle first');
   assert.equal((await patch({ handle: 'admin' })).status, 400, 'reserved');
   assert.equal((await patch({ handle: 'a' })).status, 400, 'too short');
@@ -1306,5 +1306,53 @@ test('teams: leaders invite with a code and see only their members progress', as
   assert.equal((await call(learner, 'DELETE', `/teams/${team.id}/members/${view.members[0].id}`)).status, 200, 'members can leave');
   assert.equal((await (await call(leader, 'GET', `/teams/${team.id}`)).json()).members.length, 0);
   assert.equal((await call(leader, 'DELETE', `/teams/${team.id}`)).status, 200);
+  await server.close();
+});
+
+test('jobs: listings need mentor approval, safe apply links, and the talent list is opt-in', async () => {
+  const server = await startServer();
+  const signupAs = async (name: string, email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name, email, password: 'StrongPass1!' })
+  }));
+  const poster = await signupAs('Hiring Manager', 'jobposter@example.com');
+  const seeker = await signupAs('Job Seeker', 'jobseeker@example.com');
+  const mentor = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' }, body: JSON.stringify({ email: 'mentor@cyberpath.local', password: 'Mentor123!' }) }));
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+  const listing = { title: 'Junior SOC Analyst', company: 'Example Bank', location: 'Tashkent', remote: false, kind: 'full_time', description: 'Triage alerts, write short incident notes and learn from senior analysts on a friendly team.', applyUrl: 'https://jobs.example/soc' };
+
+  assert.equal((await call(poster, 'POST', '/jobs', { ...listing, applyUrl: 'javascript:alert(1)' })).status, 400);
+  assert.equal((await call(poster, 'POST', '/jobs', { ...listing, applyUrl: 'http://jobs.example/soc' })).status, 400, 'https only');
+  assert.equal((await call(poster, 'POST', '/jobs', { ...listing, applyUrl: 'mailto:hr@bank.example' })).status, 201);
+  const { job } = await (await call(poster, 'POST', '/jobs', listing)).json();
+  assert.equal(job.status, 'pending');
+  assert.equal((await (await fetch(`${server.baseUrl}/api/jobs`)).json()).jobs.length, 0, 'pending listings are hidden');
+
+  assert.equal((await call(seeker, 'GET', '/jobs/review')).status, 403);
+  assert.equal((await call(seeker, 'POST', `/jobs/${job.id}/review`, { decision: 'approve' })).status, 403);
+  const queue = await (await call(mentor, 'GET', '/jobs/review')).json();
+  assert.equal(queue.jobs.length, 2);
+  const approved = await (await call(mentor, 'POST', `/jobs/${job.id}/review`, { decision: 'approve' })).json();
+  assert.ok(Date.parse(approved.job.expiresAt) - Date.now() > 59 * 24 * 60 * 60 * 1000);
+  const board = await (await fetch(`${server.baseUrl}/api/jobs`)).json();
+  assert.deepEqual(board.jobs.map((item: { title: string }) => item.title), ['Junior SOC Analyst']);
+  assert.ok(!JSON.stringify(board).includes('jobposter@example.com'));
+
+  assert.equal((await call(seeker, 'POST', `/jobs/${job.id}/close`)).status, 404, 'only the poster closes a listing');
+  assert.equal((await call(poster, 'POST', `/jobs/${job.id}/close`)).status, 200);
+  assert.equal((await (await fetch(`${server.baseUrl}/api/jobs`)).json()).jobs.length, 0);
+
+  const patch = (body: unknown) => call(seeker, 'PATCH', '/profile/me', body);
+  assert.equal((await patch({ openToWork: true })).status, 200);
+  assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent`)).json()).talent.length, 0, 'private profiles are never listed');
+  await patch({ handle: 'job-seeker', isPublic: true, headline: 'Entry-level SOC analyst' });
+  const talent = (await (await fetch(`${server.baseUrl}/api/profile/talent`)).json()).talent;
+  assert.equal(talent.length, 1);
+  assert.equal(talent[0].handle, 'job-seeker');
+  assert.equal(talent[0].certified, false);
+  assert.ok(!JSON.stringify(talent).includes('jobseeker@example.com'));
+  assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent?certified=1`)).json()).talent.length, 0);
+  await patch({ openToWork: false });
+  assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent`)).json()).talent.length, 0);
   await server.close();
 });

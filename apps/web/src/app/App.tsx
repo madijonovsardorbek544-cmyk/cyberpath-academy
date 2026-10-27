@@ -28,6 +28,10 @@ const VerifyCertificatePage = lazy(() => import('../pages/VerifyCertificatePage'
 const TeamsPage = lazy(() => import('../pages/TeamsPage').then((module) => ({ default: module.TeamsPage })));
 const TeamPage = lazy(() => import('../pages/TeamPage').then((module) => ({ default: module.TeamPage })));
 const JoinTeamPage = lazy(() => import('../pages/JoinTeamPage').then((module) => ({ default: module.JoinTeamPage })));
+const JobsPage = lazy(() => import('../pages/JobsPage').then((module) => ({ default: module.JobsPage })));
+const JobPostPage = lazy(() => import('../pages/JobPostPage').then((module) => ({ default: module.JobPostPage })));
+const JobReviewPage = lazy(() => import('../pages/JobReviewPage').then((module) => ({ default: module.JobReviewPage })));
+const TalentPage = lazy(() => import('../pages/TalentPage').then((module) => ({ default: module.TalentPage })));
 const EventPage = lazy(() => import('../pages/EventPage').then((module) => ({ default: module.EventPage })));
 const SocPage = lazy(() => import('../pages/SocPage').then((module) => ({ default: module.SocPage })));
 const SocShiftPage = lazy(() => import('../pages/SocShiftPage').then((module) => ({ default: module.SocShiftPage })));
@@ -108,6 +112,10 @@ export function App() {
             <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
             <Route path="/teams/:id" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
             <Route path="/join/:code" element={<ProtectedRoute><JoinTeamPage /></ProtectedRoute>} />
+            <Route path="/jobs" element={<ProtectedRoute><JobsPage /></ProtectedRoute>} />
+            <Route path="/jobs/post" element={<ProtectedRoute><JobPostPage /></ProtectedRoute>} />
+            <Route path="/jobs/review" element={<ProtectedRoute roles={['mentor', 'admin']}><JobReviewPage /></ProtectedRoute>} />
+            <Route path="/talent" element={<ProtectedRoute><TalentPage /></ProtectedRoute>} />
             <Route path="/event" element={<ProtectedRoute><EventPage /></ProtectedRoute>} />
             <Route path="/soc" element={<ProtectedRoute><SocPage /></ProtectedRoute>} />
             <Route path="/soc/:slug" element={<ProtectedRoute><SocShiftPage /></ProtectedRoute>} />

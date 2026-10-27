@@ -11,8 +11,8 @@ const router = Router();
 type Row = Record<string, unknown>;
 
 function settings(userId: string) {
-  const row = one<Row>('SELECT profile_handle, profile_public, profile_headline FROM users WHERE id = ?', userId);
-  return { handle: row.profile_handle ? String(row.profile_handle) : null, isPublic: Boolean(row.profile_public), headline: String(row.profile_headline ?? '') };
+  const row = one<Row>('SELECT profile_handle, profile_public, profile_headline, open_to_work FROM users WHERE id = ?', userId);
+  return { handle: row.profile_handle ? String(row.profile_handle) : null, isPublic: Boolean(row.profile_public), headline: String(row.profile_headline ?? ''), openToWork: Boolean(row.open_to_work) };
 }
 
 /** Everything a public profile shows. Only earned achievements and already-published work. */
@@ -57,6 +57,19 @@ router.get('/public/:handle', (req, res) => {
   return res.json({ profile });
 });
 
+// Learners who made their profile public and opted in to being found by employers.
+// shortcut: builds every profile on each request and caps at 100, add paging when the list grows.
+router.get('/talent', (req, res) => {
+  const certifiedOnly = req.query.certified === '1';
+  const rows = many<Row>('SELECT id FROM users WHERE profile_public = 1 AND open_to_work = 1 AND profile_handle IS NOT NULL');
+  const talent = rows.map((row) => publicProfile(String(row.id)))
+    .map((profile) => ({ handle: profile.handle!, name: profile.name, headline: profile.headline, level: profile.level, totalXp: profile.totalXp, casesClosed: profile.cases.length, badges: profile.badges.length, certified: profile.certificates.some((item) => item.verifyCode) }))
+    .filter((entry) => !certifiedOnly || entry.certified)
+    .sort((a, b) => Number(b.certified) - Number(a.certified) || b.totalXp - a.totalXp)
+    .slice(0, 100);
+  return res.json({ talent });
+});
+
 router.use(requireAuth);
 
 router.get('/me', (req: AuthenticatedRequest, res) => res.json({ settings: settings(req.user!.userId) }));
@@ -71,7 +84,7 @@ router.patch('/me', (req: AuthenticatedRequest, res) => {
     const taken = one<Row | null>('SELECT id FROM users WHERE profile_handle = ? AND id != ?', parsed.data.handle, userId);
     if (taken) return res.status(409).json({ message: 'That handle is already taken.' });
   }
-  run('UPDATE users SET profile_handle = ?, profile_public = ?, profile_headline = ? WHERE id = ?', next.handle, next.isPublic ? 1 : 0, next.headline, userId);
+  run('UPDATE users SET profile_handle = ?, profile_public = ?, profile_headline = ?, open_to_work = ? WHERE id = ?', next.handle, next.isPublic ? 1 : 0, next.headline, next.openToWork ? 1 : 0, userId);
   return res.json({ settings: settings(userId) });
 });
 

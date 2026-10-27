@@ -35,6 +35,7 @@ export function PublicProfilePage() {
           <p className="text-xs uppercase tracking-[0.3em] text-sky-300">CyberPath Academy learner</p>
           <h1 className="text-3xl font-semibold text-white">{profile.name}</h1>
           {profile.headline ? <p className="text-lg text-slate-300">{profile.headline}</p> : null}
+          {profile.openToWork ? <p className="inline-block rounded-full border border-emerald-400/40 px-3 py-1 text-xs font-medium text-emerald-200">Open to work</p> : null}
           <p className="text-sm text-slate-500">@{profile.handle} · learning since {new Date(profile.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
         </header>
 
