@@ -1,6 +1,7 @@
 // Investigation cases: fictional evidence that learners analyse in the browser.
 // All names, domains (.example) and IPs (RFC 5737 / RFC 1918) are reserved or invented.
 // This module contains answers. The server grades with it; the web app only loads it in the mock demo build.
+import { northwindSiemLog } from './siemDataset.js';
 
 export type CaseDifficulty = 'beginner' | 'intermediate' | 'advanced';
 export type CaseCategory = 'Authentication' | 'Phishing' | 'Endpoint' | 'Network' | 'Cloud' | 'Web';
@@ -324,6 +325,29 @@ export const investigationCases: InvestigationCase[] = [
       { id: 'q6', prompt: 'What is the right code fix?', format: 'Pick one', hint: 'Fix the cause, not the symptom.', options: ['Use parameterised queries for the id value', 'Hide 500 error pages', 'Block the sqlmap user agent', 'Rename the products.php file'], answers: ['Use parameterised queries for the id value'], explanation: 'Parameterised (prepared) queries keep input as data so it can never change the SQL. Blocking a user agent or hiding errors only slows an attacker down.', points: 10 }
     ],
     debrief: 'This was not "just a bot". The log shows sqlmap confirming an injectable id parameter (errors on quotes, different sizes for AND 1=1 vs AND 1=2), finding the column count, and then a UNION query on the users table that returned a large 200 response. Treat it as a likely breach of user data: fix the query, rotate any secrets in that database, force password resets if hashes were exposed, check database logs, and add a WAF rule as a temporary layer while the fix ships.'
+  },
+  {
+    slug: 'siem-push-fatigue-beacon',
+    title: 'Fourteen pushes and a heartbeat',
+    summary: 'Hunt through 1,400 SIEM events to connect an MFA push storm to a new process calling home every few minutes.',
+    story: 'It is 11:00 at Northwind. The proxy team flagged a domain nobody has seen before, and the help desk says d.rahimov complained about "phone notifications that would not stop". You have four hours of sign-in, proxy, DNS and EDR events in one export. Open it in SIEM mode and query it like a real SOC analyst.',
+    category: 'Network',
+    difficulty: 'intermediate',
+    estimatedMinutes: 30,
+    skills: ['SIEM queries', 'MFA fatigue', 'Beacon detection', 'Correlating sources'],
+    evidence: [
+      { id: 'siem', name: 'northwind-siem.jsonl', kind: 'json', description: 'One JSON event per line, 07:00-11:00 UTC. sourcetype is auth, proxy, dns or edr. Use the SIEM tab to search and run stats.', content: northwindSiemLog }
+    ],
+    questions: [
+      { id: 'q1', prompt: 'Which user denied the most MFA push requests?', format: 'Username', hint: 'Try: mfa_result=denied | stats count by user | sort -count', answers: ['d.rahimov'], explanation: 'd.rahimov denied 14 pushes in a row. s.yusupova also denied two, but from her own workstation and then approved a minute later, which looks like a mis-tap.', points: 10 },
+      { id: 'q2', prompt: 'How many pushes did that user deny before one was approved?', format: 'Number', hint: 'user=d.rahimov mfa_result=denied | stats count', answers: ['14'], explanation: 'Fourteen denials about a minute apart, then an approval at 09:45:12. Repeated pushes until the tired user taps "approve" is called MFA fatigue or push bombing.', points: 10 },
+      { id: 'q3', prompt: 'From which external IP address did those sign-in attempts come?', format: 'IPv4 address', hint: 'Add | stats count by src_ip to the same search.', answers: ['198.51.100.23'], explanation: 'Every denied push and the final approval came from 198.51.100.23 over the VPN. The user\'s workstation is 10.30.2.38, so someone else was typing the password.', points: 10 },
+      { id: 'q4', prompt: 'Which internal VPN address was that session given?', format: 'IPv4 address', hint: 'Look at assigned_ip on the successful VPN event.', answers: ['10.30.250.12'], explanation: 'The approved VPN session got 10.30.250.12. Seven minutes later that address used WMI to reach WS-OPS-19 as d.rahimov.', points: 15 },
+      { id: 'q5', prompt: 'Which domain does the new process call home to?', format: 'Domain', hint: 'sourcetype=edr host=WS-OPS-19, then read the command line. Or: sourcetype=proxy | stats count, dc(src_ip) by url_domain', answers: ['cdn-telemetry.example'], explanation: 'syshelper.exe was started with --host cdn-telemetry.example. In the proxy log only one machine ever talks to that domain, unlike every normal domain.', points: 15 },
+      { id: 'q6', prompt: 'How many seconds apart are the beacon requests?', format: 'Number of seconds', hint: 'url_domain=cdn-telemetry.example | table ts, bytes_out, bytes_in', answers: ['300', '300 seconds', '5 minutes'], explanation: 'Requests leave exactly every 300 seconds with the same 412-byte upload. Humans do not browse on a metronome; regular, same-size requests are the classic sign of a beacon.', points: 10 },
+      { id: 'q7', prompt: 'What should happen first?', format: 'Pick one', hint: 'The attacker has the password and a running implant.', options: ['Isolate WS-OPS-19, revoke d.rahimov\'s sessions and reset the password, and block 198.51.100.23 and cdn-telemetry.example', 'Tell d.rahimov to ignore future notifications', 'Delete syshelper.exe and close the ticket', 'Turn off MFA for d.rahimov so the pushes stop'], answers: ['Isolate WS-OPS-19, revoke d.rahimov\'s sessions and reset the password, and block 198.51.100.23 and cdn-telemetry.example'], explanation: 'Contain both halves: the stolen identity (sessions, password) and the infected host (isolate, keep for forensics), then block the known indicators. Deleting one file or weakening MFA leaves the attacker inside.', points: 15 }
+    ],
+    debrief: 'The chain is clear once you pivot from one source to the next: an attacker with d.rahimov\'s password sent 14 VPN push requests until one was approved (09:45), got VPN address 10.30.250.12, used WMI to reach the user\'s workstation WS-OPS-19 (09:52), and launched syshelper.exe from a Temp folder, which beacons to cdn-telemetry.example every 300 seconds. Next steps: isolate the host, revoke sessions and reset the password, block the IP and domain, and switch the company to number-matching MFA so a single tap cannot approve an attacker. Then look for the same pattern for other users with mfa_result=denied | stats count by user.'
   }
 ];
 

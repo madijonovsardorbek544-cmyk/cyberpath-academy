@@ -36,6 +36,10 @@
     "./lessons": {
       "types": "./dist/lessonTranslations.d.ts",
       "import": "./dist/lessonTranslations.js"
+    },
+    "./siem": {
+      "types": "./dist/siem.d.ts",
+      "import": "./dist/siem.js"
     }
   },
   "scripts": {

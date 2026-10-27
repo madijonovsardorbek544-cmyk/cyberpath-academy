@@ -2,6 +2,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import { Card, Input, Loader } from "../ui";
 import type { CaseEvidence } from "../../types";
 
+const SiemPanel = lazy(() => import("./SiemPanel").then((module) => ({ default: module.SiemPanel })));
 const ShellTerminal = lazy(() => import("../terminal/ShellTerminal").then((module) => ({ default: module.ShellTerminal })));
 const terminalBanner = ["Read-only analyst shell. Evidence files are in this folder.", "Try: ls, then grep, awk, sort | uniq -c. Type help for all commands."];
 
@@ -10,7 +11,9 @@ export function EvidenceViewer({ evidence }: { evidence: CaseEvidence[] }) {
   const [activeId, setActiveId] = useState(evidence[0]?.id);
   const [query, setQuery] = useState("");
   const [onlyMatches, setOnlyMatches] = useState(false);
-  const [mode, setMode] = useState<"viewer" | "terminal">("viewer");
+  const hasEvents = evidence.some((item) => item.kind === "json");
+  const modes = hasEvents ? (["viewer", "terminal", "siem"] as const) : (["viewer", "terminal"] as const);
+  const [mode, setMode] = useState<(typeof modes)[number]>("viewer");
   const active = evidence.find((item) => item.id === activeId) ?? evidence[0];
   const caseFs = useMemo(() => ({ case: Object.fromEntries(evidence.map((item) => [item.name, item.content])) }), [evidence]);
 
@@ -24,12 +27,16 @@ export function EvidenceViewer({ evidence }: { evidence: CaseEvidence[] }) {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h2 className="text-lg font-semibold text-white">Evidence</h2>
         <div className="flex rounded-2xl border border-slate-700 p-1 text-sm" role="group" aria-label="Evidence tool">
-          {(["viewer", "terminal"] as const).map((option) => (
-            <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)} className={`rounded-xl px-3 py-1 capitalize focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${mode === option ? "bg-sky-400 text-slate-950" : "text-slate-300"}`}>{option}</button>
+          {modes.map((option) => (
+            <button key={option} type="button" aria-pressed={mode === option} onClick={() => setMode(option)} className={`rounded-xl px-3 py-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${mode === option ? "bg-sky-400 text-slate-950" : "text-slate-300"}`}>{option === "siem" ? "SIEM" : option === "viewer" ? "Viewer" : "Terminal"}</button>
           ))}
         </div>
       </div>
-      {mode === "terminal" ? (
+      {mode === "siem" ? (
+        <Suspense fallback={<Loader text="Loading SIEM..." />}>
+          <SiemPanel evidence={evidence} />
+        </Suspense>
+      ) : mode === "terminal" ? (
         <div className="mt-3">
           <Suspense fallback={<Loader text="Starting terminal..." />}>
             <ShellTerminal fs={caseFs} home="/case" banner={terminalBanner} label="Evidence terminal" />
