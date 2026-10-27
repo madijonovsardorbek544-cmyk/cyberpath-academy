@@ -1,9 +1,9 @@
 // Mock-demo handlers for the newer learner features. State lives in its own localStorage key so the
 // older demo database format does not change.
-import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, discussionModerateSchema, discussionPostSchema, discussionReportSchema, examGradeSchema, examSaveSchema, profilePatchSchema, socSubmitSchema } from "@cyberpath/contracts";
+import { caseAnswerSchema, caseDraftSchema, caseReviewSchema, discussionModerateSchema, discussionPostSchema, discussionReportSchema, examGradeSchema, examSaveSchema, profilePatchSchema, socSubmitSchema, teamCreateSchema, teamJoinSchema } from "@cyberpath/contracts";
 import { LEAGUE_TIERS, XP_RULES, addDays, badgeCatalog, computeStreak, leaderboardName, levelForXp, weekStartOf, type XpEvent } from "@cyberpath/contracts/gamification";
 
-export type MockFeatureContext = { userId: string | null; userName?: string; role?: string; students: Array<{ id: string; name: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
+export type MockFeatureContext = { userId: string | null; userName?: string; role?: string; students: Array<{ id: string; name: string; email?: string; createdAt?: string; lessons: Array<{ id: string; title: string; at: string }> }> };
 
 const FEATURE_KEY = "cyberpath-demo-features-v1";
 
@@ -12,17 +12,18 @@ type SocAttempt = { score: number; result: unknown; createdAt: string };
 type ProfileRow = { handle: string | null; isPublic: boolean; headline: string };
 type CommunityRow = { id: string; slug: string; authorId: string; authorName: string; status: string; reviewNote: string | null; case: Record<string, unknown>; createdAt: string; updatedAt: string; publishedAt: string | null };
 type DiscussionRow = { id: string; targetType: string; targetSlug: string; userId: string; authorName: string; authorRole: string; kind: "comment" | "writeup"; body: string; status: "visible" | "hidden"; reports: Array<{ userId: string; reason: string }>; createdAt: string; updatedAt: string };
+type TeamRow = { id: string; name: string; description: string; leaderId: string; leaderName: string; code: string; createdAt: string; members: Array<{ userId: string; name: string; joinedAt: string }> };
 type ExamRow = { id: string; userId: string; userName: string; status: "in_progress" | "submitted" | "passed" | "failed"; startedAt: string; deadlineAt: string; submittedAt: string | null; answers: Record<string, string>; report: string; sections: unknown[]; autoScore: number; reportLines: unknown[] | null; reportScore: number | null; note: string | null; reviewedAt: string | null; code: string | null };
-type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[]; discussions: DiscussionRow[]; exams: ExamRow[] };
+type FeatureState = { cases: Record<string, Record<string, Record<string, CaseRow>>>; soc: Record<string, Record<string, SocAttempt[]>>; profiles: Record<string, ProfileRow>; community: CommunityRow[]; discussions: DiscussionRow[]; exams: ExamRow[]; teams: TeamRow[] };
 
 function readState(): FeatureState {
   try {
     const parsed = JSON.parse(localStorage.getItem(FEATURE_KEY) || "null") as FeatureState | null;
-    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [], discussions: parsed.discussions ?? [], exams: parsed.exams ?? [] };
+    if (parsed && typeof parsed.cases === "object") return { ...parsed, soc: parsed.soc ?? {}, profiles: parsed.profiles ?? {}, community: parsed.community ?? [], discussions: parsed.discussions ?? [], exams: parsed.exams ?? [], teams: parsed.teams ?? [] };
   } catch {
     // Corrupt demo state is replaced below.
   }
-  return { cases: {}, soc: {}, profiles: {}, community: [], discussions: [], exams: [] };
+  return { cases: {}, soc: {}, profiles: {}, community: [], discussions: [], exams: [], teams: [] };
 }
 
 function writeState(state: FeatureState) {
@@ -500,9 +501,82 @@ async function handleCommunity(method: string, path: string, body: unknown, ctx:
   throw new Error(`No mock handler for ${method} ${path}`);
 }
 
+const TEAM_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const newTeamCode = () => Array.from(crypto.getRandomValues(new Uint8Array(8)), (byte) => TEAM_CODE_ALPHABET[byte % TEAM_CODE_ALPHABET.length]).join("");
+
+async function handleTeams(method: string, path: string, body: unknown, ctx: MockFeatureContext & { userId: string }) {
+  const state = readState();
+  const parts = path.split("/").filter(Boolean);
+  const summary = (team: TeamRow) => ({ id: team.id, name: team.name, description: team.description, leader: team.leaderName, isLeader: team.leaderId === ctx.userId, joinCode: team.leaderId === ctx.userId ? team.code : null, memberCount: team.members.length, createdAt: team.createdAt });
+  const byCode = (code: string) => state.teams.find((team) => team.code === code);
+  const led = () => {
+    const team = state.teams.find((entry) => entry.id === parts[1]);
+    if (!team || (team.leaderId !== ctx.userId && ctx.role !== "admin")) throw new Error("Team not found.");
+    return team;
+  };
+  const done = <T,>(value: T) => { writeState(state); return value; };
+
+  if (method === "GET" && parts.length === 1) {
+    return { leading: state.teams.filter((team) => team.leaderId === ctx.userId).map(summary), memberOf: state.teams.filter((team) => team.members.some((member) => member.userId === ctx.userId)).map(summary) };
+  }
+  if (method === "POST" && parts.length === 1) {
+    const data = teamCreateSchema.parse(body);
+    if (state.teams.filter((team) => team.leaderId === ctx.userId).length >= 20) throw new Error("You can lead up to 20 teams.");
+    const team: TeamRow = { id: `team_${Date.now().toString(36)}`, name: data.name, description: data.description ?? "", leaderId: ctx.userId, leaderName: ctx.userName ?? "Demo user", code: newTeamCode(), createdAt: new Date().toISOString(), members: [] };
+    state.teams.unshift(team);
+    return done({ team: summary(team) });
+  }
+  if (method === "GET" && parts[1] === "invite") {
+    const parsed = teamJoinSchema.safeParse({ code: decodeURIComponent(parts[2] ?? "") });
+    const team = parsed.success ? byCode(parsed.data.code) : undefined;
+    if (!team) throw new Error("This join code does not match a team.");
+    return { team: { name: team.name, description: team.description, leader: team.leaderName }, alreadyMember: team.members.some((member) => member.userId === ctx.userId), isLeader: team.leaderId === ctx.userId };
+  }
+  if (method === "POST" && parts[1] === "join") {
+    const team = byCode(teamJoinSchema.parse(body).code);
+    if (!team) throw new Error("This join code does not match a team.");
+    if (team.leaderId === ctx.userId) throw new Error("You already lead this team.");
+    if (!team.members.some((member) => member.userId === ctx.userId)) team.members.push({ userId: ctx.userId, name: ctx.userName ?? "Demo user", joinedAt: new Date().toISOString() });
+    return done({ team: summary(team) });
+  }
+  if (method === "GET" && parts.length === 2) {
+    const team = led();
+    const members = await Promise.all(team.members.map(async (member) => {
+      const student = ctx.students.find((entry) => entry.id === member.userId);
+      const events = student ? await xpEventsFor(student, state) : [];
+      const exam = state.exams.filter((row) => row.userId === member.userId).sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+      return {
+        id: member.userId, name: student?.name ?? member.name, email: student?.email ?? "", joinedAt: member.joinedAt,
+        lessonsCompleted: student?.lessons.length ?? 0, casesClosed: events.filter((event) => event.key.startsWith("case-complete:")).length,
+        xp: events.reduce((sum, event) => sum + event.xp, 0), examStatus: exam?.status ?? null,
+        lastActiveAt: events.map((event) => event.at).sort().at(-1) ?? null
+      };
+    }));
+    return { team: summary(team), members };
+  }
+  if (method === "POST" && parts[2] === "rotate-code") {
+    const team = led();
+    team.code = newTeamCode();
+    return done({ team: summary(team) });
+  }
+  if (method === "DELETE" && parts[2] === "members") {
+    const team = state.teams.find((entry) => entry.id === parts[1]);
+    if (!team) throw new Error("Team not found.");
+    if (parts[3] !== ctx.userId && team.leaderId !== ctx.userId && ctx.role !== "admin") throw new Error("Only the team leader can remove other members.");
+    team.members = team.members.filter((member) => member.userId !== parts[3]);
+    return done({ ok: true });
+  }
+  if (method === "DELETE" && parts.length === 2) {
+    const team = led();
+    state.teams = state.teams.filter((entry) => entry !== team);
+    return done({ ok: true });
+  }
+  throw new Error(`No mock handler for ${method} ${path}`);
+}
+
 /** Returns a response for feature routes, or null so the main mock handles the path. */
 export function handleFeatureRequest(method: string, path: string, body: unknown, getContext: () => MockFeatureContext): Promise<unknown> | null {
-  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event" || path.startsWith("/discussions/") || path === "/exams" || path.startsWith("/exams/");
+  const isFeature = path === "/cases" || path.startsWith("/cases/") || path.startsWith("/soc/") || path === "/progress/me" || path.startsWith("/profile/") || path === "/community-cases" || path.startsWith("/community-cases/") || path === "/event" || path.startsWith("/discussions/") || path === "/exams" || path.startsWith("/exams/") || path === "/teams" || path.startsWith("/teams/");
   if (!isFeature) return null;
   const route = (): Promise<unknown> | unknown => {
     const ctx = getContext();
@@ -512,6 +586,7 @@ export function handleFeatureRequest(method: string, path: string, body: unknown
     if (!userId) throw new Error("Authentication required.");
     if (path === "/progress/me" && method === "GET") return handleProgress({ ...ctx, userId });
     if (path === "/event" && method === "GET") return handleEvent({ ...ctx, userId });
+    if (path === "/teams" || path.startsWith("/teams/")) return handleTeams(method, path, body, { ...ctx, userId });
     if (path.startsWith("/discussions/")) return handleDiscussions(method, path, body, { ...ctx, userId });
     if (path.startsWith("/community-cases")) return handleCommunity(method, path, body, { ...ctx, userId }, ctx.role ?? "student");
     if (path.startsWith("/soc/")) return handleSoc(method, path, body, userId);

@@ -25,6 +25,9 @@ const ExamPage = lazy(() => import('../pages/ExamPage').then((module) => ({ defa
 const ExamAttemptPage = lazy(() => import('../pages/ExamAttemptPage').then((module) => ({ default: module.ExamAttemptPage })));
 const ExamReviewPage = lazy(() => import('../pages/ExamReviewPage').then((module) => ({ default: module.ExamReviewPage })));
 const VerifyCertificatePage = lazy(() => import('../pages/VerifyCertificatePage').then((module) => ({ default: module.VerifyCertificatePage })));
+const TeamsPage = lazy(() => import('../pages/TeamsPage').then((module) => ({ default: module.TeamsPage })));
+const TeamPage = lazy(() => import('../pages/TeamPage').then((module) => ({ default: module.TeamPage })));
+const JoinTeamPage = lazy(() => import('../pages/JoinTeamPage').then((module) => ({ default: module.JoinTeamPage })));
 const EventPage = lazy(() => import('../pages/EventPage').then((module) => ({ default: module.EventPage })));
 const SocPage = lazy(() => import('../pages/SocPage').then((module) => ({ default: module.SocPage })));
 const SocShiftPage = lazy(() => import('../pages/SocShiftPage').then((module) => ({ default: module.SocShiftPage })));
@@ -102,6 +105,9 @@ export function App() {
             <Route path="/exam" element={<ProtectedRoute><ExamPage /></ProtectedRoute>} />
             <Route path="/exam/review" element={<ProtectedRoute roles={['mentor', 'admin']}><ExamReviewPage /></ProtectedRoute>} />
             <Route path="/exam/attempt/:id" element={<ProtectedRoute><ExamAttemptPage /></ProtectedRoute>} />
+            <Route path="/teams" element={<ProtectedRoute><TeamsPage /></ProtectedRoute>} />
+            <Route path="/teams/:id" element={<ProtectedRoute><TeamPage /></ProtectedRoute>} />
+            <Route path="/join/:code" element={<ProtectedRoute><JoinTeamPage /></ProtectedRoute>} />
             <Route path="/event" element={<ProtectedRoute><EventPage /></ProtectedRoute>} />
             <Route path="/soc" element={<ProtectedRoute><SocPage /></ProtectedRoute>} />
             <Route path="/soc/:slug" element={<ProtectedRoute><SocShiftPage /></ProtectedRoute>} />

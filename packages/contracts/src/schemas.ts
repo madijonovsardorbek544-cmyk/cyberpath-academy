@@ -564,4 +564,9 @@ export const examGradeSchema = z.object({
   scores: z.record(z.string().max(40), z.number().int().min(0).max(100)),
   note: z.string().trim().min(10, 'Leave the candidate a short note (at least 10 characters).').max(3000)
 });
+export const teamCreateSchema = z.object({
+  name: z.string().trim().min(3, 'Give the team a name of at least 3 characters.').max(80),
+  description: z.string().trim().max(300).optional()
+});
+export const teamJoinSchema = z.object({ code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{8}$/, 'Join codes are 8 letters and numbers.') });
 export const discussionModerateSchema = z.object({ action: z.enum(['hide', 'restore']) });

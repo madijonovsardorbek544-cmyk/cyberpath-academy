@@ -783,6 +783,9 @@ export function initDb() {
   addColumn("ALTER TABLE users ADD COLUMN mfa_enabled INTEGER NOT NULL DEFAULT 0;");
   addColumn("ALTER TABLE users ADD COLUMN failed_login_count INTEGER NOT NULL DEFAULT 0;");
   addColumn("ALTER TABLE users ADD COLUMN locked_until TEXT;");
+  addColumn("ALTER TABLE cohorts ADD COLUMN join_code TEXT;");
+  db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_cohorts_join_code ON cohorts(join_code);");
+  addColumn("ALTER TABLE users ADD COLUMN open_to_work INTEGER NOT NULL DEFAULT 0;");
 }
 
 export function mapUser(row: Record<string, unknown> | null) {

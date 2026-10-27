@@ -1120,6 +1120,7 @@ function featureContext(): MockFeatureContext {
     students: db.users.filter((entry) => entry.role === "student").map((entry) => ({
       id: entry.id,
       name: entry.name,
+      email: entry.email,
       createdAt: entry.createdAt,
       lessons: db.progress.filter((item) => item.userId === entry.id && item.completed && item.completedAt).map((item) => ({ id: item.lessonId, title: titles.get(item.lessonId) ?? "a lesson", at: item.completedAt! }))
     }))

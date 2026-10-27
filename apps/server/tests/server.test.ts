@@ -1257,3 +1257,54 @@ test('practical exam: timed attempt, mentor grading and public certificate check
   assert.match(cooldown.blockedReason, /retake/i);
   await server.close();
 });
+
+test('teams: leaders invite with a code and see only their members progress', async () => {
+  const server = await startServer();
+  const signupAs = async (name: string, email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name, email, password: 'StrongPass1!' })
+  }));
+  const leader = await signupAs('Team Teacher', 'teamteacher@example.com');
+  const learner = await signupAs('Team Learner', 'teamlearner@example.com');
+  const outsider = await signupAs('Other Person', 'teamoutsider@example.com');
+  const call = (cookie: string, method: string, path: string, body?: unknown) => fetch(`${server.baseUrl}/api${path}`, { method, headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie }, body: body ? JSON.stringify(body) : undefined });
+
+  assert.equal((await call(leader, 'POST', '/teams', { name: 'x' })).status, 400);
+  const { team } = await (await call(leader, 'POST', '/teams', { name: 'Grade 10 Cyber Club', description: 'Tuesday club' })).json();
+  assert.match(team.joinCode, /^[A-Z2-9]{8}$/);
+  assert.equal(team.isLeader, true);
+
+  const invite = await (await call(learner, 'GET', `/teams/invite/${team.joinCode.toLowerCase()}`)).json();
+  assert.equal(invite.team.name, 'Grade 10 Cyber Club');
+  assert.equal(invite.team.leader, 'Team Teacher');
+  assert.equal((await call(learner, 'POST', '/teams/join', { code: 'ZZZZZZZZ' })).status, 404);
+  const joined = await (await call(learner, 'POST', '/teams/join', { code: team.joinCode })).json();
+  assert.equal(joined.team.joinCode, null, 'members never see the join code');
+  await call(learner, 'POST', '/teams/join', { code: team.joinCode });
+  assert.equal((await call(leader, 'POST', '/teams/join', { code: team.joinCode })).status, 400);
+
+  const { findInvestigationCase } = await import('@cyberpath/contracts/cases');
+  for (const question of findInvestigationCase('invoice-bank-change-phish')!.questions) {
+    await call(learner, 'POST', '/cases/invoice-bank-change-phish/answer', { questionId: question.id, answer: question.answers[0] });
+  }
+
+  assert.equal((await call(outsider, 'GET', `/teams/${team.id}`)).status, 404, 'only the leader sees progress');
+  assert.equal((await call(learner, 'GET', `/teams/${team.id}`)).status, 404, 'members cannot see each other');
+  const view = await (await call(leader, 'GET', `/teams/${team.id}`)).json();
+  assert.equal(view.members.length, 1, 'joining twice adds one member');
+  assert.equal(view.members[0].name, 'Team Learner');
+  assert.equal(view.members[0].casesClosed, 1);
+  assert.ok(view.members[0].lastActiveAt);
+
+  const lists = await (await call(learner, 'GET', '/teams')).json();
+  assert.equal(lists.memberOf[0].name, 'Grade 10 Cyber Club');
+  const rotated = await (await call(leader, 'POST', `/teams/${team.id}/rotate-code`)).json();
+  assert.notEqual(rotated.team.joinCode, team.joinCode);
+  assert.equal((await call(outsider, 'POST', '/teams/join', { code: team.joinCode })).status, 404, 'old codes stop working');
+
+  assert.equal((await call(outsider, 'DELETE', `/teams/${team.id}/members/${view.members[0].id}`)).status, 403);
+  assert.equal((await call(learner, 'DELETE', `/teams/${team.id}/members/${view.members[0].id}`)).status, 200, 'members can leave');
+  assert.equal((await (await call(leader, 'GET', `/teams/${team.id}`)).json()).members.length, 0);
+  assert.equal((await call(leader, 'DELETE', `/teams/${team.id}`)).status, 200);
+  await server.close();
+});

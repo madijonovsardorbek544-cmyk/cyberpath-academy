@@ -71,3 +71,6 @@ export type ExamAttempt = ExamAttemptSummary & {
 };
 export type ExamReviewItem = ExamAttemptSummary & { candidate: string; report: string; autoScore: number; autoMax: number; sections: ExamScoreLine[] };
 export type ExamCertificate = { code: string; name: string; exam: string; passedAt: string; score: number };
+
+export type TeamSummary = { id: string; name: string; description: string; leader: string; isLeader: boolean; joinCode: string | null; memberCount: number; createdAt: string };
+export type TeamMember = { id: string; name: string; email: string; joinedAt: string; lessonsCompleted: number; casesClosed: number; xp: number; examStatus: string | null; lastActiveAt: string | null };

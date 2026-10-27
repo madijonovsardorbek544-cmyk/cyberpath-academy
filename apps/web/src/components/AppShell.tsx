@@ -18,6 +18,7 @@ const studentLinks = [
   { to: '/soc', key: 'soc', icon: Siren },
   { to: '/event', key: 'event', icon: CalendarDays },
   { to: '/exam', key: 'exam', icon: BadgeCheck },
+  { to: '/teams', key: 'teams', icon: Users },
   { to: '/labs', key: 'labs', icon: FlaskConical },
   { to: '/portfolio', key: 'portfolio', icon: FileText },
   { to: '/mistakes', key: 'mistakes', icon: NotebookTabs },
