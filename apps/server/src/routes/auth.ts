@@ -15,6 +15,8 @@ const router = Router();
 const mfaVerifySchema = z.object({ challengeId: z.string().min(10), code: z.string().regex(/^\d{6}$/) });
 
 
+const DUMMY_PASSWORD_HASH = '$2a$10$CwTycUXWue0Thq9StjUM0uJ8.Ue1Hd0FYuAYlQe1fYAZ7Y6uhjO8i';
+
 function hashResetToken(token: string) {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
@@ -97,18 +99,20 @@ router.post('/login', authLimiter, async (req, res) => {
   }
 
   const userRow = one<Record<string, unknown> | null>('SELECT * FROM users WHERE email = ?', parsed.data.email.toLowerCase());
+  // Same status and bcrypt cost for unknown, locked, and wrong-password logins so responses don't reveal which emails exist.
+  const ok = await comparePassword(parsed.data.password, userRow ? String(userRow.password_hash) : DUMMY_PASSWORD_HASH);
   if (!userRow) {
     return res.status(401).json({ message: 'Invalid credentials.' });
   }
 
-  if (userRow.locked_until && new Date(String(userRow.locked_until)) > new Date()) {
+  const lockExpired = Boolean(userRow.locked_until) && new Date(String(userRow.locked_until)) <= new Date();
+  if (userRow.locked_until && !lockExpired) {
     createAuditLog({ actorUserId: String(userRow.id), actorRole: String(userRow.role) as any, action: 'auth.login_locked', targetType: 'user', targetId: String(userRow.id) });
-    return res.status(423).json({ message: 'Account temporarily locked after repeated failed login attempts.' });
+    return res.status(401).json({ message: 'Invalid credentials.' });
   }
 
-  const ok = await comparePassword(parsed.data.password, String(userRow.password_hash));
   if (!ok) {
-    const failures = Number(userRow.failed_login_count ?? 0) + 1;
+    const failures = (lockExpired ? 0 : Number(userRow.failed_login_count ?? 0)) + 1;
     const lockedUntil = failures >= 5 ? new Date(Date.now() + 15 * 60 * 1000).toISOString() : null;
     run('UPDATE users SET failed_login_count = ?, locked_until = ? WHERE id = ?', failures, lockedUntil, String(userRow.id));
     createAuditLog({ actorUserId: String(userRow.id), actorRole: String(userRow.role) as any, action: 'auth.login_failed', targetType: 'user', targetId: String(userRow.id), metadata: { failures, locked: Boolean(lockedUntil) } });
@@ -118,6 +122,13 @@ router.post('/login', authLimiter, async (req, res) => {
   const role = String(userRow.role) as 'student' | 'mentor' | 'admin';
   if (Number(userRow.mfa_enabled ?? 0) === 1) {
     const challenge = issueMfaChallenge(String(userRow.id));
+    await sendTransactionalEmail({
+      userId: String(userRow.id),
+      toEmail: String(userRow.email),
+      subject: 'CyberPath Academy sign-in code',
+      textBody: `Your sign-in code is ${challenge.code}. It expires in 5 minutes.`,
+      messageType: 'mfa_code'
+    });
     createAuditLog({ actorUserId: String(userRow.id), actorRole: role, action: 'auth.mfa_challenge', targetType: 'user', targetId: String(userRow.id) });
     return res.status(202).json({ mfaRequired: true, challengeId: challenge.challengeId, devMfaCode: env.nodeEnv === 'development' ? challenge.code : undefined });
   }
@@ -221,6 +232,7 @@ router.post('/reset-password', authLimiter, async (req, res) => {
   const now = nowIso();
   run('UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?', passwordHash, now, String(reset.user_id));
   run('UPDATE password_reset_tokens SET used_at = ? WHERE id = ?', now, String(reset.id));
+  run('UPDATE user_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL', now, String(reset.user_id));
   createAuditLog({ actorUserId: String(reset.user_id), action: 'auth.password_reset_completed', targetType: 'user', targetId: String(reset.user_id) });
 
   return res.json({ message: 'Password updated. You can now log in.' });

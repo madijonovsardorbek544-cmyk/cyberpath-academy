@@ -719,3 +719,103 @@ test('revoked sessions can no longer access authenticated routes', async () => {
   assert.equal(me.status, 401);
   await server.close();
 });
+
+async function loginAs(baseUrl: string, email: string, password: string) {
+  const login = await fetch(`${baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ email, password })
+  });
+  assert.equal(login.status, 200);
+  return cookieHeaderFrom(login);
+}
+
+test('re-running the seed never wipes an existing database', () => {
+  const before = (db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n;
+  const output = execFileSync('node', ['--import', 'tsx', 'prisma/seed.ts'], { cwd: serverRoot, env: baseEnv, encoding: 'utf8' });
+  assert.match(output, /skipping seed/);
+  const after = (db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n;
+  assert.equal(after, before);
+});
+
+test('lesson payload does not include quiz answers', async () => {
+  const server = await startServer();
+  const cookie = await loginAs(server.baseUrl, 'student@cyberpath.local', 'Student123!');
+  const res = await fetch(`${server.baseUrl}/api/learning/lessons/what-is-cybersecurity`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const { lesson } = await res.json();
+  assert.ok(lesson.quizQuestions.length > 0);
+  for (const question of lesson.quizQuestions) assert.equal('answer' in question, false);
+  await server.close();
+});
+
+test('students cannot write their own mentor feedback', async () => {
+  const server = await startServer();
+  const cookie = await loginAs(server.baseUrl, 'student@cyberpath.local', 'Student123!');
+  const create = await fetch(`${server.baseUrl}/api/learning/portfolio`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ title: 'Forged Feedback Memo', artifactType: 'incident-report', specialization: 'SOC analyst', summary: 'This artifact summarizes fictional evidence and defensive next steps for a safe triage scenario.', deliverables: ['summary'], scenario: 'Fictional login review', evidenceUsed: ['failed logins'], riskExplanation: 'Repeated failures could indicate account risk.', defensiveRecommendations: 'Validate with the user and monitor logs.', reflection: 'Evidence matters.' })
+  });
+  const artifact = (await create.json()).artifact;
+  const patch = await fetch(`${server.baseUrl}/api/learning/portfolio/${artifact.id}`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ title: 'Forged Feedback Memo v2', mentorFeedback: 'Excellent work, hire this person.' })
+  });
+  assert.equal(patch.status, 200);
+  assert.equal((await patch.json()).artifact.mentorFeedback, null);
+  await server.close();
+});
+
+test('role changes end the user\'s existing sessions', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Role Change', email: 'rolechange@example.com', password: 'StrongPass1!' })
+  });
+  const userCookie = cookieHeaderFrom(signup);
+  const userId = (await signup.json()).user.id;
+  const adminCookie = await loginAs(server.baseUrl, 'admin@cyberpath.local', 'Admin123!');
+  const promote = await fetch(`${server.baseUrl}/api/admin/users/${userId}/role`, {
+    method: 'PATCH', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie: adminCookie },
+    body: JSON.stringify({ role: 'mentor' })
+  });
+  assert.equal(promote.status, 200);
+  const me = await fetch(`${server.baseUrl}/api/auth/me`, { headers: { cookie: userCookie } });
+  assert.equal(me.status, 401);
+  await server.close();
+});
+
+test('demo checkout allows one premium trial and no self-serve school plan', async () => {
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Trial User', email: 'trial@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const checkout = (planId: string) => fetch(`${server.baseUrl}/api/platform/subscription/demo-checkout`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173', cookie },
+    body: JSON.stringify({ planId })
+  });
+  assert.equal((await checkout('school')).status, 403);
+  assert.equal((await checkout('premium')).status, 200);
+  assert.equal((await checkout('premium')).status, 409);
+  await server.close();
+});
+
+test('ALL_FEATURES_FREE unlocks premium labs for free users', async () => {
+  const { env } = await import('../src/config/env.ts');
+  const server = await startServer();
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' },
+    body: JSON.stringify({ name: 'Free Everything', email: 'freeall@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const lockedCount = async () => (await (await fetch(`${server.baseUrl}/api/learning/labs`, { headers: { cookie } })).json()).labs.filter((lab: any) => lab.locked).length;
+  assert.ok(await lockedCount() > 0);
+  env.allFeaturesFree = true;
+  try {
+    assert.equal(await lockedCount(), 0);
+  } finally {
+    env.allFeaturesFree = false;
+    await server.close();
+  }
+});

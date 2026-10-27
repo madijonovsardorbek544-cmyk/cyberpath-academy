@@ -37,6 +37,18 @@ export const authLimiter = rateLimit({
   }
 });
 
+export const publicFormLimiter = rateLimit({
+  windowMs: 60 * 60_000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: () => env.isTest,
+  keyGenerator: (req) => req.ip ?? 'unknown',
+  handler: (_req, res) => {
+    res.status(429).json({ message: 'Too many submissions. Please try again later.' });
+  }
+});
+
 export function enforceOrigin(req: Request, res: Response, next: NextFunction) {
   if (!unsafeMethods.has(req.method)) return next();
   const origin = req.header('origin');

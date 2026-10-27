@@ -324,6 +324,7 @@ router.patch('/users/:id/role', (req: AuthenticatedRequest, res) => {
   }
 
   run('UPDATE users SET role = ?, updated_at = ? WHERE id = ?', parsed.data.role, nowIso(), String(req.params.id));
+  run('UPDATE user_sessions SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL', nowIso(), String(req.params.id));
   createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'admin.user_role_updated', targetType: 'user', targetId: String(req.params.id), metadata: { role: parsed.data.role } });
   const user = mapUser(one<Record<string, unknown>>('SELECT * FROM users WHERE id = ?', String(req.params.id)));
   return res.json({ user });

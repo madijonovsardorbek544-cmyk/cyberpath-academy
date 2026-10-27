@@ -1,4 +1,5 @@
 import type { Response } from 'express';
+import { env } from '../config/env.js';
 import { many, mapSubscription, one } from '../lib/db.js';
 import type { AuthenticatedRequest } from '../middleware/auth.js';
 
@@ -67,7 +68,9 @@ export function getUserPlan(userId: string): { planId: PlanId; status: string; e
     ? subscription.planId as PlanId
     : 'free';
   const plan = planCatalog.find((item) => item.id === planId) ?? planCatalog[0];
-  return { planId, status: subscription?.status ?? 'inactive', entitlements: [...plan.entitlements] };
+  // While the site is free, everyone gets the Premium learner features; billing stays in place for later.
+  const entitlements = env.allFeaturesFree && planId === 'free' ? planCatalog[1].entitlements : plan.entitlements;
+  return { planId, status: subscription?.status ?? 'inactive', entitlements: [...entitlements] };
 }
 
 export function hasEntitlement(userId: string, entitlement: Entitlement) {

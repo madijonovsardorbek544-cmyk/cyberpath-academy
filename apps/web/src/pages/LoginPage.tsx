@@ -4,13 +4,16 @@ import { useAuth } from "../contexts/AuthContext";
 import { Button, Card, ErrorMessage, FormField, Input, SectionTitle } from "../components/ui";
 import { isMockApiMode } from "../api/client";
 
+// Seeded demo credentials only work in the mock demo and local dev; production uses random passwords.
+const showDemoAccounts = isMockApiMode || import.meta.env.DEV;
+
 export function LoginPage() {
   const navigate = useNavigate();
   const { login, signup } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("student@cyberpath.local");
-  const [password, setPassword] = useState("Student123!");
+  const [email, setEmail] = useState(showDemoAccounts ? "student@cyberpath.local" : "");
+  const [password, setPassword] = useState(showDemoAccounts ? "Student123!" : "");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -57,7 +60,7 @@ export function LoginPage() {
         <div className="space-y-6">
           <Link to="/" className="text-sm text-sky-300">← Back to landing</Link>
           <SectionTitle eyebrow="Authentication" title="Sign in fast, or create a clean account." subtitle="Use the seeded demo accounts immediately or create a fresh student account. Password reset is available in dev mode with a visible reset token." />
-          <Card className="p-6">
+          {showDemoAccounts ? <Card className="p-6">
             <h3 className="text-lg font-semibold text-white">{isMockApiMode ? "Public demo access" : "Seeded local accounts"}</h3>
             {isMockApiMode ? (
               <div className="mt-4 space-y-4 text-sm text-slate-300">
@@ -75,7 +78,7 @@ export function LoginPage() {
                 <p><strong>Admin:</strong> admin@cyberpath.local / Admin123!</p>
               </div>
             )}
-          </Card>
+          </Card> : null}
         </div>
         <Card className="p-6 sm:p-8">
           <div className="mb-6 flex gap-3">

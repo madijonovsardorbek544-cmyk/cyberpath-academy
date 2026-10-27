@@ -35,10 +35,22 @@ export async function sendTransactionalEmail(input: SendEmailInput) {
 
   let status: 'sent' | 'failed' = 'sent';
   try {
-    if (env.mailMode === 'console' || env.mailMode === 'db') {
-      logger.info('email.queued', { toEmail: input.toEmail, subject: input.subject, messageType: input.messageType });
+    if (env.mailMode === 'brevo') {
+      // HTTP API instead of SMTP: Render's free tier blocks outbound SMTP ports.
+      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+        method: 'POST',
+        headers: { 'api-key': env.brevoApiKey!, 'content-type': 'application/json' },
+        body: JSON.stringify({
+          sender: { email: env.mailFrom, name: 'CyberPath Academy' },
+          to: [{ email: input.toEmail }],
+          subject: input.subject,
+          textContent: input.textBody,
+          htmlContent: input.htmlBody
+        })
+      });
+      if (!response.ok) throw new Error(`Brevo responded ${response.status}: ${await response.text()}`);
     } else {
-      logger.warn('email.smtp_not_implemented_in_container', { toEmail: input.toEmail, subject: input.subject });
+      logger.info('email.queued', { toEmail: input.toEmail, subject: input.subject, messageType: input.messageType });
     }
   } catch (error) {
     status = 'failed';

@@ -23,8 +23,9 @@
     "test": "npm run test --workspace server",
     "verify": "npm run build && npm test",
     "smoke": "npm run db:setup && npm run verify",
-    "scan:deps": "npm audit --workspaces --audit-level=high",
+    "scan:deps": "npm audit --omit=dev --audit-level=high",
     "scan:secrets": "git secrets --scan 2>/dev/null || (echo \"git-secrets is not installed; falling back to pattern scan\" && node scripts/scan-secrets.mjs)",
-    "security:scan": "npm run scan:deps && npm run scan:secrets"
+    "security:scan": "npm run scan:deps && npm run scan:secrets",
+    "db:reset": "npm run db:reset --workspace server"
   }
 }

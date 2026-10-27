@@ -274,7 +274,7 @@ router.get('/lessons/:slug', (req: AuthenticatedRequest, res) => {
     return lockedResponse(res, 'lessons:all', 'This lesson is part of the Premium and School catalog. Start with the free beginner lessons or upgrade to continue.');
   }
   const progress = getLessonProgress(req.user!.userId, lesson.id);
-  const quizQuestions = many<Record<string, unknown>>('SELECT * FROM quiz_questions WHERE lesson_id = ? ORDER BY created_at ASC', lesson.id).map(mapQuestion);
+  const quizQuestions = many<Record<string, unknown>>('SELECT * FROM quiz_questions WHERE lesson_id = ? ORDER BY created_at ASC', lesson.id).map(({ answer: _answer, ...question }) => question);
   const relatedTracks = many<Record<string, unknown>>(
     `SELECT st.* FROM specialization_tracks st
      JOIN track_lesson_links tll ON tll.track_id = st.id
@@ -776,7 +776,6 @@ router.patch('/portfolio/:id', (req: AuthenticatedRequest, res) => {
     ...parsed.data,
     deliverables: parsed.data.deliverables ?? existing.deliverables,
     evidenceUrl: parsed.data.evidenceUrl === undefined ? existing.evidenceUrl : (parsed.data.evidenceUrl || null),
-    mentorFeedback: parsed.data.mentorFeedback === undefined ? existing.mentorFeedback : (parsed.data.mentorFeedback || null),
     publicShareId: parsed.data.status === 'published' ? (existing.publicShareId ?? makeId()) : (parsed.data.status === 'draft' ? null : existing.publicShareId),
     publishedAt: parsed.data.status === 'published' ? (existing.publishedAt ?? nowIso()) : (parsed.data.status === 'draft' ? null : existing.publishedAt)
   };

@@ -9,25 +9,26 @@
     "seed": "tsx prisma/seed.ts",
     "seed:phase1": "tsx scripts/seedPhase1Curriculum.ts",
     "seed:premium-lessons": "tsx scripts/seedPremiumLessons.ts",
-    "db:setup": "npx tsx prisma/seed.ts",
-    "db:setup:full": "tsx prisma/seed.ts && tsx scripts/seedPhase1Curriculum.ts && tsx scripts/seedPremiumLessons.ts",
+    "db:setup": "tsx prisma/seed.ts",
+    "db:setup:full": "tsx prisma/seed.ts --force && tsx scripts/seedPhase1Curriculum.ts && tsx scripts/seedPremiumLessons.ts",
     "curriculum:verify": "tsx scripts/verifyCurriculum.ts",
     "curriculum:smoke": "npm run db:setup:full && npm run curriculum:verify",
     "backup": "tsx scripts/backup.ts",
-    "test": "node --test --import tsx tests/**/*.test.ts"
+    "test": "node --test --import tsx tests/**/*.test.ts",
+    "db:reset": "tsx prisma/seed.ts --force"
   },
   "dependencies": {
+    "@cyberpath/contracts": "1.0.0",
     "bcryptjs": "^2.4.3",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dayjs": "^1.11.13",
     "dotenv": "^16.4.5",
-    "express": "^4.21.1",
+    "express": "^4.22.3",
     "express-rate-limit": "^7.4.1",
     "helmet": "^8.0.0",
     "jsonwebtoken": "^9.0.2",
-    "zod": "^3.23.8",
-    "@cyberpath/contracts": "1.0.0"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",

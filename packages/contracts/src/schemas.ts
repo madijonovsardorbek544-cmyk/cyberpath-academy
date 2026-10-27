@@ -61,7 +61,7 @@ export const labTaskSchema = z.object({ id: z.string(), prompt: z.string(), expe
 export const labSchema = z.object({
   id: z.string(), slug: z.string(), title: z.string(), category: z.string(), difficulty: z.string(), description: z.string(), scenarioBriefing: z.string().optional(),
   fictionalDatasetLabel: z.string().optional(), evidenceChecklist: z.array(z.string()).optional(), artifactSuggestion: z.object({ type: z.string(), title: z.string(), prompt: z.string() }).optional(),
-  dataset: z.any(), tasks: z.array(labTaskSchema), safeGuardrails: z.string(), solutionOutline: z.string(), locked: z.boolean().optional(), lockedMessage: z.string().nullable().optional(), rubric: z.record(z.unknown()).optional(), hints: z.array(z.string()).optional()
+  dataset: z.any(), tasks: z.array(labTaskSchema), safeGuardrails: z.string(), solutionOutline: z.string(), locked: z.boolean().optional(), lockedMessage: z.string().nullable().optional(), rubric: z.record(z.string(), z.unknown()).optional(), hints: z.array(z.string()).optional()
 });
 export const labInputSchema = z.object({
   slug: z.string().trim().min(3).max(120), title: z.string().trim().min(3).max(160), category: z.string().trim().min(3).max(80), difficulty: z.string().trim().min(3).max(80),
@@ -76,8 +76,8 @@ export const requestResetSchema = z.object({ email: z.string().email() });
 export const resetSchema = z.object({ token: z.string().min(10), password: strongPasswordSchema });
 export const onboardingSchema = z.object({ goal: z.string().min(2).max(80), experienceLevel: z.enum(['beginner', 'intermediate', 'advanced']), score: z.number().min(0).max(100) });
 export const lessonCompleteSchema = z.object({ completed: z.boolean(), timeSpentMinutes: z.number().min(0).max(1000) });
-export const quizSubmitSchema = z.object({ lessonId: z.string().min(2), answers: z.record(z.any()), timeSpentMinutes: z.number().min(0).max(1000).default(0) });
-export const labSubmitSchema = z.object({ answers: z.record(z.any()) });
+export const quizSubmitSchema = z.object({ lessonId: z.string().min(2), answers: z.record(z.string(), z.any()), timeSpentMinutes: z.number().min(0).max(1000).default(0) });
+export const labSubmitSchema = z.object({ answers: z.record(z.string(), z.any()) });
 export const sessionSchema = z.object({ minutes: z.number().min(1).max(240), lessonId: z.string().optional() });
 export const feedbackSchema = z.object({ name: z.string().min(2).max(80), email: z.string().email(), category: z.enum(['bug', 'content', 'feature', 'billing', 'support', 'validation', 'waitlist']), message: z.string().min(10).max(2000) });
 
@@ -472,7 +472,7 @@ export const portfolioSchema = z.object({
   evidenceUrl: z.string().url().optional().or(z.literal('')).nullable(), scenario: z.string().max(2000).optional().default(''), evidenceUsed: z.array(z.string().min(1)).max(20).optional().default([]),
   riskExplanation: z.string().max(2000).optional().default(''), defensiveRecommendations: z.string().max(2000).optional().default(''), reflection: z.string().max(2000).optional().default(''), sourceLabSubmissionId: z.string().optional().nullable()
 });
-export const portfolioPatchSchema = portfolioSchema.partial().extend({ status: z.enum(['draft', 'in_review', 'published']).optional(), mentorFeedback: z.string().max(1000).optional().nullable() });
+export const portfolioPatchSchema = portfolioSchema.partial().extend({ status: z.enum(['draft', 'in_review', 'published']).optional() });
 export const reviewOutcomeSchema = z.object({ success: z.boolean() });
 export const learnerProjectPatchSchema = z.object({ status: z.enum(['not_started', 'in_progress', 'in_review', 'done']).optional(), checkpointProgress: z.array(z.string().min(1)).optional(), reflection: z.string().max(2000).optional().nullable(), evidenceUrl: z.string().url().optional().or(z.literal('')).nullable() });
 export const assignmentStudentPatchSchema = z.object({ status: z.enum(['open', 'in_progress', 'done']) });

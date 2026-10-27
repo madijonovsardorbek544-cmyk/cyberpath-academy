@@ -5,6 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useLocale } from '../contexts/LocaleContext';
 import { PageBetaActions } from './BetaMode';
 import { Button, Loader } from './ui';
+import { showPricing } from '../api/client';
 
 const studentLinks = [
   { to: '/dashboard', key: 'dashboard', icon: LayoutDashboard },
@@ -16,7 +17,7 @@ const studentLinks = [
   { to: '/portfolio', key: 'portfolio', icon: FileText },
   { to: '/mistakes', key: 'mistakes', icon: NotebookTabs },
   { to: '/tutor', key: 'tutor', icon: Brain },
-  { to: '/billing', key: 'billing', icon: CreditCard },
+  ...(showPricing ? [{ to: '/billing', key: 'billing', icon: CreditCard }] : []),
   { to: '/support', key: 'support', icon: LifeBuoy }
 ];
 

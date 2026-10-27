@@ -23,14 +23,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Dependency scan
+        run: npm run scan:deps
+
       - name: Seed database
         run: npm run db:setup
 
-      - name: Smoke test public mock demo / E2E fallback
-        run: npm run smoke:mock --workspace web
-
       - name: Build
         run: npm run build
+
+      - name: Smoke test public mock demo / E2E fallback
+        run: npm run smoke:mock --workspace web
 
       - name: Test
         run: npm test
