@@ -6,6 +6,7 @@ import { Loader } from '../components/ui';
 import { BetaBanner } from '../components/BetaMode';
 
 const LandingPage = lazy(() => import('../pages/LandingPage').then((module) => ({ default: module.LandingPage })));
+const CohortPage = lazy(() => import('../pages/CohortPage').then((module) => ({ default: module.CohortPage })));
 const LoginPage = lazy(() => import('../pages/LoginPage').then((module) => ({ default: module.LoginPage })));
 const ResetPage = lazy(() => import('../pages/ResetPage').then((module) => ({ default: module.ResetPage })));
 const OnboardingPage = lazy(() => import('../pages/OnboardingPage').then((module) => ({ default: module.OnboardingPage })));
@@ -75,6 +76,7 @@ export function App() {
         <Suspense fallback={<div className="min-h-screen bg-slate-950 text-slate-100"><Loader text="Loading CyberPath Academy..." /></div>}>
           <Routes>
             <Route path="/" element={<LandingPage />} />
+            <Route path="/kurs" element={<CohortPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/reset-password" element={<ResetPage />} />
             <Route path="/pricing" element={<BillingPage publicView />} />

@@ -4,7 +4,7 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../middlewa
 import { publicFormLimiter } from '../middleware/security.js';
 import { env } from '../config/env.js';
 import { createAuditLog } from '../utils/audit.js';
-import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapPilotLead, mapPortfolioArtifact, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
+import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapPayment, mapPilotLead, mapPortfolioArtifact, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
 import { planCatalog } from '../utils/accessControl.js';
 
 const router = Router();
@@ -168,6 +168,30 @@ router.post('/feedback', publicFormLimiter, (req, res) => {
   return res.status(201).json({ message: 'Feedback submitted. This is the user feedback loop you actually need for a beta.' });
 });
 
+const cohortApplicationSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  contact: z.string().trim().min(5).max(80),
+  email: z.string().trim().email().max(160).optional().nullable().or(z.literal('')),
+  ageGroup: z.enum(['under_16', '16_17', '18_24', '25_plus']),
+  experience: z.enum(['none', 'some_it', 'some_security']),
+  goal: z.enum(['career', 'university', 'current_job', 'curiosity']),
+  message: z.string().trim().max(1000).optional().nullable()
+});
+
+router.post('/cohort-applications', publicFormLimiter, (req, res) => {
+  const parsed = cohortApplicationSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid application.', errors: parsed.error.flatten() });
+  const id = makeId();
+  run(
+    `INSERT INTO cohort_applications (id, name, contact, email, age_group, experience, goal, message, status, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new', ?)`,
+    id, parsed.data.name, parsed.data.contact, parsed.data.email || null, parsed.data.ageGroup,
+    parsed.data.experience, parsed.data.goal, parsed.data.message || null, nowIso()
+  );
+  createAuditLog({ action: 'cohort.application_submitted', targetType: 'cohort_application', targetId: id, metadata: { ageGroup: parsed.data.ageGroup } });
+  return res.status(201).json({ message: 'Application received.' });
+});
+
 router.get('/metrics', requireAuth, requireRole(['admin']), (req, res) => {
   const metrics = {
     users: count('SELECT COUNT(*) as value FROM users'),
@@ -286,6 +310,11 @@ router.post('/subscription/demo-checkout', (req: AuthenticatedRequest, res) => {
   createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'billing.demo_checkout', targetType: 'subscription', targetId: req.user!.userId, metadata: { planId: parsed.data.planId, status } });
   const subscription = mapSubscription(one<Record<string, unknown> | null>('SELECT * FROM subscriptions WHERE user_id = ?', req.user!.userId));
   res.json({ subscription, message: parsed.data.planId === 'free' ? 'Free plan activated.' : `${selectedPlan.name} demo trial started. Use a tokenized payment provider and signed school agreement before charging real customers.` });
+});
+
+router.get('/payments', (req: AuthenticatedRequest, res) => {
+  const payments = many<Record<string, unknown>>('SELECT * FROM payments WHERE user_id = ? ORDER BY created_at DESC', req.user!.userId).map(mapPayment);
+  res.json({ payments });
 });
 
 router.get('/my-feedback', (req: AuthenticatedRequest, res) => {

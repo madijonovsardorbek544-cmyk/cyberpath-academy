@@ -1,6 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
-import { api } from '../api/client';
+import { api, isMockApiMode } from '../api/client';
 import { AppShell } from '../components/AppShell';
+import { PaymentsAdminCard } from '../components/Payments';
+import { CohortApplicationsCard } from '../components/CohortApplications';
 import { Badge, Button, Card, Input, Loader, SectionTitle, Select, StatCard, Textarea } from '../components/ui';
 
 const defaultLesson = {
@@ -70,6 +72,9 @@ export function AdminDashboardPage() {
           <StatCard label="Demo starts" value={data.stats.demoStarts ?? 0} />
           <StatCard label="Artifacts" value={data.stats.artifactsCreated ?? 0} />
         </div>
+
+        {isMockApiMode ? null : <CohortApplicationsCard />}
+        {isMockApiMode ? null : <PaymentsAdminCard />}
 
 
 

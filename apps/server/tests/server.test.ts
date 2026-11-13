@@ -1356,3 +1356,86 @@ test('jobs: listings need mentor approval, safe apply links, and the talent list
   assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent`)).json()).talent.length, 0);
   await server.close();
 });
+
+test('paid access: only admins record payments, access expires, refunds revoke, history is private', async () => {
+  const server = await startServer();
+  const json = { 'content-type': 'application/json', origin: 'http://localhost:5173' };
+  const signup = async (email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Paying Learner', email, password: 'StrongPass1!' })
+  }));
+  const buyer = await signup('buyer@example.com');
+  const other = await signup('other-buyer@example.com');
+  const admin = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: json, body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
+  }));
+  const record = (cookie: string, body: object) => fetch(`${server.baseUrl}/api/admin/payments`, { method: 'POST', headers: { ...json, cookie }, body: JSON.stringify(body) });
+  const lockedLabs = async (cookie: string) => (await (await fetch(`${server.baseUrl}/api/learning/labs`, { headers: { cookie } })).json()).labs.filter((lab: any) => lab.locked).length;
+  const payment = { email: 'buyer@example.com', planId: 'premium', amountUzs: 99000, method: 'payme_invoice', reference: 'INV-1', accessDays: 30 };
+
+  // Students cannot grant themselves access, read the ledger, or refund.
+  assert.equal((await record(buyer, payment)).status, 403);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/payments`, { headers: { cookie: buyer } })).status, 403);
+  // Unauthenticated and invalid input.
+  assert.equal((await record('', payment)).status, 401);
+  assert.equal((await record(admin, { ...payment, amountUzs: -5 })).status, 400);
+  assert.equal((await record(admin, { ...payment, email: 'nobody@example.com' })).status, 404);
+
+  assert.ok(await lockedLabs(buyer) > 0);
+  const created = await record(admin, payment);
+  assert.equal(created.status, 201);
+  const paymentId = (await created.json()).payment.id;
+  assert.equal(await lockedLabs(buyer), 0);
+
+  // Each learner sees only their own purchase history.
+  const mine = await (await fetch(`${server.baseUrl}/api/platform/payments`, { headers: { cookie: buyer } })).json();
+  assert.equal(mine.payments.length, 1);
+  assert.equal(mine.payments[0].amountUzs, 99000);
+  const theirs = await (await fetch(`${server.baseUrl}/api/platform/payments`, { headers: { cookie: other } })).json();
+  assert.equal(theirs.payments.length, 0);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/payments/${paymentId}/refund`, { method: 'POST', headers: { ...json, cookie: buyer } })).status, 403);
+
+  // An expired period no longer unlocks premium content, even with status 'active'.
+  const buyerId = String((db.prepare('SELECT id FROM users WHERE email = ?').get('buyer@example.com') as any).id);
+  const end = (db.prepare('SELECT current_period_end FROM subscriptions WHERE user_id = ?').get(buyerId) as any).current_period_end;
+  db.prepare('UPDATE subscriptions SET current_period_end = ? WHERE user_id = ?').run(new Date(Date.now() - 1000).toISOString(), buyerId);
+  assert.ok(await lockedLabs(buyer) > 0);
+  db.prepare('UPDATE subscriptions SET current_period_end = ? WHERE user_id = ?').run(end, buyerId);
+  assert.equal(await lockedLabs(buyer), 0);
+
+  // Refund ends access; a second refund is rejected.
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/payments/${paymentId}/refund`, { method: 'POST', headers: { ...json, cookie: admin } })).status, 200);
+  assert.ok(await lockedLabs(buyer) > 0);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/payments/${paymentId}/refund`, { method: 'POST', headers: { ...json, cookie: admin } })).status, 409);
+  await server.close();
+});
+
+test('malformed JSON gets a 400, not a server error', async () => {
+  const server = await startServer();
+  const res = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' }, body: '{"email":'
+  });
+  assert.equal(res.status, 400);
+  await server.close();
+});
+
+test('cohort applications: public form validates input and only admins can read them', async () => {
+  const server = await startServer();
+  const json = { 'content-type': 'application/json', origin: 'http://localhost:5173' };
+  const apply = (body: object) => fetch(`${server.baseUrl}/api/platform/cohort-applications`, { method: 'POST', headers: json, body: JSON.stringify(body) });
+  const valid = { name: 'Dilnoza', contact: '@dilnoza_test', email: '', ageGroup: '18_24', experience: 'none', goal: 'career', message: 'Kechqurun qatnasha olaman.' };
+  assert.equal((await apply(valid)).status, 201);
+  assert.equal((await apply({ ...valid, ageGroup: 'adult' })).status, 400);
+  assert.equal((await apply({ ...valid, contact: '' })).status, 400);
+
+  const student = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Curious Student', email: 'curious@example.com', password: 'StrongPass1!' })
+  }));
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: student } })).status, 403);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/cohort-applications`)).status, 401);
+  const admin = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: json, body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
+  }));
+  const list = await (await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: admin } })).json();
+  assert.ok(list.applications.some((item: any) => item.contact === '@dilnoza_test' && item.email === null));
+  await server.close();
+});

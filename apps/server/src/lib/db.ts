@@ -761,6 +761,40 @@ export function initDb() {
       UNIQUE(user_id, badge_id),
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
+
+    -- Payments confirmed by an admin (bank transfer, Payme/Click invoice, cash) until a provider webhook exists.
+    CREATE TABLE IF NOT EXISTS payments (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      plan_id TEXT NOT NULL,
+      amount_uzs INTEGER NOT NULL,
+      method TEXT NOT NULL,
+      reference TEXT,
+      status TEXT NOT NULL DEFAULT 'paid',
+      access_days INTEGER NOT NULL,
+      access_until TEXT NOT NULL,
+      note TEXT,
+      recorded_by TEXT,
+      created_at TEXT NOT NULL,
+      refunded_at TEXT,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id, created_at);
+
+    -- Applications for the paid Uzbek cohort; kept minimal on purpose (no address, no birth date).
+    CREATE TABLE IF NOT EXISTS cohort_applications (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      contact TEXT NOT NULL,
+      email TEXT,
+      age_group TEXT NOT NULL,
+      experience TEXT NOT NULL,
+      goal TEXT NOT NULL,
+      message TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_cohort_applications_created ON cohort_applications(created_at);
   `);
 
   addColumn("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';");
@@ -1011,6 +1045,23 @@ export function mapSubscription(row: Record<string, unknown> | null) {
     providerSubscriptionId: row.provider_subscription_id ? String(row.provider_subscription_id) : null,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at)
+  };
+}
+
+export function mapPayment(row: Record<string, unknown>) {
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    planId: String(row.plan_id),
+    amountUzs: Number(row.amount_uzs),
+    method: String(row.method),
+    reference: row.reference ? String(row.reference) : null,
+    status: String(row.status) as 'paid' | 'refunded',
+    accessDays: Number(row.access_days),
+    accessUntil: String(row.access_until),
+    note: row.note ? String(row.note) : null,
+    createdAt: String(row.created_at),
+    refundedAt: row.refunded_at ? String(row.refunded_at) : null
   };
 }
 

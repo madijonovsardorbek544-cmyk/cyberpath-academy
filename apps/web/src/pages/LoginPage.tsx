@@ -59,7 +59,7 @@ export function LoginPage() {
       <div className="mx-auto grid max-w-6xl gap-8 lg:grid-cols-[0.9fr,1.1fr]">
         <div className="space-y-6">
           <Link to="/" className="text-sm text-sky-300">← Back to landing</Link>
-          <SectionTitle eyebrow="Authentication" title="Sign in fast, or create a clean account." subtitle="Use the seeded demo accounts immediately or create a fresh student account. Password reset is available in dev mode with a visible reset token." />
+          <SectionTitle eyebrow="Authentication" title={mode === "login" ? "Welcome back." : "Create your free account."} subtitle={isMockApiMode ? "This is a demo with simulated data. Use a demo account below or create a throwaway student account." : "Your progress, quiz results and certificates are saved to your account."} />
           {showDemoAccounts ? <Card className="p-6">
             <h3 className="text-lg font-semibold text-white">{isMockApiMode ? "Public demo access" : "Seeded local accounts"}</h3>
             {isMockApiMode ? (
@@ -88,12 +88,12 @@ export function LoginPage() {
           <form className="space-y-4" onSubmit={submit}>
             {mode === "signup" ? <FormField id="signup-name" label="Full name"><Input id="signup-name" autoComplete="name" placeholder="Full name" value={name} onChange={(e) => setName(e.target.value)} required /></FormField> : null}
             <FormField id="auth-email" label="Email"><Input id="auth-email" autoComplete="email" placeholder="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></FormField>
-            <FormField id="auth-password" label="Password" hint="Demo passwords are prefilled in mock mode."><Input id="auth-password" autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></FormField>
+            <FormField id="auth-password" label="Password" hint={isMockApiMode ? "Demo passwords are prefilled in mock mode." : mode === "signup" ? "At least 10 characters, with an uppercase letter, a lowercase letter, a number and a symbol." : undefined}><Input id="auth-password" autoComplete={mode === "login" ? "current-password" : "new-password"} placeholder="Password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></FormField>
             {error ? <ErrorMessage>{error}</ErrorMessage> : null}
             <Button type="submit" className="w-full bg-sky-400 text-slate-950" disabled={loading}>{loading ? "Working..." : mode === "login" ? "Login" : "Create account"}</Button>
           </form>
           <div className="mt-4 text-sm text-slate-400">
-            Need a reset token flow? <Link className="text-sky-300" to="/reset-password">Open password reset</Link>
+            Forgot your password? <Link className="text-sky-300" to="/reset-password">Reset it</Link>
           </div>
         </Card>
       </div>
