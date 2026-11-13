@@ -407,6 +407,24 @@ router.post('/payments/:id/refund', (req: AuthenticatedRequest, res) => {
   return res.json({ payment: mapPayment(one<Record<string, unknown>>('SELECT * FROM payments WHERE id = ?', String(payment.id))) });
 });
 
+router.get('/cohort-applications', (_req, res) => {
+  const rows = many<Record<string, unknown>>('SELECT * FROM cohort_applications ORDER BY created_at DESC LIMIT 300');
+  return res.json({
+    applications: rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      contact: String(row.contact),
+      email: row.email ? String(row.email) : null,
+      ageGroup: String(row.age_group),
+      experience: String(row.experience),
+      goal: String(row.goal),
+      message: row.message ? String(row.message) : null,
+      status: String(row.status),
+      createdAt: String(row.created_at)
+    }))
+  });
+});
+
 router.get('/ops', (_req, res) => {
   const feedback = many<Record<string, unknown>>('SELECT * FROM platform_feedback ORDER BY created_at DESC LIMIT 30').map(mapFeedback);
   const emails = many<Record<string, unknown>>('SELECT * FROM email_outbox ORDER BY created_at DESC LIMIT 30').map(mapEmail);

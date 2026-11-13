@@ -1417,3 +1417,25 @@ test('malformed JSON gets a 400, not a server error', async () => {
   assert.equal(res.status, 400);
   await server.close();
 });
+
+test('cohort applications: public form validates input and only admins can read them', async () => {
+  const server = await startServer();
+  const json = { 'content-type': 'application/json', origin: 'http://localhost:5173' };
+  const apply = (body: object) => fetch(`${server.baseUrl}/api/platform/cohort-applications`, { method: 'POST', headers: json, body: JSON.stringify(body) });
+  const valid = { name: 'Dilnoza', contact: '@dilnoza_test', email: '', ageGroup: '18_24', experience: 'none', goal: 'career', message: 'Kechqurun qatnasha olaman.' };
+  assert.equal((await apply(valid)).status, 201);
+  assert.equal((await apply({ ...valid, ageGroup: 'adult' })).status, 400);
+  assert.equal((await apply({ ...valid, contact: '' })).status, 400);
+
+  const student = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Curious Student', email: 'curious@example.com', password: 'StrongPass1!' })
+  }));
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: student } })).status, 403);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/cohort-applications`)).status, 401);
+  const admin = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: json, body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
+  }));
+  const list = await (await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: admin } })).json();
+  assert.ok(list.applications.some((item: any) => item.contact === '@dilnoza_test' && item.email === null));
+  await server.close();
+});

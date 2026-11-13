@@ -780,6 +780,21 @@ export function initDb() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_payments_user ON payments(user_id, created_at);
+
+    -- Applications for the paid Uzbek cohort; kept minimal on purpose (no address, no birth date).
+    CREATE TABLE IF NOT EXISTS cohort_applications (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      contact TEXT NOT NULL,
+      email TEXT,
+      age_group TEXT NOT NULL,
+      experience TEXT NOT NULL,
+      goal TEXT NOT NULL,
+      message TEXT,
+      status TEXT NOT NULL DEFAULT 'new',
+      created_at TEXT NOT NULL
+    );
+    CREATE INDEX IF NOT EXISTS idx_cohort_applications_created ON cohort_applications(created_at);
   `);
 
   addColumn("ALTER TABLE specialization_tracks ADD COLUMN track_type TEXT NOT NULL DEFAULT 'career';");
