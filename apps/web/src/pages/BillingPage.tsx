@@ -52,7 +52,7 @@ function BillingContent({ publicView = false }: { publicView?: boolean }) {
 
   return (
     <div className="space-y-8">
-      <SectionTitle eyebrow="Billing and launch strategy" title={publicView ? 'Pricing built for real launch architecture.' : 'Subscription status and launch pricing.'} subtitle="Premium is $3/month or 36,000 UZS after a 30-day free trial. Free gives around 50% access. Real charging must use processor-hosted, tokenized checkout for Payme and international cards." />
+      <SectionTitle eyebrow="Plans" title={publicView ? 'Start free. Pay when you want the full course.' : 'Your plan and payments.'} subtitle="Nothing renews automatically. Our team confirms each payment by hand, and we never ask for or store card numbers." />
       {message ? <Card className="p-4 text-sm text-emerald-300">{message}</Card> : null}
       {!publicView && billing ? (
         <Card className="p-5">
@@ -74,10 +74,10 @@ function BillingContent({ publicView = false }: { publicView?: boolean }) {
           <Card key={plan.id} className="p-6">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-xl font-semibold text-white">{plan.name}</h3>
-              <Badge>{plan.priceMonthlyUsd ? `$${plan.priceMonthlyUsd}/mo · ${plan.priceMonthlyUzs?.toLocaleString?.() ?? plan.priceMonthlyUzs} UZS` : 'Free'}</Badge>
+              <Badge>{plan.priceMonthlyUsd ? `$${plan.priceMonthlyUsd}/mo · ${plan.priceMonthlyUzs?.toLocaleString?.() ?? plan.priceMonthlyUzs} UZS` : plan.priceMonthlyUsd === 0 ? 'Free' : 'Custom price'}</Badge>
             </div>
             <p className="mt-3 text-sm text-slate-400">{plan.description}</p>
-            {plan.trialDays ? <p className="mt-2 text-xs text-emerald-300">First {plan.trialDays} days free, then recurring billing starts.</p> : <p className="mt-2 text-xs text-slate-500">Includes approximately {plan.accessLevel ?? 50}% access.</p>}
+            {plan.trialDays ? <p className="mt-2 text-xs text-emerald-300">Includes a {plan.trialDays}-day free trial. No automatic charges.</p> : null}
             <div className="mt-4 space-y-2 text-sm text-slate-300">
               {plan.features.map((feature) => <div key={feature} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3">{feature}</div>)}
               {plan.paymentMethods?.length ? <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3 text-xs text-slate-400">Payment methods: {plan.paymentMethods.join(' · ')}</div> : null}

@@ -40,7 +40,7 @@ export const planCatalog = [
     features: ['All lessons', 'All labs', 'Guided tutor', 'Certificates', 'Guided projects', 'Portfolio publishing', 'Full analytics'],
     entitlements: ['lessons:all', 'labs:all', 'tutor:guided', 'certificates:claim', 'projects:guided', 'portfolio:publish', 'analytics:full'] as Entitlement[],
     starterLimits: { lessons: Number.POSITIVE_INFINITY, labs: Number.POSITIVE_INFINITY },
-    paymentMethods: ['Payme (Uzcard/Humo via tokenized checkout)', 'International card via Stripe Checkout']
+    paymentMethods: ['Payme or Click invoice, or bank transfer, confirmed by the CyberPath team']
   },
   {
     id: 'school' as const,
@@ -53,7 +53,7 @@ export const planCatalog = [
     features: ['Everything in Premium', 'Cohort dashboard', 'Mentor assignments', 'Student reports', 'CSV export', 'Portfolio review', 'School analytics', 'Pilot support'],
     entitlements: ['lessons:all', 'labs:all', 'tutor:guided', 'certificates:claim', 'projects:guided', 'portfolio:publish', 'analytics:full', 'cohorts:manage', 'reports:export'] as Entitlement[],
     starterLimits: { lessons: Number.POSITIVE_INFINITY, labs: Number.POSITIVE_INFINITY },
-    paymentMethods: ['Founder-led demo invoice only until a real provider is configured']
+    paymentMethods: ['Invoice and written agreement']
   }
 ] as const;
 
