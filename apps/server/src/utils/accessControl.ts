@@ -64,7 +64,9 @@ export function isActiveSubscription(status: string) {
 export function getUserPlan(userId: string): { planId: PlanId; status: string; entitlements: Entitlement[] } {
   const row = one<Record<string, unknown> | null>('SELECT * FROM subscriptions WHERE user_id = ?', userId);
   const subscription = mapSubscription(row);
-  const planId = (subscription?.planId === 'premium' || subscription?.planId === 'school') && isActiveSubscription(subscription.status)
+  // A paid or trial period ends at current_period_end; without this check, access never expired.
+  const periodOpen = !subscription?.currentPeriodEnd || new Date(subscription.currentPeriodEnd) > new Date();
+  const planId = (subscription?.planId === 'premium' || subscription?.planId === 'school') && isActiveSubscription(subscription.status) && periodOpen
     ? subscription.planId as PlanId
     : 'free';
   const plan = planCatalog.find((item) => item.id === planId) ?? planCatalog[0];

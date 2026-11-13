@@ -4,7 +4,7 @@ import { requireAuth, requireRole, type AuthenticatedRequest } from '../middlewa
 import { publicFormLimiter } from '../middleware/security.js';
 import { env } from '../config/env.js';
 import { createAuditLog } from '../utils/audit.js';
-import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapPilotLead, mapPortfolioArtifact, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
+import { count, makeId, mapAuditLog, mapEmail, mapFeedback, mapPayment, mapPilotLead, mapPortfolioArtifact, mapSubscription, many, nowIso, one, run } from '../lib/db.js';
 import { planCatalog } from '../utils/accessControl.js';
 
 const router = Router();
@@ -286,6 +286,11 @@ router.post('/subscription/demo-checkout', (req: AuthenticatedRequest, res) => {
   createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'billing.demo_checkout', targetType: 'subscription', targetId: req.user!.userId, metadata: { planId: parsed.data.planId, status } });
   const subscription = mapSubscription(one<Record<string, unknown> | null>('SELECT * FROM subscriptions WHERE user_id = ?', req.user!.userId));
   res.json({ subscription, message: parsed.data.planId === 'free' ? 'Free plan activated.' : `${selectedPlan.name} demo trial started. Use a tokenized payment provider and signed school agreement before charging real customers.` });
+});
+
+router.get('/payments', (req: AuthenticatedRequest, res) => {
+  const payments = many<Record<string, unknown>>('SELECT * FROM payments WHERE user_id = ? ORDER BY created_at DESC', req.user!.userId).map(mapPayment);
+  res.json({ payments });
 });
 
 router.get('/my-feedback', (req: AuthenticatedRequest, res) => {

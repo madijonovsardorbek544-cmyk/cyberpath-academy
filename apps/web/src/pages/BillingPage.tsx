@@ -4,6 +4,7 @@ import { api } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { Badge, Button, Card, Loader, SectionTitle } from '../components/ui';
 import type { Plan, Subscription } from '../types';
+import { PaymentHistoryCard } from '../components/Payments';
 
 type BillingPayload = {
   plans: Plan[];
@@ -62,11 +63,12 @@ function BillingContent({ publicView = false }: { publicView?: boolean }) {
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge>{billing.subscription.billingCycle}</Badge>
-              {billing.subscription.currentPeriodEnd ? <Badge>Renews {new Date(billing.subscription.currentPeriodEnd).toLocaleDateString()}</Badge> : null}
+              {billing.subscription.currentPeriodEnd ? <Badge>Access until {new Date(billing.subscription.currentPeriodEnd).toLocaleDateString()}</Badge> : null}
             </div>
           </div>
         </Card>
       ) : null}
+      {!publicView ? <PaymentHistoryCard /> : null}
       <div className="grid gap-5 lg:grid-cols-3">
         {plans.map((plan) => (
           <Card key={plan.id} className="p-6">

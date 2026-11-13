@@ -3,6 +3,11 @@ import { logger } from '../utils/logger.js';
 import { makeId, nowIso, run, toDbJson } from '../lib/db.js';
 
 export function errorHandler(err: unknown, req: Request, res: Response, _next: NextFunction) {
+  // Malformed JSON or an oversized body is the client's fault: answer 400/413, not 500.
+  const status = (err as { status?: number } | null)?.status;
+  if (typeof status === 'number' && status >= 400 && status < 500) {
+    return res.status(status).json({ message: status === 413 ? 'Request body is too large.' : 'Invalid request body.' });
+  }
   const errorMessage = err instanceof Error ? err.message : String(err);
   logger.error('request.error', {
     requestId: req.requestId ?? null,
