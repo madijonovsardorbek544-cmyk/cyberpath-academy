@@ -33,7 +33,7 @@ function QuestionCard({ question, index, onAnswer }: { question: CaseQuestionSta
   return (
     <Card className={`p-5 ${question.solved ? "border-emerald-400/30" : ""}`}>
       <div className="flex items-start justify-between gap-3">
-        <h3 className="font-medium text-white"><span className="text-slate-500">Q{index + 1}.</span> {question.prompt}</h3>
+        <h3 className="font-medium text-white"><span className="text-slate-400">Q{index + 1}.</span> {question.prompt}</h3>
         <span className="shrink-0 font-mono text-xs text-slate-400">{question.solved ? `+${question.pointsAwarded}` : question.points} pts</span>
       </div>
       {question.solved ? (
@@ -66,7 +66,7 @@ function QuestionCard({ question, index, onAnswer }: { question: CaseQuestionSta
             <Button type="button" onClick={() => setShowHint((shown) => !shown)} className="border border-slate-700 text-slate-200" aria-expanded={showHint}>
               <span className="flex items-center gap-2"><Lightbulb size={16} aria-hidden="true" /> {showHint ? "Hide hint" : "Hint"}</span>
             </Button>
-            {question.attempts > 0 ? <span className="text-xs text-slate-500">{question.attempts} {question.attempts === 1 ? "attempt" : "attempts"}</span> : null}
+            {question.attempts > 0 ? <span className="text-xs text-slate-400">{question.attempts} {question.attempts === 1 ? "attempt" : "attempts"}</span> : null}
           </div>
           {showHint ? <p className="rounded-2xl bg-slate-950/60 px-3 py-2 text-sm text-slate-300">{question.hint}</p> : null}
         </form>
@@ -127,7 +127,7 @@ export function CasePage() {
           </div>
         </div>
         {slug ? <DiscussionPanel targetType="case" slug={slug} refreshKey={progress.completed} /> : null}
-        <p className="text-xs text-slate-500">All people, companies, domains and IP addresses in this case are fictional or reserved for documentation.</p>
+        <p className="text-xs text-slate-400">All people, companies, domains and IP addresses in this case are fictional or reserved for documentation.</p>
       </div>
     </AppShell>
   );

@@ -85,7 +85,7 @@ export function JobPostPage() {
               {mine.map((job) => (
                 <li key={job.id} className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-slate-800 px-4 py-3 text-sm text-slate-200">
                   <span className="space-y-1">
-                    <span className="block">{job.title} <span className="text-slate-500">· {job.company}</span></span>
+                    <span className="block">{job.title} <span className="text-slate-400">· {job.company}</span></span>
                     {job.reviewNote ? <span className="block text-xs text-slate-400">Reviewer: {job.reviewNote}</span> : null}
                   </span>
                   <span className="flex items-center gap-3">

@@ -30,14 +30,14 @@ function ReviewCard({ item, onDone }: { item: CommunitySubmission; onDone: () =>
       <p className="text-sm text-slate-200">{draft.story}</p>
       {draft.evidence.map((evidence) => (
         <details key={evidence.id} className="rounded-2xl border border-slate-800 p-3">
-          <summary className="cursor-pointer font-mono text-sm text-slate-100">{evidence.name} <span className="text-slate-500">({evidence.kind})</span></summary>
+          <summary className="cursor-pointer font-mono text-sm text-slate-100">{evidence.name} <span className="text-slate-400">({evidence.kind})</span></summary>
           <pre className="mt-2 max-h-72 overflow-auto font-mono text-xs text-slate-300">{evidence.content}</pre>
         </details>
       ))}
       <ol className="space-y-3">
         {draft.questions.map((question, index) => (
           <li key={question.id} className="rounded-2xl bg-slate-950/60 p-3 text-sm">
-            <p className="font-medium text-white">Q{index + 1}. {question.prompt} <span className="text-slate-500">({question.points} pts)</span></p>
+            <p className="font-medium text-white">Q{index + 1}. {question.prompt} <span className="text-slate-400">({question.points} pts)</span></p>
             {question.options ? <p className="text-slate-400">Options: {question.options.join(" · ")}</p> : null}
             <p className="text-emerald-300">Accepted: {question.answers.join(" · ")}</p>
             <p className="text-slate-400">Hint: {question.hint}</p>
@@ -46,7 +46,7 @@ function ReviewCard({ item, onDone }: { item: CommunitySubmission; onDone: () =>
         ))}
       </ol>
       <p className="text-sm text-slate-300"><strong className="text-white">Debrief:</strong> {draft.debrief}</p>
-      <p className="text-xs text-slate-500">Check that every answer can be found in the evidence, the content is defensive, and nothing names a real person or company.</p>
+      <p className="text-xs text-slate-400">Check that every answer can be found in the evidence, the content is defensive, and nothing names a real person or company.</p>
       <label htmlFor={`note-${item.id}`} className="text-sm font-medium text-white">Note to the author (required unless publishing)</label>
       <Textarea id={`note-${item.id}`} value={note} onChange={(event) => setNote(event.target.value)} className="min-h-[80px]" />
       {error ? <ErrorMessage>{error}</ErrorMessage> : null}

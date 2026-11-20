@@ -746,7 +746,12 @@ test('lesson payload does not include quiz answers', async () => {
   assert.equal(res.status, 200);
   const { lesson } = await res.json();
   assert.ok(lesson.quizQuestions.length > 0);
-  for (const question of lesson.quizQuestions) assert.equal('answer' in question, false);
+  for (const question of lesson.quizQuestions) {
+    assert.equal('answer' in question, false);
+    assert.equal('explanation' in question, false);
+    // Options must arrive parsed; a JSON string crashed the lesson page.
+    if (question.type === 'multiple-choice') assert.ok(Array.isArray(question.options));
+  }
   await server.close();
 });
 
@@ -1437,5 +1442,56 @@ test('cohort applications: public form validates input and only admins can read 
   }));
   const list = await (await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: admin } })).json();
   assert.ok(list.applications.some((item: any) => item.contact === '@dilnoza_test' && item.email === null));
+  await server.close();
+});
+
+test('Uzbek cohort lessons parse into 8 graded questions each', async () => {
+  const { parseCourseLesson } = await import('../src/utils/courseMarkdown.ts');
+  const courseDir = path.resolve(serverRoot, '../../docs/course-uz');
+  const files = fs.readdirSync(courseDir).filter((file) => /^(0[1-9]|1\d)-.+\.md$/.test(file));
+  assert.equal(files.length, 12);
+  for (const file of files) {
+    const lesson = parseCourseLesson(fs.readFileSync(path.join(courseDir, file), 'utf8'), file);
+    assert.equal(lesson.questions.length, 8, file);
+    assert.ok(lesson.objectives.length >= 3, file);
+    assert.ok(!lesson.content.includes('Bilimni tekshirish'), `${file} leaks quiz answers into content`);
+    for (const question of lesson.questions) {
+      if (question.type === 'true-false') assert.equal(typeof question.answer, 'boolean');
+      else assert.equal(question.options.filter((option) => option.id === question.answer).length, 1, question.id);
+    }
+  }
+});
+
+test('learners can delete their own account; staff and paying accounts go through support', async () => {
+  const server = await startServer();
+  const json = { 'content-type': 'application/json', origin: 'http://localhost:5173' };
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Leaving Learner', email: 'leaving@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const userId = (await signup.json()).user.id;
+  const remove = (who: string, body: object) => fetch(`${server.baseUrl}/api/auth/delete-account`, { method: 'POST', headers: { ...json, cookie: who }, body: JSON.stringify(body) });
+
+  assert.equal((await remove(cookie, { password: 'StrongPass1!' })).status, 400);
+  assert.equal((await remove(cookie, { password: 'wrong-password', confirm: 'DELETE' })).status, 401);
+  const done = await remove(cookie, { password: 'StrongPass1!', confirm: 'DELETE' });
+  assert.equal(done.status, 200);
+  assert.equal((await fetch(`${server.baseUrl}/api/auth/me`, { headers: { cookie } })).status, 401);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM users WHERE id = ?').get(userId)!.n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM email_outbox WHERE to_email = ?').get('leaving@example.com')!.n, 0);
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, { method: 'POST', headers: json, body: JSON.stringify({ email: 'leaving@example.com', password: 'StrongPass1!' }) });
+  assert.equal(login.status, 401);
+
+  const admin = await loginAs(server.baseUrl, 'admin@cyberpath.local', 'Admin123!');
+  assert.equal((await remove(admin, { password: 'Admin123!', confirm: 'DELETE' })).status, 409);
+
+  const payer = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Paid Learner', email: 'paid-leaver@example.com', password: 'StrongPass1!' })
+  }));
+  await fetch(`${server.baseUrl}/api/admin/payments`, {
+    method: 'POST', headers: { ...json, cookie: admin },
+    body: JSON.stringify({ email: 'paid-leaver@example.com', planId: 'premium', amountUzs: 1000, method: 'cash', accessDays: 30 })
+  });
+  assert.equal((await remove(payer, { password: 'StrongPass1!', confirm: 'DELETE' })).status, 409);
   await server.close();
 });

@@ -9,10 +9,12 @@ function normalizeValue(type: QuizQuestion["type"], value: any) {
 
 export function QuizRenderer({
   questions,
-  onSubmit
+  onSubmit,
+  trueFalseLabels = ["True", "False"]
 }: {
   questions: QuizQuestion[];
   onSubmit: (answers: Record<string, any>, durationMinutes: number) => Promise<QuizResult>;
+  trueFalseLabels?: [string, string];
 }) {
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [result, setResult] = useState<QuizResult | null>(null);
@@ -89,7 +91,7 @@ export function QuizRenderer({
             {question.type === "true-false" && [true, false].map((choice) => (
               <label key={String(choice)} className="flex cursor-pointer items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-3">
                 <input type="radio" checked={answers[question.id] === choice} onChange={() => setAnswers((prev) => ({ ...prev, [question.id]: choice }))} />
-                <span className="text-sm text-slate-200">{choice ? "True" : "False"}</span>
+                <span className="text-sm text-slate-200">{choice ? trueFalseLabels[0] : trueFalseLabels[1]}</span>
               </label>
             ))}
 
@@ -130,7 +132,7 @@ export function QuizRenderer({
                   <span className={`rounded-full px-3 py-1 text-xs ${item.isCorrect ? "bg-emerald-500/15 text-emerald-200" : "bg-rose-500/15 text-rose-200"}`}>{item.isCorrect ? "Correct" : "Review"}</span>
                 </div>
                 <p className="mt-2 text-sm text-slate-400">Explanation: {item.explanation}</p>
-                {!item.isCorrect ? <p className="mt-2 text-xs text-slate-400">Correct answer: {JSON.stringify(item.correctAnswer)}</p> : null}
+                {!item.isCorrect ? <p className="mt-2 text-xs text-slate-400">Correct answer: {describeAnswer(questions.find((question) => question.id === item.id), item.correctAnswer, trueFalseLabels)}</p> : null}
               </div>
             ))}
           </div>
@@ -138,4 +140,13 @@ export function QuizRenderer({
       ) : null}
     </div>
   );
+}
+
+// Shows option labels instead of raw ids like "b", so the review reads like the question did.
+function describeAnswer(question: QuizQuestion | undefined, answer: unknown, trueFalseLabels: [string, string]) {
+  if (typeof answer === "boolean") return answer ? trueFalseLabels[0] : trueFalseLabels[1];
+  const label = (id: unknown) => question?.options?.find((option: any) => option.id === id)?.label ?? String(id);
+  if (Array.isArray(answer)) return answer.map(label).join(", ");
+  if (typeof answer === "string") return label(answer);
+  return JSON.stringify(answer);
 }

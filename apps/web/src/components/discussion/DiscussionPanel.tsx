@@ -95,7 +95,7 @@ function Composer({ label, placeholder, initial, minLength, maxLength, submitLab
       <label htmlFor={id} className="text-sm font-medium text-slate-200">{label}</label>
       <Textarea id={id} value={body} onChange={(event) => setBody(event.target.value)} placeholder={placeholder} maxLength={maxLength} />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-slate-500">{length < minLength ? `At least ${minLength} characters` : `${length} / ${maxLength}`}</span>
+        <span className="text-xs text-slate-400">{length < minLength ? `At least ${minLength} characters` : `${length} / ${maxLength}`}</span>
         <Button type="submit" disabled={busy || length < minLength} className="bg-sky-400 text-slate-950">{busy ? "Posting..." : submitLabel}</Button>
       </div>
       {error ? <ErrorMessage>{error}</ErrorMessage> : null}
@@ -146,7 +146,7 @@ export function DiscussionPanel({ targetType, slug, refreshKey }: { targetType: 
           <p className="text-xs text-slate-400">Ask questions and help others. {targetType === "case" ? "Please do not post answers here; share your method in a writeup after you solve the case." : "Be kind and stay on topic."}</p>
           {thread.comments.length ? (
             <ul className="space-y-3">{thread.comments.map((item) => <PostItem key={item.id} post={item} canDelete={item.isMine || staff} onChanged={load} />)}</ul>
-          ) : <p className="text-sm text-slate-500">No comments yet. Start the conversation.</p>}
+          ) : <p className="text-sm text-slate-400">No comments yet. Start the conversation.</p>}
           <Composer label="Add a comment" placeholder="What was unclear, or what helped you?" minLength={2} maxLength={2000} submitLabel="Post comment" onSubmit={(body) => post("comment", body)} />
         </div>
       ) : thread.writeupsUnlocked ? (
@@ -154,7 +154,7 @@ export function DiscussionPanel({ targetType, slug, refreshKey }: { targetType: 
           <p className="text-xs text-slate-400">Writeups explain how someone solved the case. Only learners who finished it can see them.</p>
           {thread.writeups.length ? (
             <ul className="space-y-3">{thread.writeups.map((item) => <PostItem key={item.id} post={item} canDelete={item.isMine || staff} onChanged={load} />)}</ul>
-          ) : <p className="text-sm text-slate-500">No writeups yet. Be the first to explain your approach.</p>}
+          ) : <p className="text-sm text-slate-400">No writeups yet. Be the first to explain your approach.</p>}
           {thread.canWriteWriteup ? (
             <Composer label={myWriteup ? "Edit your writeup" : "Write your writeup"} placeholder="Which evidence did you start with? Which commands or filters helped? What would you check next in a real SOC?" initial={myWriteup?.body} minLength={80} maxLength={8000} submitLabel={myWriteup ? "Save writeup" : "Publish writeup"} onSubmit={(body) => post("writeup", body)} />
           ) : null}

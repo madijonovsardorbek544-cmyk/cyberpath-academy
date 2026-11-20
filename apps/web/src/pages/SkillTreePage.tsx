@@ -31,9 +31,9 @@ function SkillCard({ node }: { node: SkillTreeNode }) {
       {node.lockedReason ? <p className="mt-3 rounded-2xl border border-slate-800 bg-slate-950/60 p-3 text-sm text-slate-300">{node.lockedReason}</p> : null}
       <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-800"><div className="h-full rounded-full bg-sky-400" style={{ width: `${Math.max(node.mastery.score, 4)}%` }} /></div>
       <div className="mt-4 grid gap-3 text-xs text-slate-400 sm:grid-cols-3">
-        <div><span className="text-slate-500">Lessons</span><p className="mt-1 text-slate-200">{node.lessons.map((item) => item.title).join(', ')}</p></div>
-        <div><span className="text-slate-500">Exercises</span><p className="mt-1 text-slate-200">{node.exercises.length} adaptive item{node.exercises.length === 1 ? '' : 's'}</p></div>
-        <div><span className="text-slate-500">Portfolio proof</span><p className="mt-1 text-slate-200">{node.portfolioArtifact ?? 'Optional reflection'}</p></div>
+        <div><span className="text-slate-400">Lessons</span><p className="mt-1 text-slate-200">{node.lessons.map((item) => item.title).join(', ')}</p></div>
+        <div><span className="text-slate-400">Exercises</span><p className="mt-1 text-slate-200">{node.exercises.length} adaptive item{node.exercises.length === 1 ? '' : 's'}</p></div>
+        <div><span className="text-slate-400">Portfolio proof</span><p className="mt-1 text-slate-200">{node.portfolioArtifact ?? 'Optional reflection'}</p></div>
       </div>
       <div className="mt-5 flex flex-wrap gap-3">
         <Link to={`/skills/${node.id}`}><Button className="bg-sky-400 text-slate-950" disabled={node.locked}>Start skill</Button></Link>

@@ -63,7 +63,7 @@ export function PracticeHubPage() {
               </p>
               {data.continueLesson ? (
                 <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
-                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Continue learning</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Continue learning</p>
                   <p className="mt-2 font-medium text-white">{data.continueLesson.title}</p>
                   <p className="mt-1 text-sm text-slate-400">{data.continueLesson.phaseTitle} · {data.continueLesson.estimatedMinutes} min</p>
                   <Link to={`/lessons/${data.continueLesson.slug}`} className="mt-4 inline-flex rounded-2xl bg-sky-400 px-4 py-3 text-sm font-medium text-slate-950">Continue lesson</Link>

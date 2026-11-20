@@ -84,7 +84,7 @@ export function OnboardingPage() {
                 <Card className="p-4">
                   <p className="text-sm text-slate-300">Current diagnostic score preview</p>
                   <p className="mt-2 text-3xl font-semibold text-white">{score}%</p>
-                  <p className="mt-1 text-xs text-slate-500">{answeredCount}/{diagnosticQuestions.length} answered</p>
+                  <p className="mt-1 text-xs text-slate-400">{answeredCount}/{diagnosticQuestions.length} answered</p>
                 </Card>
               </div>
             </Card>

@@ -81,7 +81,7 @@ function SupportContent() {
       {user ? (
         <Card className="p-6">
           <h3 className="text-lg font-semibold text-white">Your feedback history</h3>
-          {!items.length ? <Loader text="No submitted feedback yet." /> : <div className="mt-4 space-y-3">{items.map((item) => <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="font-medium text-white">{item.category}</p><Badge>{item.status}</Badge></div><p className="mt-2 text-sm text-slate-300">{item.message}</p><p className="mt-2 text-xs text-slate-500">{new Date(item.createdAt).toLocaleString()}</p></div>)}</div>}
+          {!items.length ? <Loader text="No submitted feedback yet." /> : <div className="mt-4 space-y-3">{items.map((item) => <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex flex-wrap items-center justify-between gap-3"><p className="font-medium text-white">{item.category}</p><Badge>{item.status}</Badge></div><p className="mt-2 text-sm text-slate-300">{item.message}</p><p className="mt-2 text-xs text-slate-400">{new Date(item.createdAt).toLocaleString()}</p></div>)}</div>}
         </Card>
       ) : null}
     </div>

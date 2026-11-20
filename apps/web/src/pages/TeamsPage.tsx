@@ -82,7 +82,7 @@ export function TeamsPage() {
             <ul className="space-y-2">
               {data.memberOf.map((team) => (
                 <li key={team.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-slate-800 px-4 py-3 text-sm text-slate-200">
-                  <span>{team.name} <span className="text-slate-500">· led by {team.leader}</span></span>
+                  <span>{team.name} <span className="text-slate-400">· led by {team.leader}</span></span>
                   <button type="button" onClick={() => window.confirm(`Leave ${team.name}? ${team.leader} will stop seeing your progress.`) && void api.delete(`/teams/${team.id}/members/${user!.id}`).then(load).catch((err: Error) => setError(err.message))} className="text-xs text-slate-400 hover:text-rose-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">Leave</button>
                 </li>
               ))}

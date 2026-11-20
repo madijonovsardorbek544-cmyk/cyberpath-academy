@@ -75,7 +75,7 @@ export function LandingPage() {
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <select aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-2 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}><option value="en">EN</option><option value="uz">UZ</option><option value="ru">RU</option></select>
-            <span className="hidden text-xs text-slate-500 lg:inline" title={localeNotice}>UZ · RU beta</span>
+            <span className="hidden text-xs text-slate-400 lg:inline" title={localeNotice}>UZ · RU beta</span>
             {showPricing ? <Link className="text-sm text-slate-300" to="/pricing">{t('pricing')}</Link> : null}
             <Link className="text-sm text-sky-300" to="/school-pilot">Request school pilot</Link>
             <Link className="text-sm text-slate-300" to="/login">{t('login')}</Link>

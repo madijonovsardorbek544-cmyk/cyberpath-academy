@@ -18,7 +18,7 @@ export function ProgressStrip() {
     <Link to="/progress" className="block rounded-3xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400">
       <Card className="grid gap-4 p-5 transition hover:border-sky-400/40 sm:grid-cols-3">
         <div className="flex items-center gap-3">
-          <Flame className={streak.activeToday ? 'text-orange-300' : 'text-slate-500'} aria-hidden="true" />
+          <Flame className={streak.activeToday ? 'text-orange-300' : 'text-slate-400'} aria-hidden="true" />
           <div>
             <p className="text-lg font-semibold text-white">{streak.current}-day streak</p>
             <p className="text-xs text-slate-400">{streak.activeToday ? 'Done for today' : 'Earn XP today to keep it'}</p>

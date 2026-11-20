@@ -103,7 +103,7 @@ export function AdminDashboardPage() {
                 <div key={label} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex justify-between gap-3"><span>{label.replace(/([A-Z])/g, ' $1')}</span><span className="text-sky-200">{String(value)}%</span></div><div className="mt-2 h-2 rounded-full bg-slate-800"><div className="h-2 rounded-full bg-sky-400" style={{ width: `${Math.min(100, Number(value) || 0)}%` }} /></div></div>
               ))}
             </div>
-            <p className="mt-3 text-xs text-slate-500">Readiness is for a 10–30 user controlled beta, not a paid public launch.</p>
+            <p className="mt-3 text-xs text-slate-400">Readiness is for a 10–30 user controlled beta, not a paid public launch.</p>
           </Card>
         </div>
 
@@ -226,7 +226,7 @@ export function AdminDashboardPage() {
                     </Select>
                   </div>
                   <p className="mt-3 text-sm text-slate-300">{item.message}</p>
-                  <p className="mt-2 text-xs text-slate-500">{item.email}</p>
+                  <p className="mt-2 text-xs text-slate-400">{item.email}</p>
                 </div>
               ))}
             </div>
@@ -253,7 +253,7 @@ export function AdminDashboardPage() {
                 <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <div className="flex items-center justify-between gap-3"><p className="font-medium text-white">{item.subject}</p><Badge>{item.status}</Badge></div>
                   <p className="mt-2 text-sm text-slate-400">{item.toEmail}</p>
-                  <p className="mt-2 text-xs text-slate-500">{item.messageType}</p>
+                  <p className="mt-2 text-xs text-slate-400">{item.messageType}</p>
                 </div>
               ))}
             </div>
@@ -265,7 +265,7 @@ export function AdminDashboardPage() {
                 <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <p className="font-medium text-white">{item.action}</p>
                   <p className="mt-1 text-sm text-slate-400">{item.targetType} · {item.targetId || 'n/a'}</p>
-                  <p className="mt-2 text-xs text-slate-500">{new Date(item.createdAt).toLocaleString()}</p>
+                  <p className="mt-2 text-xs text-slate-400">{new Date(item.createdAt).toLocaleString()}</p>
                 </div>
               ))}
             </div>

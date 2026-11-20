@@ -64,7 +64,7 @@ export function JobsPage() {
                     </div>
                   </div>
                   <p className="whitespace-pre-line break-words text-sm text-slate-300">{job.description}</p>
-                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+                  <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
                     <span>Posted {job.approvedAt ? new Date(job.approvedAt).toLocaleDateString() : ""}{job.expiresAt ? ` · open until ${new Date(job.expiresAt).toLocaleDateString()}` : ""}</span>
                     <a href={job.applyUrl} target="_blank" rel="noopener noreferrer nofollow" className="rounded-2xl border border-sky-400/40 px-4 py-2 text-sm text-sky-100 hover:bg-sky-400/10">Apply<span className="sr-only"> for {job.title} at {job.company}</span></a>
                   </div>
@@ -73,7 +73,7 @@ export function JobsPage() {
             ))}
           </ul>
         )}
-        <p className="text-xs text-slate-500">CyberPath does not run these hiring processes. Never pay to apply for a job, and never share passwords or bank details with a recruiter.</p>
+        <p className="text-xs text-slate-400">CyberPath does not run these hiring processes. Never pay to apply for a job, and never share passwords or bank details with a recruiter.</p>
       </div>
     </AppShell>
   );

@@ -25,7 +25,7 @@ export function LabsPage() {
                 <div className="flex flex-wrap gap-2"><Badge>{lab.category}</Badge><Badge>{lab.difficulty}</Badge></div>
                 <h3 className="mt-4 text-xl font-semibold text-white">{lab.title}</h3>
                 <p className="mt-3 text-sm text-slate-400">{lab.description}</p>
-                <p className="mt-4 text-xs text-slate-500">{lab.safeGuardrails}</p>
+                <p className="mt-4 text-xs text-slate-400">{lab.safeGuardrails}</p>
               </Card>
             </Link>
           ))}

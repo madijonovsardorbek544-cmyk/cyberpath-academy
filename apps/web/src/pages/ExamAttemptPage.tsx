@@ -193,7 +193,7 @@ export function ExamAttemptPage() {
                       const set = (value: string) => { setAnswers((current) => ({ ...current, [key]: value })); queueSave({ answers: { [key]: value } }); };
                       return (
                         <Card key={key} className="space-y-3 p-5">
-                          <h3 className="flex justify-between gap-3 font-medium text-white"><span><span className="text-slate-500">Q{index + 1}.</span> {question.prompt}</span><span className="shrink-0 font-mono text-xs text-slate-400">{question.points} pts</span></h3>
+                          <h3 className="flex justify-between gap-3 font-medium text-white"><span><span className="text-slate-400">Q{index + 1}.</span> {question.prompt}</span><span className="shrink-0 font-mono text-xs text-slate-400">{question.points} pts</span></h3>
                           {question.options ? (
                             <fieldset className="space-y-2">
                               <legend className="sr-only">{question.prompt}</legend>
@@ -222,7 +222,7 @@ export function ExamAttemptPage() {
                   <label htmlFor="exam-report" className="text-lg font-semibold text-white">Incident report</label>
                   <p className="text-sm text-slate-300">{exam.report.prompt}</p>
                   <textarea id="exam-report" value={report} onChange={(event) => { setReport(event.target.value); queueSave({ report: event.target.value }); }} onBlur={() => void flush()} maxLength={exam.report.maxLength} className="min-h-[420px] w-full rounded-2xl border border-slate-700 bg-slate-950/60 px-4 py-3 text-sm text-slate-100 outline-none focus:border-sky-400 focus-visible:ring-2 focus-visible:ring-sky-400" />
-                  <p className="text-xs text-slate-500">{report.trim().length < exam.report.minLength ? `At least ${exam.report.minLength} characters (${report.trim().length} so far)` : `${report.trim().length} / ${exam.report.maxLength}`}</p>
+                  <p className="text-xs text-slate-400">{report.trim().length < exam.report.minLength ? `At least ${exam.report.minLength} characters (${report.trim().length} so far)` : `${report.trim().length} / ${exam.report.maxLength}`}</p>
                 </Card>
                 <Card className="h-fit space-y-3 p-5">
                   <h2 className="text-lg font-semibold text-white">Rubric</h2>

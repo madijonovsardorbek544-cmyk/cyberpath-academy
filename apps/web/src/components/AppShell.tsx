@@ -55,26 +55,26 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-slate-950 bg-glow text-slate-100">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-2xl focus:bg-sky-400 focus:px-4 focus:py-2 focus:text-slate-950">{t('skipToContent')}</a>
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col lg:flex-row">
-        <aside className="border-b border-slate-800 bg-slate-950/80 p-4 backdrop-blur lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r">
-          <Link to="/" className="flex items-center gap-3 rounded-2xl bg-slate-900 px-4 py-4">
+        <aside className="border-b border-slate-800 bg-slate-950/80 px-2 py-2 backdrop-blur lg:min-h-screen lg:w-72 lg:border-b-0 lg:border-r lg:p-4">
+          <Link to="/" className="hidden items-center gap-3 rounded-2xl bg-slate-900 px-4 py-4 lg:flex">
             <div className="rounded-2xl bg-sky-400/20 p-3 text-sky-300"><Shield size={20} /></div>
             <div>
               <div className="font-semibold text-white">CyberPath Academy</div>
               <div className="text-xs text-slate-400">{t('adaptive')}</div>
             </div>
           </Link>
-          <nav className="mt-6 flex gap-2 overflow-x-auto pb-2 lg:grid lg:overflow-visible lg:pb-0" aria-label="Primary navigation">
+          <nav className="flex gap-1 overflow-x-auto lg:mt-6 lg:grid lg:gap-2 lg:overflow-visible" aria-label="Primary navigation">
             {roleLinks.map((link) => {
               const Icon = link.icon;
               return (
-                <NavLink key={link.to} to={link.to} className={({ isActive }) => `flex min-w-max items-center gap-3 rounded-2xl px-4 py-3 text-sm transition ${isActive ? 'bg-sky-400/15 text-sky-200' : 'text-slate-300 hover:bg-slate-900'}`}>
+                <NavLink key={link.to} to={link.to} className={({ isActive }) => `flex min-h-11 min-w-max items-center gap-2 rounded-2xl px-3 py-2 text-sm transition lg:gap-3 lg:px-4 lg:py-3 ${isActive ? 'bg-sky-400/15 text-sky-200' : 'text-slate-300 hover:bg-slate-900'}`}>
                   <Icon size={18} />
                   {link.key === 'betaChecklist' ? 'Beta checklist' : t(link.key)}
                 </NavLink>
               );
             })}
           </nav>
-          <div className="mt-6 grid gap-2 text-xs text-slate-500">
+          <div className="mt-6 hidden gap-2 text-xs text-slate-400 lg:grid">
             <Link to="/privacy" className="hover:text-slate-300">{t('privacy')}</Link>
             <Link to="/terms" className="hover:text-slate-300">{t('terms')}</Link>
             <Link to="/safety" className="hover:text-slate-300">{t('safety')}</Link>
@@ -82,25 +82,25 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </aside>
         <div className="flex-1">
           <header className="sticky top-0 z-10 border-b border-slate-800 bg-slate-950/80 backdrop-blur">
-            <div className="flex items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">{t('signedInAs')}</p>
-                <p className="text-sm font-medium text-white">{safeName} · {safeRole}</p>
+            <div className="flex items-center justify-between gap-3 px-4 py-2 sm:px-6 sm:py-4 lg:px-8">
+              <div className="min-w-0">
+                <p className="hidden text-xs uppercase tracking-[0.25em] text-slate-400 sm:block">{t('signedInAs')}</p>
+                <p className="truncate text-sm font-medium text-white"><Link to="/" className="lg:hidden" aria-label="CyberPath Academy home"><Shield size={16} className="mr-2 inline text-sky-300" /></Link>{safeName}<span className="hidden sm:inline"> · {safeRole}</span></p>
               </div>
-              <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 sm:gap-3">
+              <div className="flex shrink-0 items-center justify-end gap-2 sm:gap-3">
                 <Link to="/report-bug" className="hidden rounded-2xl border border-rose-400/30 px-3 py-2 text-xs font-medium text-rose-100 hover:bg-rose-400/10 sm:inline-flex">Report bug</Link>
                 <Link to="/support" className="hidden rounded-2xl border border-sky-400/30 px-3 py-2 text-xs font-medium text-sky-100 hover:bg-sky-400/10 md:inline-flex">Give feedback</Link><Link to="/school-pilot" className="hidden rounded-2xl border border-emerald-400/30 px-3 py-2 text-xs font-medium text-emerald-100 hover:bg-emerald-400/10 lg:inline-flex">Request school pilot</Link>
                 <label className="sr-only" htmlFor="locale-switcher">{t('locale')}</label>
-                <select id="locale-switcher" aria-label={t('locale')} className="rounded-2xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-slate-100" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}>
+                <select id="locale-switcher" aria-label={t('locale')} className="min-h-11 rounded-2xl border border-slate-700 bg-slate-950 px-2 text-sm text-slate-100 sm:px-3" value={locale} onChange={(event) => setLocale(event.target.value as 'en' | 'uz' | 'ru')}>
                   <option value="en">EN</option>
                   <option value="uz">UZ</option>
                   <option value="ru">RU</option>
                 </select>
-                <span className="hidden max-w-[220px] text-xs text-slate-500 xl:inline" title={localeNotice}>UZ · RU beta</span>
-                <button className="min-h-11 rounded-2xl border border-slate-700 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" onClick={toggleTheme} aria-label="Toggle theme">
+                <span className="hidden max-w-[220px] text-xs text-slate-400 xl:inline" title={localeNotice}>UZ · RU beta</span>
+                <button className="min-h-11 min-w-11 rounded-2xl border border-slate-700 p-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950" onClick={toggleTheme} aria-label="Toggle theme">
                   {dark ? <Sun size={18} /> : <Moon size={18} />}
                 </button>
-                <Button className="bg-slate-200 text-slate-950" onClick={async () => { await logout(); navigate('/'); }}>
+                <Button className="bg-slate-200 px-3 text-sm text-slate-950 sm:px-4" onClick={async () => { await logout(); navigate('/'); }}>
                   {t('logout')}
                 </Button>
               </div>

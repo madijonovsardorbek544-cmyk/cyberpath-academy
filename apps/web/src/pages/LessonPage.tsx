@@ -7,6 +7,7 @@ import { DiscussionPanel } from '../components/discussion/DiscussionPanel';
 import { Badge, Button, Card, Loader, SectionTitle } from '../components/ui';
 import type { Lesson, QuizResult } from '../types';
 import { QuizRenderer } from '../components/QuizRenderer';
+import { Markdown } from '../components/Markdown';
 import { useLocale } from '../contexts/LocaleContext';
 
 export function LessonPage() {
@@ -25,6 +26,9 @@ export function LessonPage() {
   const cheatSheet = useMemo(() => lesson?.glossary.slice(0, 4) || [], [lesson]);
 
   if (!lesson) return <AppShell><Loader text="Loading lesson..." /></AppShell>;
+
+  // Lessons written in Uzbek from the start (docs/course-uz), not translations of English ones.
+  const nativeUzbek = lesson.slug.startsWith('uz-cohort-');
 
   const handleMarkComplete = async () => {
     setMarking(true);
@@ -46,9 +50,9 @@ export function LessonPage() {
     <AppShell>
       <div className="space-y-8">
         <div className="flex flex-wrap items-center justify-between gap-4">
-          <SectionTitle eyebrow={`${t('phase')} ${lesson.phase} · ${lesson.phaseTitle}`} title={lesson.title} subtitle={lesson.content} />
+          <SectionTitle eyebrow={`${t('phase')} ${lesson.phase} · ${lesson.phaseTitle}`} title={lesson.title} />
           {locale !== 'en' && lesson.contentLocale === 'en' ? <p className="w-full rounded-2xl border border-amber-400/30 bg-amber-400/10 px-4 py-2 text-sm text-amber-100" role="status">{locale === 'uz' ? 'Bu dars hali tarjima qilinmagan, shuning uchun ingliz tilida ko‘rsatilmoqda.' : 'Этот урок ещё не переведён, поэтому показан на английском.'}</p> : null}
-          {lesson.contentLocale && lesson.contentLocale !== 'en' ? <p className="w-full text-xs text-slate-400">{lesson.contentLocale === 'uz' ? 'Test savollari hozircha ingliz tilida.' : 'Вопросы теста пока на английском.'}</p> : null}
+          {lesson.contentLocale && lesson.contentLocale !== 'en' && !nativeUzbek ? <p className="w-full text-xs text-slate-400">{lesson.contentLocale === 'uz' ? 'Test savollari hozircha ingliz tilida.' : 'Вопросы теста пока на английском.'}</p> : null}
           <div className="flex flex-wrap gap-2">
             <Badge>{lesson.level}</Badge>
             <Badge>{lesson.estimatedMinutes} min</Badge>
@@ -58,6 +62,12 @@ export function LessonPage() {
           </div>
         </div>
 
+        <Card className="p-5 sm:p-8">
+          <article lang={nativeUzbek ? 'uz' : undefined} className="max-w-3xl">
+            <Markdown source={lesson.content} />
+          </article>
+        </Card>
+
         <div className="grid gap-5 xl:grid-cols-[1.15fr,0.85fr]">
           <Card className="p-6">
             <h3 className="text-lg font-semibold text-white">{t('lessonObjectives')}</h3>
@@ -65,29 +75,14 @@ export function LessonPage() {
               {lesson.learningObjectives.map((objective) => <li key={objective} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-3">{objective}</li>)}
             </ul>
 
-            <div className="mt-8 grid gap-5 lg:grid-cols-[1fr,0.9fr]">
-              <div>
-                <h3 className="text-lg font-semibold text-white">{t('lessonExamples')}</h3>
+            {lesson.examples.length ? (
+              <>
+                <h3 className="mt-8 text-lg font-semibold text-white">{t('lessonExamples')}</h3>
                 <div className="mt-4 grid gap-3">
                   {lesson.examples.map((example) => <div key={example} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-300">{example}</div>)}
                 </div>
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-white">Lesson map</h3>
-                <div className="mt-4 space-y-3">
-                  {['Objectives', 'Examples', 'Quick checks', 'Quiz', 'Practice next'].map((item, index) => (
-                    <div key={item} className="flex items-center gap-3 rounded-2xl border border-slate-800 bg-slate-950/50 p-4 text-sm text-slate-300">
-                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-slate-700 text-xs font-semibold text-slate-200">{index + 1}</div>
-                      {item}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-8 rounded-3xl border border-dashed border-slate-700 p-5 text-sm text-slate-400">
-              Diagram placeholder: replace with sequence diagrams, trust-boundary visuals, or a small annotated workflow instead of dumping raw text. Top products use visuals to reduce friction. This lesson is ready for that upgrade later.
-            </div>
+              </>
+            ) : null}
 
             <h3 className="mt-8 text-lg font-semibold text-white">{t('lessonChecks')}</h3>
             <div className="mt-4 space-y-3">
@@ -96,6 +91,7 @@ export function LessonPage() {
           </Card>
 
           <div className="space-y-5">
+            {cheatSheet.length ? (
             <Card className="p-6">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-lg font-semibold text-white">{t('lessonCheatSheet')}</h3>
@@ -110,6 +106,7 @@ export function LessonPage() {
                 ))}
               </div>
             </Card>
+            ) : null}
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-white">Lesson governance</h3>
               <div className="mt-4 space-y-3 text-sm text-slate-300">
@@ -136,10 +133,12 @@ export function LessonPage() {
                 )) : <p className="text-sm text-slate-400">This lesson is still treated as core coverage only.</p>}
               </div>
             </Card>
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-white">{t('lessonMistakes')}</h3>
-              <p className="mt-3 text-sm text-slate-300">{lesson.commonMistakes}</p>
-            </Card>
+            {lesson.commonMistakes ? (
+              <Card className="p-6">
+                <h3 className="text-lg font-semibold text-white">{t('lessonMistakes')}</h3>
+                <p className="mt-3 text-sm text-slate-300">{lesson.commonMistakes}</p>
+              </Card>
+            ) : null}
             <Card className="p-6">
               <h3 className="text-lg font-semibold text-white">{t('lessonWhy')}</h3>
               <p className="mt-3 text-sm text-slate-300">{lesson.whyItMatters}</p>
@@ -158,7 +157,7 @@ export function LessonPage() {
 
         <section className="space-y-5">
           <SectionTitle eyebrow="Quiz engine" title="End-of-lesson assessment" subtitle="Immediate feedback, topic scoring, and mistake capture feed your notebook automatically." />
-          {lesson.quizQuestions?.length ? <QuizRenderer questions={lesson.quizQuestions} onSubmit={submitQuiz} /> : <Card className="p-5">No quiz attached yet.</Card>}
+          {lesson.quizQuestions?.length ? <QuizRenderer questions={lesson.quizQuestions} onSubmit={submitQuiz} trueFalseLabels={nativeUzbek ? ['Toʻgʻri', 'Notoʻgʻri'] : undefined} /> : <Card className="p-5">No quiz attached yet.</Card>}
         </section>
         <DiscussionPanel targetType="lesson" slug={lesson.slug} />
         <BetaFeedbackCard context="lesson_completion" title="Lesson feedback" />

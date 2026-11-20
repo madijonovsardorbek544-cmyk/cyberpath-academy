@@ -13,13 +13,13 @@ function DayCard({ day }: { day: EventDay }) {
     <Card className={`flex h-full flex-col p-4 transition ${day.unlocked ? "hover:border-sky-400/40" : "opacity-60"} ${day.completed ? "border-emerald-400/30" : ""}`}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-xs text-slate-400">Day {day.day}</span>
-        {day.completed ? <CheckCircle2 size={16} className="text-emerald-300" aria-label="Completed" /> : !day.unlocked ? <Lock size={14} className="text-slate-500" aria-hidden="true" /> : null}
+        {day.completed ? <CheckCircle2 size={16} className="text-emerald-300" aria-label="Completed" /> : !day.unlocked ? <Lock size={14} className="text-slate-400" aria-hidden="true" /> : null}
       </div>
       {day.unlocked ? (
         <>
           <h2 className="mt-2 font-semibold text-white">{day.title.replace(/^Day \d+: /, "")}</h2>
           <p className="mt-2 flex-1 text-sm text-slate-400">{day.summary}</p>
-          <p className="mt-3 text-xs text-slate-500">{day.pointsEarned} / {day.totalPoints} pts</p>
+          <p className="mt-3 text-xs text-slate-400">{day.pointsEarned} / {day.totalPoints} pts</p>
         </>
       ) : (
         <p className="mt-2 text-sm text-slate-400">Unlocks {dateLabel(day.unlocksAt)}</p>
@@ -70,12 +70,12 @@ export function EventPage() {
               <ol className="mt-4 space-y-2">
                 {leaderboard.map((row) => (
                   <li key={row.rank} className={`flex items-center justify-between rounded-2xl px-3 py-2 text-sm ${row.isMe ? "bg-sky-400/10 text-sky-100" : "text-slate-200"}`}>
-                    <span><span className="mr-2 font-mono text-xs text-slate-500">{row.rank}</span>{row.name}</span>
+                    <span><span className="mr-2 font-mono text-xs text-slate-400">{row.rank}</span>{row.name}</span>
                     <span className="font-mono text-xs">{row.points} pts</span>
                   </li>
                 ))}
               </ol>
-            ) : <p className="mt-4 text-sm text-slate-500">No solves yet.</p>}
+            ) : <p className="mt-4 text-sm text-slate-400">No solves yet.</p>}
           </Card>
         </div>
       </div>

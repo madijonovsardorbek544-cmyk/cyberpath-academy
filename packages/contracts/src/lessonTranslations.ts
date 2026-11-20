@@ -25,6 +25,8 @@ export function resolveContentLocale(value: unknown): ContentLocale {
 
 /** Returns the lesson in the requested language when a translation exists, plus which language was served. */
 export function localizeLesson<T extends TranslatableLesson>(lesson: T, locale: ContentLocale): T & { contentLocale: ContentLocale } {
+  // The Uzbek cohort lessons are written in Uzbek and have no English version.
+  if (lesson.slug.startsWith('uz-cohort-')) return { ...lesson, contentLocale: 'uz' };
   const translation = locale === 'en' ? undefined : lessonTranslations[locale][lesson.slug];
   return translation ? { ...lesson, ...translation, contentLocale: locale } : { ...lesson, contentLocale: 'en' };
 }

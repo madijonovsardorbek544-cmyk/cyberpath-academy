@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Award, Flame, Lock, Snowflake, Trophy } from 'lucide-react';
-import { api } from '../api/client';
+import { api, isMockApiMode } from '../api/client';
 import { AppShell } from '../components/AppShell';
 import { Badge, Card, ErrorState, Loader, SectionTitle } from '../components/ui';
 import type { LearnerProgress } from '../types';
 import { ProfileSettingsCard } from '../components/progress/ProfileSettingsCard';
+import { DeleteAccountCard } from '../components/progress/DeleteAccountCard';
 
 function daysLeft(weekEnds: string) {
   const ms = new Date(`${weekEnds}T00:00:00Z`).getTime() - Date.now();
@@ -72,7 +73,7 @@ export function ProgressPage() {
                   return (
                     <li key={`${member.rank}-${member.name}`} className={`flex items-center justify-between rounded-2xl px-3 py-2 text-sm ${member.isMe ? 'bg-sky-400/15 text-sky-100' : 'text-slate-200'}`}>
                       <span className="flex items-center gap-3">
-                        <span className={`w-6 text-right font-mono ${zone === 'up' ? 'text-emerald-300' : zone === 'down' ? 'text-rose-300' : 'text-slate-500'}`}>{member.rank}</span>
+                        <span className={`w-6 text-right font-mono ${zone === 'up' ? 'text-emerald-300' : zone === 'down' ? 'text-rose-300' : 'text-slate-400'}`}>{member.rank}</span>
                         {member.name}{member.isMe ? ' (you)' : ''}
                       </span>
                       <span className="font-mono text-xs">{member.xp} XP</span>
@@ -91,7 +92,7 @@ export function ProgressPage() {
               <ul className="mt-3 space-y-2">
                 {recent.map((event) => (
                   <li key={`${event.at}-${event.label}`} className="flex items-start justify-between gap-3 text-sm">
-                    <span className="min-w-0 text-slate-300">{event.label}<span className="block text-xs text-slate-500">{new Date(event.at).toLocaleDateString()}</span></span>
+                    <span className="min-w-0 text-slate-300">{event.label}<span className="block text-xs text-slate-400">{new Date(event.at).toLocaleDateString()}</span></span>
                     <span className="shrink-0 font-mono text-xs text-sky-200">+{event.xp}</span>
                   </li>
                 ))}
@@ -101,6 +102,7 @@ export function ProgressPage() {
         </div>
 
         <ProfileSettingsCard />
+        {isMockApiMode ? null : <DeleteAccountCard />}
 
         <Card className="p-5">
           <h2 className="text-lg font-semibold text-white">Badges</h2>
@@ -108,11 +110,11 @@ export function ProgressPage() {
             {badges.map((badge) => (
               <li key={badge.id} className={`rounded-2xl border p-4 ${badge.earnedAt ? 'border-amber-300/40 bg-amber-300/5' : 'border-slate-800 opacity-70'}`}>
                 <p className="flex items-center gap-2 font-medium text-white">
-                  {badge.earnedAt ? <Award size={16} className="text-amber-300" aria-hidden="true" /> : <Lock size={14} className="text-slate-500" aria-hidden="true" />}
+                  {badge.earnedAt ? <Award size={16} className="text-amber-300" aria-hidden="true" /> : <Lock size={14} className="text-slate-400" aria-hidden="true" />}
                   {badge.name}
                 </p>
                 <p className="mt-1 text-xs text-slate-400">{badge.description}</p>
-                <p className="mt-2 text-[11px] text-slate-500">{badge.earnedAt ? `Earned ${new Date(badge.earnedAt).toLocaleDateString()}` : 'Not earned yet'}</p>
+                <p className="mt-2 text-[11px] text-slate-400">{badge.earnedAt ? `Earned ${new Date(badge.earnedAt).toLocaleDateString()}` : 'Not earned yet'}</p>
               </li>
             ))}
           </ul>

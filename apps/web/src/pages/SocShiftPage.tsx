@@ -143,7 +143,7 @@ export function SocShiftPage() {
                     return (
                       <li key={alert.id}>
                         <button onClick={() => setActiveId(alert.id)} aria-current={alert.id === active.id} className={`flex w-full items-start gap-3 rounded-2xl px-3 py-3 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 ${alert.id === active.id ? "bg-sky-400/10" : "hover:bg-slate-800/60"}`}>
-                          {complete ? <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-300" aria-label="Decided" /> : <CircleDot size={16} className="mt-0.5 shrink-0 text-slate-500" aria-label="Open" />}
+                          {complete ? <CheckCircle2 size={16} className="mt-0.5 shrink-0 text-emerald-300" aria-label="Decided" /> : <CircleDot size={16} className="mt-0.5 shrink-0 text-slate-400" aria-label="Open" />}
                           <span className="min-w-0">
                             <span className="block text-sm text-slate-100">{alert.title}</span>
                             <span className={`mt-1 inline-flex rounded-full border px-2 text-[11px] uppercase tracking-wide ${severityStyle[alert.siemSeverity]}`}>{alert.siemSeverity}</span>
@@ -163,7 +163,7 @@ export function SocShiftPage() {
                   <dl className="mt-4 grid gap-2 sm:grid-cols-2">
                     {Object.entries(active.entities).map(([label, value]) => (
                       <div key={label} className="min-w-0 rounded-2xl bg-slate-950/60 px-3 py-2">
-                        <dt className="text-[11px] uppercase tracking-wide text-slate-500">{label.replace(/_/g, " ")}</dt>
+                        <dt className="text-[11px] uppercase tracking-wide text-slate-400">{label.replace(/_/g, " ")}</dt>
                         <dd className="break-words font-mono text-sm text-slate-100">{value}</dd>
                       </div>
                     ))}

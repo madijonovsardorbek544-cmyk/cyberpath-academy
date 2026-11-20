@@ -55,7 +55,7 @@ export function VerifyCertificatePage() {
           </Card>
         ) : null}
         </div>
-        <p className="text-sm text-slate-500">The exam is a 3-hour practical: three evidence investigations plus a written incident report graded by a mentor. <Link to="/" className="text-sky-300">About CyberPath Academy</Link></p>
+        <p className="text-sm text-slate-400">The exam is a 3-hour practical: three evidence investigations plus a written incident report graded by a mentor. <Link to="/" className="text-sky-300">About CyberPath Academy</Link></p>
       </main>
     </div>
   );
