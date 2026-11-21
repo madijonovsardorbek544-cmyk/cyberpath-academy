@@ -407,6 +407,19 @@ router.post('/payments/:id/refund', (req: AuthenticatedRequest, res) => {
   return res.json({ payment: mapPayment(one<Record<string, unknown>>('SELECT * FROM payments WHERE id = ?', String(payment.id))) });
 });
 
+const applicationStatuses = ['new', 'contacted', 'invoiced', 'paid', 'declined'] as const;
+
+router.patch('/cohort-applications/:id', (req: AuthenticatedRequest, res) => {
+  const parsed = z.object({ status: z.enum(applicationStatuses) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid status.' });
+  const id = String(req.params.id);
+  const existing = one<Record<string, unknown> | null>('SELECT id FROM cohort_applications WHERE id = ?', id);
+  if (!existing) return res.status(404).json({ message: 'Application not found.' });
+  run('UPDATE cohort_applications SET status = ? WHERE id = ?', parsed.data.status, id);
+  createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'admin.cohort_application_status', targetType: 'cohort_application', targetId: id, metadata: { status: parsed.data.status } });
+  return res.json({ id, status: parsed.data.status });
+});
+
 router.get('/cohort-applications', (_req, res) => {
   const rows = many<Record<string, unknown>>('SELECT * FROM cohort_applications ORDER BY created_at DESC LIMIT 300');
   return res.json({

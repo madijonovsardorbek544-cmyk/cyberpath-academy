@@ -1,5 +1,9 @@
 # CyberPath Academy
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/madijonovsardorbek544-cmyk/cyberpath-academy)
+
+The real site runs on Render's free plan from `render.yaml`; setup steps are in [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#full-stack-on-render-free).
+
 [![Live Demo](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-0ea5e9?style=for-the-badge)](https://madijonovsardorbek544-cmyk.github.io/cyberpath-academy/)
 
 **Live Demo:** https://madijonovsardorbek544-cmyk.github.io/cyberpath-academy/

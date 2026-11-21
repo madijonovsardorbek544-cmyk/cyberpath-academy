@@ -35,7 +35,8 @@ jobs:
           git clone https://madijonov111:${{ secrets.HF_TOKEN }}@huggingface.co/spaces/madijonov111/cyberpath-academy ../hf_space
           
           # 4. Toza kodlarni u yerga o'tkazamiz
-          rsync -av --delete ../clean_project/ ../hf_space/
+          # Keep the Space's own .git: --delete would otherwise remove it and the push fails.
+          rsync -av --delete --exclude '.git' ../clean_project/ ../hf_space/
           
           # 5. Hugging Face ichiga kirib, faqat toza kodni yuklaymiz
           cd ../hf_space

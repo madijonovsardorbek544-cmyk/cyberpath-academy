@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Button, Card, ErrorMessage, FormField, Input, SectionTitle } from "../components/ui";
 import { isMockApiMode } from "../api/client";
@@ -10,7 +10,8 @@ const showDemoAccounts = isMockApiMode || import.meta.env.DEV;
 export function LoginPage() {
   const navigate = useNavigate();
   const { login, signup } = useAuth();
-  const [mode, setMode] = useState<"login" | "signup">("login");
+  const [searchParams] = useSearchParams();
+  const [mode, setMode] = useState<"login" | "signup">(searchParams.get("mode") === "signup" ? "signup" : "login");
   const [name, setName] = useState("");
   const [email, setEmail] = useState(showDemoAccounts ? "student@cyberpath.local" : "");
   const [password, setPassword] = useState(showDemoAccounts ? "Student123!" : "");

@@ -1,3 +1,4 @@
+import { COHORT, formatUzs } from '../cohort';
 import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BadgeCheck, BookOpen, Building2, ChartNoAxesCombined, ClipboardCheck, DollarSign, FileText, FlaskConical, Globe2, Lock, Shield, Users } from 'lucide-react';
@@ -104,6 +105,7 @@ export function LandingPage() {
               <Badge className="border-sky-400/20 bg-sky-400/10 text-sky-200">Oʻzbek tilida · Mentor bilan · Faqat himoya</Badge>
               <h1 className="max-w-3xl text-4xl font-semibold leading-tight text-white sm:text-5xl">Kiberxavfsizlikni noldan oʻrganing, oʻzbek tilida.</h1>
               <p className="max-w-2xl text-lg text-slate-300">6 haftalik onlayn kurs: jonli darslar, telefonda ham ishlaydigan amaliy mashqlar va har hafta mentor fikri. Barcha mashqlar oʻylab topilgan maʼlumotlarda bajariladi.</p>
+              <p className="text-sm font-medium text-sky-200">Birinchi guruh: {COHORT.startDate} · {formatUzs(COHORT.priceUzs)} soʻm · {COHORT.seats} oʻrin</p>
               <div className="flex flex-wrap gap-3">
                 <Link to="/kurs"><Button className="bg-sky-400 text-slate-950">Kurs haqida va ariza</Button></Link>
                 <Link to="/login"><Button className="border border-slate-700 bg-slate-900 text-white">Bepul darslarni boshlash</Button></Link>

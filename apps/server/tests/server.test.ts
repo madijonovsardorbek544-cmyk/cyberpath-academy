@@ -1441,7 +1441,15 @@ test('cohort applications: public form validates input and only admins can read 
     method: 'POST', headers: json, body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
   }));
   const list = await (await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: admin } })).json();
-  assert.ok(list.applications.some((item: any) => item.contact === '@dilnoza_test' && item.email === null));
+  const application = list.applications.find((item: any) => item.contact === '@dilnoza_test' && item.email === null);
+  assert.ok(application);
+  assert.equal(application.status, 'new');
+  const patch = (cookie: string, status: string) => fetch(`${server.baseUrl}/api/admin/cohort-applications/${application.id}`, { method: 'PATCH', headers: { ...json, cookie }, body: JSON.stringify({ status }) });
+  assert.equal((await patch(student, 'paid')).status, 403);
+  assert.equal((await patch(admin, 'vip')).status, 400);
+  assert.equal((await patch(admin, 'invoiced')).status, 200);
+  const after = await (await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: admin } })).json();
+  assert.equal(after.applications.find((item: any) => item.id === application.id).status, 'invoiced');
   await server.close();
 });
 
