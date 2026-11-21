@@ -6,6 +6,7 @@ import { AppShell } from '../components/AppShell';
 import { Badge, Button, Card, EmptyState, ErrorState, Loader, SectionTitle, StatCard } from '../components/ui';
 import type { Analytics, DashboardResponse, PracticeHub } from '../types';
 import { ProgressStrip } from '../components/progress/ProgressStrip';
+import { CohortPromoCard } from '../components/CohortPromoCard';
 
 type RecommendationCard = {
   id: string;
@@ -216,11 +217,11 @@ export function StudentDashboardPage() {
     <AppShell>
       <div className="space-y-8">
         <SectionTitle
-          eyebrow="Student command center"
-          title="Know your next move, your weak spots, and your proof of progress."
-          subtitle="Top learning products do not dump features on a page. They tell you exactly what matters now, why it matters, and what to do after that."
+          eyebrow="Dashboard"
+          title="Your next step, your weak spots and your progress"
         />
 
+        <CohortPromoCard />
         <ProgressStrip />
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <StatCard label="Lessons completed" value={dashboard.analytics.totalCompleted} hint={`${dashboard.analytics.completionRate}% of the mapped curriculum`} />
