@@ -1,14 +1,8 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api/client';
+import { COHORT, formatUzs } from '../cohort';
 import { Button, Card, FormField, Input, Select, Textarea } from '../components/ui';
-
-// Set these when the first group is scheduled; until then the page says they will be announced.
-const COHORT = {
-  priceUzs: null as number | null,
-  startDate: null as string | null,
-  seats: 15
-};
 
 const weeks = [
   ['1-hafta', 'Kiberxavfsizlik nima? Parollar, MFA va akkauntni himoya qilish'],
@@ -61,8 +55,8 @@ export function CohortPage() {
             Dasturlash yoki tarmoq boʻyicha oldindan bilim shart emas.
           </p>
           <dl className="grid gap-3 text-sm sm:grid-cols-3">
-            <div className="rounded-2xl border border-slate-800 p-4"><dt className="text-slate-400">Narx</dt><dd className="mt-1 font-medium text-white">{COHORT.priceUzs ? `${COHORT.priceUzs.toLocaleString('uz-UZ')} soʻm` : 'Ariza topshirganlarga yuboriladi'}</dd></div>
-            <div className="rounded-2xl border border-slate-800 p-4"><dt className="text-slate-400">Boshlanishi</dt><dd className="mt-1 font-medium text-white">{COHORT.startDate ?? 'Guruh yigʻilgach eʼlon qilinadi'}</dd></div>
+            <div className="rounded-2xl border border-slate-800 p-4"><dt className="text-slate-400">Narx</dt><dd className="mt-1 font-medium text-white">{formatUzs(COHORT.priceUzs)} soʻm</dd><dd className="mt-1 text-xs text-slate-400">yoki 2 qismda: {formatUzs(COHORT.installmentUzs)} soʻmdan</dd></div>
+            <div className="rounded-2xl border border-slate-800 p-4"><dt className="text-slate-400">Boshlanishi</dt><dd className="mt-1 font-medium text-white">{COHORT.startDate}</dd><dd className="mt-1 text-xs text-slate-400">Ariza: {COHORT.applyBy}</dd></div>
             <div className="rounded-2xl border border-slate-800 p-4"><dt className="text-slate-400">Guruhda</dt><dd className="mt-1 font-medium text-white">{COHORT.seats} kishigacha</dd></div>
           </dl>
           <a href="#ariza" className="inline-flex min-h-11 items-center rounded-2xl bg-sky-400 px-5 py-2 font-medium text-slate-950">Ariza topshirish</a>
@@ -92,15 +86,16 @@ export function CohortPage() {
           <h2 id="qoidalar" className="text-2xl font-semibold text-white">Muhim qoidalar</h2>
           <p>Kursda faqat himoyani oʻrganamiz. Begona saytlar, tarmoqlar yoki akkauntlarni "sinab koʻrish" taqiqlanadi.</p>
           <p>Toʻlov guruh tasdiqlangandan keyin Payme yoki Click hisob-fakturasi yoki bank oʻtkazmasi orqali qilinadi. Karta raqamingizni hech qachon soʻramaymiz.</p>
+          <p>Birinchi haftadan keyin kurs sizga toʻgʻri kelmasa, yozing: toʻlovingizni toʻliq qaytaramiz.</p>
           <p>16 yoshdan kichiklar faqat ota-ona yoki vasiy roziligi bilan qatnashadi.</p>
         </section>
 
         <Card className="p-6" >
           <section id="ariza" aria-labelledby="ariza-title">
             <h2 id="ariza-title" className="text-2xl font-semibold text-white">Ariza</h2>
-            <p className="mt-1 text-sm text-slate-400">Ariza bepul va hech qanday majburiyat yuklamaydi. Siz bilan bogʻlanib, narx, jadval va keyingi qadamlarni aytamiz.</p>
+            <p className="mt-1 text-sm text-slate-400">Ariza bepul va hech qanday majburiyat yuklamaydi. Siz bilan bogʻlanib, jadval va toʻlov tartibini aytamiz. Kutish vaqtida bepul akkaunt ochib, birinchi darslarni boshlashingiz mumkin.</p>
             {status === 'sent' ? (
-              <p role="status" className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-100">Rahmat! Arizangiz qabul qilindi. Tez orada siz koʻrsatgan raqam yoki Telegram orqali bogʻlanamiz.</p>
+              <p role="status" className="mt-5 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-100">Rahmat! Arizangiz qabul qilindi. Tez orada siz koʻrsatgan raqam yoki Telegram orqali bogʻlanamiz. Hozirdan boshlash uchun <Link to="/login?mode=signup" className="font-medium underline">bepul akkaunt oching</Link>.</p>
             ) : (
               <form className="mt-5 grid gap-4 sm:grid-cols-2" onSubmit={submit}>
                 <FormField id="c-name" label="Ismingiz"><Input id="c-name" required minLength={2} maxLength={80} autoComplete="name" value={form.name} onChange={set('name')} /></FormField>
