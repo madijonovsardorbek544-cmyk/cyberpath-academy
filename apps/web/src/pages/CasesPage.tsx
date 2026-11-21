@@ -52,7 +52,7 @@ export function CasesPage() {
                   </div>
                   <h2 className="mt-4 text-xl font-semibold text-white">{item.title}</h2>
                   <p className="mt-3 flex-1 text-sm text-slate-400">{item.summary}</p>
-                  <p className="mt-4 text-xs text-slate-500">{item.evidenceCount} evidence {item.evidenceCount === 1 ? "file" : "files"} · {item.questionCount} questions · ~{item.estimatedMinutes} min</p>
+                  <p className="mt-4 text-xs text-slate-400">{item.evidenceCount} evidence {item.evidenceCount === 1 ? "file" : "files"} · {item.questionCount} questions · ~{item.estimatedMinutes} min</p>
                   <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800" role="progressbar" aria-valuenow={percent} aria-valuemin={0} aria-valuemax={100} aria-label={`${item.title} progress`}>
                     <div className="h-full rounded-full bg-sky-400" style={{ width: `${percent}%` }} />
                   </div>

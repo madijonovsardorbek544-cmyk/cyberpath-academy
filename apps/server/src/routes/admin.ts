@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { labInputSchema as labSchema, labPatchSchema, lessonInputSchema as lessonSchema, lessonPatchSchema, userRolePatchSchema } from '@cyberpath/contracts';
 import { requireAuth, requireRole, type AuthenticatedRequest } from '../middleware/auth.js';
 import {
@@ -10,6 +11,7 @@ import {
   mapFeedback,
   mapLab,
   mapLesson,
+  mapPayment,
   mapPilotLead,
   mapUser,
   nowIso,
@@ -328,6 +330,99 @@ router.patch('/users/:id/role', (req: AuthenticatedRequest, res) => {
   createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'admin.user_role_updated', targetType: 'user', targetId: String(req.params.id), metadata: { role: parsed.data.role } });
   const user = mapUser(one<Record<string, unknown>>('SELECT * FROM users WHERE id = ?', String(req.params.id)));
   return res.json({ user });
+});
+
+const paymentSchema = z.object({
+  email: z.string().trim().email(),
+  planId: z.enum(['premium', 'school']),
+  amountUzs: z.number().int().min(0).max(100_000_000),
+  method: z.enum(['bank_transfer', 'payme_invoice', 'click_invoice', 'cash', 'other']),
+  reference: z.string().trim().max(120).optional().nullable(),
+  accessDays: z.number().int().min(1).max(366),
+  note: z.string().trim().max(500).optional().nullable()
+});
+
+router.get('/payments', (_req, res) => {
+  const rows = many<Record<string, unknown>>(
+    'SELECT p.*, u.email AS user_email, u.name AS user_name FROM payments p JOIN users u ON u.id = p.user_id ORDER BY p.created_at DESC LIMIT 200'
+  );
+  const payments = rows.map((row) => ({ ...mapPayment(row), userEmail: String(row.user_email), userName: String(row.user_name) }));
+  const paid = payments.filter((item) => item.status === 'paid');
+  return res.json({
+    payments,
+    totals: {
+      paidCount: paid.length,
+      paidUzs: paid.reduce((sum, item) => sum + item.amountUzs, 0),
+      refundedCount: payments.length - paid.length
+    }
+  });
+});
+
+// An admin confirms money actually arrived, then this grants access for accessDays (extending any open period).
+router.post('/payments', (req: AuthenticatedRequest, res) => {
+  const parsed = paymentSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Invalid payment.', errors: parsed.error.flatten() });
+  const user = one<Record<string, unknown> | null>('SELECT id FROM users WHERE email = ?', parsed.data.email.toLowerCase());
+  if (!user) return res.status(404).json({ message: 'No account uses that email.' });
+  const userId = String(user.id);
+  const now = nowIso();
+  const current = one<Record<string, unknown> | null>('SELECT * FROM subscriptions WHERE user_id = ?', userId);
+  const currentEnd = current?.current_period_end && ['active', 'trialing'].includes(String(current.status)) && String(current.plan_id) === parsed.data.planId
+    ? new Date(String(current.current_period_end)).getTime()
+    : 0;
+  const accessUntil = new Date(Math.max(Date.now(), currentEnd) + parsed.data.accessDays * 24 * 60 * 60 * 1000).toISOString();
+  const id = makeId();
+  run(
+    `INSERT INTO payments (id, user_id, plan_id, amount_uzs, method, reference, status, access_days, access_until, note, recorded_by, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, 'paid', ?, ?, ?, ?, ?)`,
+    id, userId, parsed.data.planId, parsed.data.amountUzs, parsed.data.method, parsed.data.reference ?? null,
+    parsed.data.accessDays, accessUntil, parsed.data.note ?? null, req.user!.userId, now
+  );
+  run(
+    `INSERT INTO subscriptions (id, user_id, plan_id, status, billing_cycle, current_period_end, created_at, updated_at)
+     VALUES (?, ?, ?, 'active', 'manual', ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET plan_id = excluded.plan_id, status = 'active', billing_cycle = 'manual',
+       current_period_end = excluded.current_period_end, updated_at = excluded.updated_at`,
+    makeId(), userId, parsed.data.planId, accessUntil, now, now
+  );
+  createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'billing.payment_recorded', targetType: 'payment', targetId: id, metadata: { userId, planId: parsed.data.planId, amountUzs: parsed.data.amountUzs, method: parsed.data.method, accessUntil } });
+  return res.status(201).json({ payment: mapPayment(one<Record<string, unknown>>('SELECT * FROM payments WHERE id = ?', id)) });
+});
+
+router.post('/payments/:id/refund', (req: AuthenticatedRequest, res) => {
+  const payment = one<Record<string, unknown> | null>('SELECT * FROM payments WHERE id = ?', String(req.params.id));
+  if (!payment) return res.status(404).json({ message: 'Payment not found.' });
+  if (String(payment.status) === 'refunded') return res.status(409).json({ message: 'This payment is already refunded.' });
+  const now = nowIso();
+  const userId = String(payment.user_id);
+  run("UPDATE payments SET status = 'refunded', refunded_at = ? WHERE id = ?", now, String(payment.id));
+  // Access falls back to the latest remaining paid period, or ends now.
+  const remaining = one<Record<string, unknown> | null>("SELECT * FROM payments WHERE user_id = ? AND status = 'paid' AND access_until > ? ORDER BY access_until DESC LIMIT 1", userId, now);
+  if (remaining) {
+    run("UPDATE subscriptions SET plan_id = ?, status = 'active', current_period_end = ?, updated_at = ? WHERE user_id = ?", String(remaining.plan_id), String(remaining.access_until), now, userId);
+  } else {
+    run("UPDATE subscriptions SET status = 'canceled', current_period_end = ?, updated_at = ? WHERE user_id = ?", now, now, userId);
+  }
+  createAuditLog({ actorUserId: req.user!.userId, actorRole: req.user!.role, action: 'billing.payment_refunded', targetType: 'payment', targetId: String(payment.id), metadata: { userId } });
+  return res.json({ payment: mapPayment(one<Record<string, unknown>>('SELECT * FROM payments WHERE id = ?', String(payment.id))) });
+});
+
+router.get('/cohort-applications', (_req, res) => {
+  const rows = many<Record<string, unknown>>('SELECT * FROM cohort_applications ORDER BY created_at DESC LIMIT 300');
+  return res.json({
+    applications: rows.map((row) => ({
+      id: String(row.id),
+      name: String(row.name),
+      contact: String(row.contact),
+      email: row.email ? String(row.email) : null,
+      ageGroup: String(row.age_group),
+      experience: String(row.experience),
+      goal: String(row.goal),
+      message: row.message ? String(row.message) : null,
+      status: String(row.status),
+      createdAt: String(row.created_at)
+    }))
+  });
 });
 
 router.get('/ops', (_req, res) => {

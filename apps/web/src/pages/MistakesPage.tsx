@@ -55,13 +55,13 @@ export function MistakesPage() {
             <Card className="p-5">
               <h3 className="text-lg font-semibold text-white">Generated review set</h3>
               <div className="mt-4 space-y-3">
-                {reviewQuiz?.length ? reviewQuiz.map((item) => <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><p className="font-medium text-white">{item.prompt}</p><p className="mt-2 text-sm text-slate-400">Explanation: {item.explanation}</p><p className="mt-2 text-xs text-slate-500">Correct answer: {JSON.stringify(item.correctAnswer)}</p><p className="mt-2 text-xs text-amber-200">Recovery action: {item.recoveryAction}</p></div>) : <p className="text-sm text-slate-400">Generate a review quiz from your highest-frequency mistakes.</p>}
+                {reviewQuiz?.length ? reviewQuiz.map((item) => <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><p className="font-medium text-white">{item.prompt}</p><p className="mt-2 text-sm text-slate-400">Explanation: {item.explanation}</p><p className="mt-2 text-xs text-slate-400">Correct answer: {JSON.stringify(item.correctAnswer)}</p><p className="mt-2 text-xs text-amber-200">Recovery action: {item.recoveryAction}</p></div>) : <p className="text-sm text-slate-400">Generate a review quiz from your highest-frequency mistakes.</p>}
               </div>
             </Card>
             <Card className="p-5">
               <h3 className="text-lg font-semibold text-white">Adaptive remediation plan</h3>
               <div className="mt-4 space-y-3">
-                {recommendations?.length ? recommendations.map((item) => <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex items-center justify-between gap-3"><p className="font-medium text-white">{item.title}</p><Badge>{item.priority}</Badge></div><p className="mt-2 text-sm text-slate-400">{item.reason}</p><p className="mt-2 text-xs text-slate-500">Action: {item.actionType} → {item.actionTarget}</p></div>) : <p className="text-sm text-slate-400">No remediation plan generated yet.</p>}
+                {recommendations?.length ? recommendations.map((item) => <div key={item.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4"><div className="flex items-center justify-between gap-3"><p className="font-medium text-white">{item.title}</p><Badge>{item.priority}</Badge></div><p className="mt-2 text-sm text-slate-400">{item.reason}</p><p className="mt-2 text-xs text-slate-400">Action: {item.actionType} → {item.actionTarget}</p></div>) : <p className="text-sm text-slate-400">No remediation plan generated yet.</p>}
               </div>
             </Card>
           </div>

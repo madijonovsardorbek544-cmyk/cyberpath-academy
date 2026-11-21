@@ -277,7 +277,9 @@ router.get('/lessons/:slug', (req: AuthenticatedRequest, res) => {
     return lockedResponse(res, 'lessons:all', 'This lesson is part of the Premium and School catalog. Start with the free beginner lessons or upgrade to continue.');
   }
   const progress = getLessonProgress(req.user!.userId, lesson.id);
-  const quizQuestions = many<Record<string, unknown>>('SELECT * FROM quiz_questions WHERE lesson_id = ? ORDER BY created_at ASC', lesson.id).map(({ answer: _answer, ...question }) => question);
+  const quizQuestions = many<Record<string, unknown>>('SELECT * FROM quiz_questions WHERE lesson_id = ? ORDER BY created_at ASC', lesson.id).map(mapQuestion)
+    // Answers and explanations come back only after submission, in the quiz review.
+    .map(({ answer: _answer, explanation: _explanation, ...question }) => question);
   const relatedTracks = many<Record<string, unknown>>(
     `SELECT st.* FROM specialization_tracks st
      JOIN track_lesson_links tll ON tll.track_id = st.id

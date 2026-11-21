@@ -36,7 +36,7 @@ export function PublicProfilePage() {
           <h1 className="text-3xl font-semibold text-white">{profile.name}</h1>
           {profile.headline ? <p className="text-lg text-slate-300">{profile.headline}</p> : null}
           {profile.openToWork ? <p className="inline-block rounded-full border border-emerald-400/40 px-3 py-1 text-xs font-medium text-emerald-200">Open to work</p> : null}
-          <p className="text-sm text-slate-500">@{profile.handle} · learning since {new Date(profile.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
+          <p className="text-sm text-slate-400">@{profile.handle} · learning since {new Date(profile.memberSince).toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</p>
         </header>
 
         <div className="grid gap-4 sm:grid-cols-3">
@@ -95,11 +95,11 @@ export function PublicProfilePage() {
         {profile.artifacts.length ? (
           <Card className="p-5">
             <h2 className="text-lg font-semibold text-white">Published portfolio work</h2>
-            <ul className="mt-3 space-y-2">{profile.artifacts.map((artifact) => <li key={artifact.shareId}><Link to={`/public/artifacts/${artifact.shareId}`} className="text-sm text-sky-300 hover:text-sky-200">{artifact.title}</Link> <span className="text-xs text-slate-500">{artifact.type}</span></li>)}</ul>
+            <ul className="mt-3 space-y-2">{profile.artifacts.map((artifact) => <li key={artifact.shareId}><Link to={`/public/artifacts/${artifact.shareId}`} className="text-sm text-sky-300 hover:text-sky-200">{artifact.title}</Link> <span className="text-xs text-slate-400">{artifact.type}</span></li>)}</ul>
           </Card>
         ) : null}
 
-        <p className="text-xs text-slate-500">CyberPath Academy teaches defensive security with fictional evidence. <Link to="/" className="text-sky-300">Start learning for free</Link>.</p>
+        <p className="text-xs text-slate-400">CyberPath Academy teaches defensive security with fictional evidence. <Link to="/" className="text-sky-300">Start learning for free</Link>.</p>
       </main>
     </div>
   );

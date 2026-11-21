@@ -746,7 +746,12 @@ test('lesson payload does not include quiz answers', async () => {
   assert.equal(res.status, 200);
   const { lesson } = await res.json();
   assert.ok(lesson.quizQuestions.length > 0);
-  for (const question of lesson.quizQuestions) assert.equal('answer' in question, false);
+  for (const question of lesson.quizQuestions) {
+    assert.equal('answer' in question, false);
+    assert.equal('explanation' in question, false);
+    // Options must arrive parsed; a JSON string crashed the lesson page.
+    if (question.type === 'multiple-choice') assert.ok(Array.isArray(question.options));
+  }
   await server.close();
 });
 
@@ -1354,5 +1359,139 @@ test('jobs: listings need mentor approval, safe apply links, and the talent list
   assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent?certified=1`)).json()).talent.length, 0);
   await patch({ openToWork: false });
   assert.equal((await (await fetch(`${server.baseUrl}/api/profile/talent`)).json()).talent.length, 0);
+  await server.close();
+});
+
+test('paid access: only admins record payments, access expires, refunds revoke, history is private', async () => {
+  const server = await startServer();
+  const json = { 'content-type': 'application/json', origin: 'http://localhost:5173' };
+  const signup = async (email: string) => cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Paying Learner', email, password: 'StrongPass1!' })
+  }));
+  const buyer = await signup('buyer@example.com');
+  const other = await signup('other-buyer@example.com');
+  const admin = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: json, body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
+  }));
+  const record = (cookie: string, body: object) => fetch(`${server.baseUrl}/api/admin/payments`, { method: 'POST', headers: { ...json, cookie }, body: JSON.stringify(body) });
+  const lockedLabs = async (cookie: string) => (await (await fetch(`${server.baseUrl}/api/learning/labs`, { headers: { cookie } })).json()).labs.filter((lab: any) => lab.locked).length;
+  const payment = { email: 'buyer@example.com', planId: 'premium', amountUzs: 99000, method: 'payme_invoice', reference: 'INV-1', accessDays: 30 };
+
+  // Students cannot grant themselves access, read the ledger, or refund.
+  assert.equal((await record(buyer, payment)).status, 403);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/payments`, { headers: { cookie: buyer } })).status, 403);
+  // Unauthenticated and invalid input.
+  assert.equal((await record('', payment)).status, 401);
+  assert.equal((await record(admin, { ...payment, amountUzs: -5 })).status, 400);
+  assert.equal((await record(admin, { ...payment, email: 'nobody@example.com' })).status, 404);
+
+  assert.ok(await lockedLabs(buyer) > 0);
+  const created = await record(admin, payment);
+  assert.equal(created.status, 201);
+  const paymentId = (await created.json()).payment.id;
+  assert.equal(await lockedLabs(buyer), 0);
+
+  // Each learner sees only their own purchase history.
+  const mine = await (await fetch(`${server.baseUrl}/api/platform/payments`, { headers: { cookie: buyer } })).json();
+  assert.equal(mine.payments.length, 1);
+  assert.equal(mine.payments[0].amountUzs, 99000);
+  const theirs = await (await fetch(`${server.baseUrl}/api/platform/payments`, { headers: { cookie: other } })).json();
+  assert.equal(theirs.payments.length, 0);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/payments/${paymentId}/refund`, { method: 'POST', headers: { ...json, cookie: buyer } })).status, 403);
+
+  // An expired period no longer unlocks premium content, even with status 'active'.
+  const buyerId = String((db.prepare('SELECT id FROM users WHERE email = ?').get('buyer@example.com') as any).id);
+  const end = (db.prepare('SELECT current_period_end FROM subscriptions WHERE user_id = ?').get(buyerId) as any).current_period_end;
+  db.prepare('UPDATE subscriptions SET current_period_end = ? WHERE user_id = ?').run(new Date(Date.now() - 1000).toISOString(), buyerId);
+  assert.ok(await lockedLabs(buyer) > 0);
+  db.prepare('UPDATE subscriptions SET current_period_end = ? WHERE user_id = ?').run(end, buyerId);
+  assert.equal(await lockedLabs(buyer), 0);
+
+  // Refund ends access; a second refund is rejected.
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/payments/${paymentId}/refund`, { method: 'POST', headers: { ...json, cookie: admin } })).status, 200);
+  assert.ok(await lockedLabs(buyer) > 0);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/payments/${paymentId}/refund`, { method: 'POST', headers: { ...json, cookie: admin } })).status, 409);
+  await server.close();
+});
+
+test('malformed JSON gets a 400, not a server error', async () => {
+  const server = await startServer();
+  const res = await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: { 'content-type': 'application/json', origin: 'http://localhost:5173' }, body: '{"email":'
+  });
+  assert.equal(res.status, 400);
+  await server.close();
+});
+
+test('cohort applications: public form validates input and only admins can read them', async () => {
+  const server = await startServer();
+  const json = { 'content-type': 'application/json', origin: 'http://localhost:5173' };
+  const apply = (body: object) => fetch(`${server.baseUrl}/api/platform/cohort-applications`, { method: 'POST', headers: json, body: JSON.stringify(body) });
+  const valid = { name: 'Dilnoza', contact: '@dilnoza_test', email: '', ageGroup: '18_24', experience: 'none', goal: 'career', message: 'Kechqurun qatnasha olaman.' };
+  assert.equal((await apply(valid)).status, 201);
+  assert.equal((await apply({ ...valid, ageGroup: 'adult' })).status, 400);
+  assert.equal((await apply({ ...valid, contact: '' })).status, 400);
+
+  const student = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Curious Student', email: 'curious@example.com', password: 'StrongPass1!' })
+  }));
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: student } })).status, 403);
+  assert.equal((await fetch(`${server.baseUrl}/api/admin/cohort-applications`)).status, 401);
+  const admin = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/login`, {
+    method: 'POST', headers: json, body: JSON.stringify({ email: 'admin@cyberpath.local', password: 'Admin123!' })
+  }));
+  const list = await (await fetch(`${server.baseUrl}/api/admin/cohort-applications`, { headers: { cookie: admin } })).json();
+  assert.ok(list.applications.some((item: any) => item.contact === '@dilnoza_test' && item.email === null));
+  await server.close();
+});
+
+test('Uzbek cohort lessons parse into 8 graded questions each', async () => {
+  const { parseCourseLesson } = await import('../src/utils/courseMarkdown.ts');
+  const courseDir = path.resolve(serverRoot, '../../docs/course-uz');
+  const files = fs.readdirSync(courseDir).filter((file) => /^(0[1-9]|1\d)-.+\.md$/.test(file));
+  assert.equal(files.length, 12);
+  for (const file of files) {
+    const lesson = parseCourseLesson(fs.readFileSync(path.join(courseDir, file), 'utf8'), file);
+    assert.equal(lesson.questions.length, 8, file);
+    assert.ok(lesson.objectives.length >= 3, file);
+    assert.ok(!lesson.content.includes('Bilimni tekshirish'), `${file} leaks quiz answers into content`);
+    for (const question of lesson.questions) {
+      if (question.type === 'true-false') assert.equal(typeof question.answer, 'boolean');
+      else assert.equal(question.options.filter((option) => option.id === question.answer).length, 1, question.id);
+    }
+  }
+});
+
+test('learners can delete their own account; staff and paying accounts go through support', async () => {
+  const server = await startServer();
+  const json = { 'content-type': 'application/json', origin: 'http://localhost:5173' };
+  const signup = await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Leaving Learner', email: 'leaving@example.com', password: 'StrongPass1!' })
+  });
+  const cookie = cookieHeaderFrom(signup);
+  const userId = (await signup.json()).user.id;
+  const remove = (who: string, body: object) => fetch(`${server.baseUrl}/api/auth/delete-account`, { method: 'POST', headers: { ...json, cookie: who }, body: JSON.stringify(body) });
+
+  assert.equal((await remove(cookie, { password: 'StrongPass1!' })).status, 400);
+  assert.equal((await remove(cookie, { password: 'wrong-password', confirm: 'DELETE' })).status, 401);
+  const done = await remove(cookie, { password: 'StrongPass1!', confirm: 'DELETE' });
+  assert.equal(done.status, 200);
+  assert.equal((await fetch(`${server.baseUrl}/api/auth/me`, { headers: { cookie } })).status, 401);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM users WHERE id = ?').get(userId)!.n, 0);
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM email_outbox WHERE to_email = ?').get('leaving@example.com')!.n, 0);
+  const login = await fetch(`${server.baseUrl}/api/auth/login`, { method: 'POST', headers: json, body: JSON.stringify({ email: 'leaving@example.com', password: 'StrongPass1!' }) });
+  assert.equal(login.status, 401);
+
+  const admin = await loginAs(server.baseUrl, 'admin@cyberpath.local', 'Admin123!');
+  assert.equal((await remove(admin, { password: 'Admin123!', confirm: 'DELETE' })).status, 409);
+
+  const payer = cookieHeaderFrom(await fetch(`${server.baseUrl}/api/auth/signup`, {
+    method: 'POST', headers: json, body: JSON.stringify({ name: 'Paid Learner', email: 'paid-leaver@example.com', password: 'StrongPass1!' })
+  }));
+  await fetch(`${server.baseUrl}/api/admin/payments`, {
+    method: 'POST', headers: { ...json, cookie: admin },
+    body: JSON.stringify({ email: 'paid-leaver@example.com', planId: 'premium', amountUzs: 1000, method: 'cash', accessDays: 30 })
+  });
+  assert.equal((await remove(payer, { password: 'StrongPass1!', confirm: 'DELETE' })).status, 409);
   await server.close();
 });

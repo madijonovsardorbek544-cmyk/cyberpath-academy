@@ -245,6 +245,36 @@ router.post('/sessions/revoke-all', requireAuth, (req: AuthenticatedRequest, res
   return res.json({ message: 'All sessions revoked.' });
 });
 
+const deleteAccountSchema = z.object({ password: z.string().min(1).max(200), confirm: z.literal('DELETE') });
+
+// Self-service deletion for learners. Rows tied to the user cascade (progress, submissions, sessions, posts).
+// Mentors, admins and anyone with a recorded payment go through support: cohorts and payment records must not vanish silently.
+router.post('/delete-account', requireAuth, authLimiter, async (req: AuthenticatedRequest, res) => {
+  const parsed = deleteAccountSchema.safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ message: 'Enter your password and type DELETE to confirm.' });
+
+  const userRow = one<Record<string, unknown> | null>('SELECT * FROM users WHERE id = ?', req.user!.userId);
+  if (!userRow || !(await comparePassword(parsed.data.password, String(userRow.password_hash)))) {
+    return res.status(401).json({ message: 'Password is incorrect.' });
+  }
+  if (userRow.role !== 'student') {
+    return res.status(409).json({ message: 'Mentor and admin accounts are deleted by an administrator so cohorts are handed over first.' });
+  }
+  if (one<Record<string, unknown> | null>('SELECT id FROM payments WHERE user_id = ? LIMIT 1', req.user!.userId)) {
+    return res.status(409).json({ message: 'This account has payment records. Contact support and we will delete it and keep only what tax rules require.' });
+  }
+
+  const userId = req.user!.userId;
+  const email = String(userRow.email);
+  run('DELETE FROM email_outbox WHERE user_id = ? OR to_email = ?', userId, email);
+  run('UPDATE platform_feedback SET email = NULL WHERE user_id = ? OR email = ?', userId, email);
+  run('DELETE FROM users WHERE id = ?', userId);
+  createAuditLog({ actorRole: 'student', action: 'auth.account_deleted', targetType: 'user', targetId: userId });
+
+  res.clearCookie('cyberpath_session', { httpOnly: true, sameSite: 'lax', secure: env.cookieSecure, path: '/' });
+  return res.json({ message: 'Your account and learning data have been deleted.' });
+});
+
 router.get('/me', requireAuth, (req: AuthenticatedRequest, res) => {
   const user = mapUser(one<Record<string, unknown> | null>('SELECT * FROM users WHERE id = ?', req.user!.userId));
   return res.json({ user });

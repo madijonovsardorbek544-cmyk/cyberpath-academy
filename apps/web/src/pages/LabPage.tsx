@@ -125,7 +125,7 @@ export function LabPage() {
           <Card className="p-5">
             <h3 className="text-lg font-semibold text-white">Scenario briefing</h3>
             <p className="mt-2 text-sm text-slate-300">{lab.scenarioBriefing || lab.description}</p>
-            <p className="mt-3 text-xs text-slate-500">Dataset: {lab.fictionalDatasetLabel || 'Fictional toy dataset'}</p>
+            <p className="mt-3 text-xs text-slate-400">Dataset: {lab.fictionalDatasetLabel || 'Fictional toy dataset'}</p>
           </Card>
           <Card className="p-5">
             <h3 className="text-lg font-semibold text-white">Evidence checklist and rubric</h3>

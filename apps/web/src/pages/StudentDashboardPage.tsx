@@ -242,7 +242,7 @@ export function StudentDashboardPage() {
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                 <p className="text-sm text-slate-400">Next best skill</p>
                 <p className="mt-2 font-medium text-white">{dashboard.masterySummary.recommendedNextSkill?.title ?? 'Start Cyber Foundations'}</p>
-                <p className="mt-2 text-xs text-slate-500">Chosen from prerequisites, stale reviews, and low mastery.</p>
+                <p className="mt-2 text-xs text-slate-400">Chosen from prerequisites, stale reviews, and low mastery.</p>
               </div>
               <div className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                 <p className="text-sm text-slate-400">Weakest skills</p>
@@ -295,7 +295,7 @@ export function StudentDashboardPage() {
             <div className="mt-6 grid gap-3 md:grid-cols-3">
               {nextMoves.map((item) => (
                 <Link key={item.id} to={item.href} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4 transition hover:border-sky-400/40 hover:bg-slate-950">
-                  <p className="text-xs uppercase tracking-[0.25em] text-slate-500">Priority move</p>
+                  <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Priority move</p>
                   <p className="mt-2 font-medium text-white">{item.title}</p>
                   <p className="mt-2 text-sm text-slate-400">{item.copy}</p>
                   <p className="mt-4 text-sm text-sky-300">{item.label}</p>
@@ -383,7 +383,7 @@ export function StudentDashboardPage() {
                     <Badge className={item.priority === 'high' ? 'border-rose-400/40 text-rose-200' : item.priority === 'medium' ? 'border-amber-400/40 text-amber-200' : ''}>{item.priority} priority</Badge>
                   </div>
                   <p className="mt-2 text-sm text-slate-400">{item.reason}</p>
-                  <p className="mt-2 text-xs text-slate-500">Action: {item.actionType} → {item.actionTarget}</p>
+                  <p className="mt-2 text-xs text-slate-400">Action: {item.actionType} → {item.actionTarget}</p>
                 </div>
               )) : <EmptyState title="No adaptive recommendations yet" description="Complete more lessons and quizzes so the platform has enough signal to guide you precisely." />}
             </div>
@@ -468,7 +468,7 @@ export function StudentDashboardPage() {
                 <div key={certificate.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
                   <p className="font-medium text-white">{certificate.title}</p>
                   <p className="mt-1 text-sm text-slate-400">Issued: {certificate.issuedAt ? new Date(certificate.issuedAt).toLocaleDateString() : 'Pending issuance'}</p>
-                  <p className="mt-2 text-xs text-slate-500">Criteria: {certificate.criteria?.score ?? 0}% mastery · {certificate.criteria?.completionRate ?? 0}% completion · {certificate.criteria?.quizAverage ?? 0}% quiz average</p>
+                  <p className="mt-2 text-xs text-slate-400">Criteria: {certificate.criteria?.score ?? 0}% mastery · {certificate.criteria?.completionRate ?? 0}% completion · {certificate.criteria?.quizAverage ?? 0}% quiz average</p>
                 </div>
               )) : <EmptyState title="No certificates yet" description="That is normal. Earn them through completed work, cleaner quiz performance, and stronger mastery." />}
               <div className="space-y-3 pt-2">

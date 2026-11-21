@@ -82,7 +82,7 @@ export function TeamPage() {
                 <tbody>
                   {members.map((member) => (
                     <tr key={member.id} className="border-t border-slate-800 text-slate-200">
-                      <td className="py-2 pr-3"><span className="block">{member.name}</span><span className="text-xs text-slate-500">{member.email}</span></td>
+                      <td className="py-2 pr-3"><span className="block">{member.name}</span><span className="text-xs text-slate-400">{member.email}</span></td>
                       <td className="pr-3">{member.lessonsCompleted}</td>
                       <td className="pr-3">{member.casesClosed}</td>
                       <td className="pr-3">{member.xp}</td>

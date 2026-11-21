@@ -33,7 +33,7 @@ export function SocPage() {
                 <div className="flex flex-wrap gap-2"><Badge>{shift.difficulty}</Badge><Badge>{shift.alertCount} alerts</Badge><Badge>~{shift.estimatedMinutes} min</Badge></div>
                 <h2 className="mt-4 text-xl font-semibold text-white">{shift.title}</h2>
                 <p className="mt-3 flex-1 text-sm text-slate-400">{shift.summary}</p>
-                <p className="mt-4 text-xs text-slate-500">
+                <p className="mt-4 text-xs text-slate-400">
                   {shift.attempts ? `Best score ${shift.bestScore} / ${shift.maxScore} · ${shift.attempts} ${shift.attempts === 1 ? "shift" : "shifts"} worked` : "Not started yet"}
                 </p>
               </Card>

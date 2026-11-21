@@ -40,7 +40,7 @@ export const planCatalog = [
     features: ['All lessons', 'All labs', 'Guided tutor', 'Certificates', 'Guided projects', 'Portfolio publishing', 'Full analytics'],
     entitlements: ['lessons:all', 'labs:all', 'tutor:guided', 'certificates:claim', 'projects:guided', 'portfolio:publish', 'analytics:full'] as Entitlement[],
     starterLimits: { lessons: Number.POSITIVE_INFINITY, labs: Number.POSITIVE_INFINITY },
-    paymentMethods: ['Payme (Uzcard/Humo via tokenized checkout)', 'International card via Stripe Checkout']
+    paymentMethods: ['Payme or Click invoice, or bank transfer, confirmed by the CyberPath team']
   },
   {
     id: 'school' as const,
@@ -53,7 +53,7 @@ export const planCatalog = [
     features: ['Everything in Premium', 'Cohort dashboard', 'Mentor assignments', 'Student reports', 'CSV export', 'Portfolio review', 'School analytics', 'Pilot support'],
     entitlements: ['lessons:all', 'labs:all', 'tutor:guided', 'certificates:claim', 'projects:guided', 'portfolio:publish', 'analytics:full', 'cohorts:manage', 'reports:export'] as Entitlement[],
     starterLimits: { lessons: Number.POSITIVE_INFINITY, labs: Number.POSITIVE_INFINITY },
-    paymentMethods: ['Founder-led demo invoice only until a real provider is configured']
+    paymentMethods: ['Invoice and written agreement']
   }
 ] as const;
 
@@ -64,7 +64,9 @@ export function isActiveSubscription(status: string) {
 export function getUserPlan(userId: string): { planId: PlanId; status: string; entitlements: Entitlement[] } {
   const row = one<Record<string, unknown> | null>('SELECT * FROM subscriptions WHERE user_id = ?', userId);
   const subscription = mapSubscription(row);
-  const planId = (subscription?.planId === 'premium' || subscription?.planId === 'school') && isActiveSubscription(subscription.status)
+  // A paid or trial period ends at current_period_end; without this check, access never expired.
+  const periodOpen = !subscription?.currentPeriodEnd || new Date(subscription.currentPeriodEnd) > new Date();
+  const planId = (subscription?.planId === 'premium' || subscription?.planId === 'school') && isActiveSubscription(subscription.status) && periodOpen
     ? subscription.planId as PlanId
     : 'free';
   const plan = planCatalog.find((item) => item.id === planId) ?? planCatalog[0];
