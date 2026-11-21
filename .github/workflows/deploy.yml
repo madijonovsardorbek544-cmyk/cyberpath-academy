@@ -40,6 +40,8 @@ jobs:
           
           # 5. Hugging Face ichiga kirib, faqat toza kodni yuklaymiz
           cd ../hf_space
+          # Spaces read their config from README front matter; without it the Space stops with CONFIG_ERROR.
+          printf -- '---\ntitle: CyberPath Academy\nemoji: 🛡️\ncolorFrom: blue\ncolorTo: indigo\nsdk: docker\napp_port: 7860\npinned: false\n---\n\n' | cat - README.md > README.hf && mv README.hf README.md
           git add .
           git commit -m "deploy: clean production build without binaries" || true
           git push origin main
